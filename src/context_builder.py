@@ -306,3 +306,30 @@ def _ctx_refine_changelog(
     if feedback:
         ctx["architect_feedback"] = feedback
     return ctx
+
+
+def build_baseline_context(root: Path) -> dict[str, str]:
+    """Assemble context for baseline-synthesis.prompt.
+
+    Per the prompt definition, reads latest working versions of:
+    - repo-understanding
+    - knowledge-confidence
+    - domain-candidates
+    - review-summary
+
+    No repository source files are read.
+    """
+    ctx: dict[str, str] = {}
+    understanding = _read_latest_working_artifact(root, "discovery", "repo-understanding")
+    if understanding:
+        ctx["repo_understanding"] = understanding
+    confidence = _read_latest_working_artifact(root, "discovery", "knowledge-confidence")
+    if confidence:
+        ctx["knowledge_confidence"] = confidence
+    domains = _read_latest_working_artifact(root, "discovery", "domain-candidates")
+    if domains:
+        ctx["domain_candidates"] = domains
+    summary = _read_latest_working_artifact(root, "review", "review-summary")
+    if summary:
+        ctx["review_summary"] = summary
+    return ctx

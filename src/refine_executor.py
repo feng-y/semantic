@@ -587,14 +587,18 @@ def parse_baseline_output(content: str) -> dict[str, str]:
 
     Expected headings: ## Purpose, ## Domains, ## Concepts, ## Pipelines.
     Returns dict mapping section name to content.
+    Duplicate headings cause the section to be omitted (treated as invalid).
     """
     section_pattern = re.compile(r"^##\s+(Purpose|Domains|Concepts|Pipelines)\s*$", re.IGNORECASE)
     sections: dict[str, str] = {}
+    duplicates: set[str] = set()
     current_name: str | None = None
     current_lines: list[str] = []
 
     def _flush():
         if current_name is not None:
+            if current_name in sections:
+                duplicates.add(current_name)
             sections[current_name] = "\n".join(current_lines).strip()
 
     for line in content.splitlines():
@@ -607,6 +611,11 @@ def parse_baseline_output(content: str) -> dict[str, str]:
             current_lines.append(line)
 
     _flush()
+
+    # Remove duplicated sections — they indicate malformed output
+    for name in duplicates:
+        del sections[name]
+
     return sections
 
 

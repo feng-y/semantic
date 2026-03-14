@@ -13,4 +13,4 @@ Accepted Parts
 - Item
 
 Acceptance
-- acceptance: semantic baseline accepted
+- acceptance: true

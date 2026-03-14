@@ -1,16 +1,16 @@
-# Semantic Change Log
+# Change Log
 
 ## Added
-- new corrections
+- corrections
 
 ## Updated
-- repo-understanding patched
+- understanding
 
 ## Removed
 (none)
 
 ## Architect-confirmed
-- existing evidence
+- evidence
 
 ## Remaining Open Questions
 - none
