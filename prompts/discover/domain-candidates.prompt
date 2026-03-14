@@ -1,0 +1,14 @@
+Goal:
+Produce lightweight candidate domains from repository structure.
+
+Input:
+- repo-facts
+- repo-understanding draft if available
+
+Output:
+Candidate domains to be merged into repo-understanding and review-summary.
+
+Rules:
+- domains are lightweight capability groupings only
+- do not produce a full domain map
+- examples: ranking, feature pipeline, inference pipeline, data fetch

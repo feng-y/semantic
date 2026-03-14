@@ -1,0 +1,11 @@
+Goal:
+Validate artifact against schema.
+
+Checks:
+- required fields exist
+- evidence exists
+- confidence exists where required
+- field names match schema
+
+If invalid:
+return validation failure and do not replace the last valid artifact

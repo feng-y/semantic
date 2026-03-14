@@ -1,0 +1,22 @@
+name: semantic-refinement
+
+purpose: >
+  Refine versioned semantic artifacts using architect feedback
+  and produce change log.
+
+inputs:
+  - latest versioned discovery artifacts
+  - docs/semantic/review/architect-feedback.md
+
+steps:
+  - run: prompts/refine/semantic-refine.patch.prompt
+  - run: prompts/refine/semantic-change-log.prompt
+  - run: prompts/validation/validate-artifact.prompt
+  - apply: protocols/artifact-versioning.md
+  - if: architect acceptance detected
+    run: prompts/refine/baseline-synthesis.prompt
+
+outputs:
+  - updated versioned discovery artifacts
+  - semantic-change-log.md
+  - accepted baseline artifacts if accepted

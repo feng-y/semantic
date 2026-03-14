@@ -1,0 +1,16 @@
+Goal:
+Interpret repository facts into semantic understanding.
+
+Inputs:
+- latest versioned repo-facts artifact
+- sampled repository working set
+- candidate domains
+
+Output must follow:
+docs/semantic/schemas/repo-understanding.schema.md
+
+Rules:
+- every semantic statement requires evidence
+- confidence is mandatory
+- distinguish confirmed vs inferred vs uncertain
+- include candidate domains as lightweight semantic guidance

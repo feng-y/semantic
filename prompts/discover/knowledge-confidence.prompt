@@ -1,0 +1,8 @@
+Goal:
+Assess confidence of current semantic understanding.
+
+Input:
+- latest versioned repo-understanding artifact
+
+Output must follow:
+docs/semantic/schemas/knowledge-confidence.schema.md

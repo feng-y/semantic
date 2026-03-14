@@ -1,0 +1,13 @@
+Goal:
+Strengthen evidence for discovered semantic facts.
+
+For every major fact or semantic inference, attach:
+- file
+- symbol or section
+- line range if available
+
+Example:
+Evidence:
+file: feature_extractor.cpp
+symbol: ExtractFeatures
+line: 120-180

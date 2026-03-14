@@ -1,0 +1,15 @@
+Goal:
+Extract observable repository facts from the sampled working set.
+
+Input:
+- sampling-report.md
+- sampled repository working set
+
+Output must follow:
+docs/semantic/schemas/repo-facts.schema.md
+
+Rules:
+- only observable facts
+- every item must include evidence
+- do not infer system purpose
+- do not generate baseline content

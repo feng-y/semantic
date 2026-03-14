@@ -1,0 +1,18 @@
+Goal:
+Generate architect review entrypoint.
+
+Inputs:
+- repo-facts
+- repo-understanding
+- knowledge-confidence
+
+Include:
+- system summary
+- main pipelines
+- core concepts
+- candidate domains
+- assumptions
+- questions for architect
+
+Output must follow:
+docs/semantic/schemas/review-summary.schema.md

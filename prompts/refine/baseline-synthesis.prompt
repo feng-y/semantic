@@ -1,0 +1,18 @@
+Goal:
+Generate accepted semantic baseline.
+
+Inputs:
+- latest versioned repo-understanding artifact
+- latest versioned knowledge-confidence artifact
+- docs/semantic/review/architect-feedback.md
+
+Outputs must follow:
+- docs/semantic/schemas/purpose.schema.md
+- docs/semantic/schemas/domains.schema.md
+- docs/semantic/schemas/concepts.schema.md
+- docs/semantic/schemas/pipelines.schema.md
+
+Rules:
+- only run after architect acceptance
+- domains must remain lightweight
+- baseline must reflect architect-approved understanding

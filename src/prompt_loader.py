@@ -1,0 +1,79 @@
+"""Prompt loader — reads .prompt files and returns structured content."""
+
+from __future__ import annotations
+
+import re
+from pathlib import Path
+from typing import Any
+
+
+def load_prompt(prompt_path: str | Path) -> dict[str, Any]:
+    """Parse a .prompt file into structured sections.
+
+    Prompt files have a simple structure:
+      SectionName:
+      - item
+      - item
+    or:
+      SectionName:
+      free text
+
+    Returns dict with 'goal', 'inputs', 'output', and other sections.
+    """
+    path = Path(prompt_path)
+    if not path.exists():
+        raise FileNotFoundError(f"Prompt file not found: {path}")
+
+    text = path.read_text()
+    prompt: dict[str, Any] = {"_path": str(path), "_raw": text}
+
+    current_section: str | None = None
+    current_items: list[str] = []
+    current_text: list[str] = []
+
+    def _flush():
+        if current_section is None:
+            return
+        key = _normalize_key(current_section)
+        if current_items:
+            prompt[key] = current_items[:]
+        elif current_text:
+            prompt[key] = "\n".join(current_text).strip()
+
+    for raw_line in text.splitlines():
+        # Section header: "SectionName:" at start of line
+        header_match = re.match(r"^([A-Za-z][\w\s]*):$", raw_line.rstrip())
+        if header_match:
+            _flush()
+            current_section = header_match.group(1)
+            current_items = []
+            current_text = []
+            continue
+
+        # List item
+        item_match = re.match(r"^- (.+)", raw_line)
+        if item_match and current_section:
+            current_items.append(item_match.group(1).strip())
+            continue
+
+        # Free text continuation
+        if current_section and raw_line.strip():
+            current_text.append(raw_line)
+
+    _flush()
+    return prompt
+
+
+def _normalize_key(section_name: str) -> str:
+    """Convert 'Section Name' to 'section_name'."""
+    return re.sub(r"\s+", "_", section_name.strip().lower())
+
+
+def resolve_prompt_path(prompt_ref: str, root: str | Path) -> Path:
+    """Resolve a prompt reference (from a skill step) to an absolute path."""
+    return Path(root) / prompt_ref
+
+
+def load_prompt_chain(prompt_refs: list[str], root: str | Path) -> list[dict[str, Any]]:
+    """Load a sequence of prompts from a list of path references."""
+    return [load_prompt(resolve_prompt_path(ref, root)) for ref in prompt_refs]

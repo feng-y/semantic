@@ -1,0 +1,33 @@
+Goal:
+Create a visible repository working set for discovery.
+
+Inputs:
+- repository root
+- sampling mode: auto | confirm
+- optional timeout
+
+Sampling strategy:
+1. include build files and workspace files
+2. include service entrypoints (main, rpc, http, worker)
+3. include top-level modules
+4. include runtime core modules
+5. include graph / pipeline scheduler files if present
+6. exclude obviously irrelevant generated directories
+
+Output:
+docs/semantic/discovery/sampling-report.md
+
+Required sections:
+- Sampling Mode
+- Selected Areas
+- Selected Files
+- Selection Rationale
+- Likely Blind Spots
+- Suggested Expansions
+
+Mode behavior:
+- auto: emit sampling report and continue discovery automatically
+- confirm: emit sampling report and wait for architect confirmation before continuing
+
+Timeout behavior:
+- if auto sampling exceeds timeout, stop automatic continuation and switch to confirmation mode

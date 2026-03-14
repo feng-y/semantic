@@ -1,0 +1,14 @@
+Goal:
+Produce a semantic change log for the latest refine step.
+
+Output:
+docs/semantic/review/semantic-change-log.md
+
+Format:
+- Added
+- Updated
+- Removed
+- Architect-confirmed
+- Remaining Open Questions
+
+In v1, Removed should normally be empty.
