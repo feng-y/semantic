@@ -96,6 +96,39 @@ def get_latest_version_path(root: str | Path, category: str, name: str) -> Path 
     return None
 
 
+def get_latest_valid_version_path(
+    root: str | Path,
+    category: str,
+    name: str,
+    validate_fn: Any,
+) -> Path | None:
+    """Get the path to the latest structurally valid versioned artifact.
+
+    Walks backwards from the highest version, skipping empty files and
+    files that fail the provided validator. Returns the first valid path,
+    or None if no valid artifact exists.
+
+    This is a defense-in-depth improvement over get_latest_version_path,
+    which only checks file size.
+
+    Args:
+        validate_fn: callable(content, name) -> list[str] of errors.
+    """
+    base_dir = Path(root) / "docs" / "semantic" / category
+    versions = _find_versions(base_dir, name)
+    if not versions:
+        return None
+    for v in reversed(versions):
+        p = base_dir / f"{name}.v{v}.md"
+        if not p.exists() or p.stat().st_size == 0:
+            continue
+        content = p.read_text()
+        errors = validate_fn(content, name)
+        if not errors:
+            return p
+    return None
+
+
 def get_latest_working_version_path(
     root: str | Path, category: str, name: str,
 ) -> Path | None:

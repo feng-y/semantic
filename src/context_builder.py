@@ -236,11 +236,39 @@ def _read_latest_artifact(
 def _read_latest_working_artifact(
     root: Path, category: str, name: str,
 ) -> str | None:
-    """Read the latest working (non-baseline) versioned artifact's content."""
-    path = artifact_writer.get_latest_working_version_path(root, category, name)
+    """Read the latest working (non-baseline) versioned artifact's content.
+
+    Uses structural validation to skip malformed artifacts, falling back
+    to size-only resolution if no validator is available for the artifact type.
+    """
+    if category == artifact_writer.BASELINE_DIR:
+        return None
+    validator = _get_artifact_validator(name)
+    if validator is not None:
+        path = artifact_writer.get_latest_valid_version_path(
+            root, category, name, validate_fn=validator,
+        )
+    else:
+        path = artifact_writer.get_latest_working_version_path(root, category, name)
     if path is not None and path.exists():
         return path.read_text()
     return None
+
+
+def _get_artifact_validator(name: str):
+    """Return the structural validator for a known artifact, or None.
+
+    Uses lazy import to avoid circular dependency with discovery_executor.
+    """
+    _validated_artifacts = {
+        "repo-facts", "repo-understanding", "knowledge-confidence",
+        "domain-candidates", "review-summary",
+    }
+    if name not in _validated_artifacts:
+        return None
+    # Lazy import to break circular: context_builder <- discovery_executor
+    from .discovery_executor import validate_artifact_content
+    return validate_artifact_content
 
 
 # ---------------------------------------------------------------------------
