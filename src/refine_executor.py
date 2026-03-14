@@ -651,4 +651,6 @@ def _write_baseline_checkpoint(root: Path, result: RefineResult, feedback: str) 
     }
 
     checkpoint_path = checkpoint_dir / "checkpoint.json"
-    checkpoint_path.write_text(json.dumps(checkpoint, indent=2) + "\n")
+    artifact_writer._atomic_write(
+        checkpoint_path, json.dumps(checkpoint, indent=2) + "\n",
+    )

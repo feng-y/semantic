@@ -358,7 +358,7 @@ def _apply_versioning_protocol(root: Path) -> list[str]:
         ("review", "review-summary"),
     ]
     for category, name in versioned_artifacts:
-        latest = artifact_writer.get_latest_version_path(root, category, name)
+        latest = artifact_writer.get_latest_working_version_path(root, category, name)
         accepted: set[int] = set()
         if latest is not None:
             m = re.search(r"\.v(\d+)\.md$", latest.name)
