@@ -7,12 +7,29 @@ when explicit architect acceptance is detected.
 
 from __future__ import annotations
 
+import hashlib
+import json
+import re
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
 from . import artifact_writer, context_builder, prompt_loader, skill_loader, state_inspector
 from .host_executor import HostExecutor
+
+# Baseline section headings and their required schema keywords
+BASELINE_SECTIONS: dict[str, str] = {
+    "purpose": "Primary Purpose",
+    "domains": "Domain Name",
+    "concepts": "Concept Name",
+    "pipelines": "Pipeline Name",
+}
+
+# Schema-defined sections for structural validation (from docs/semantic/schemas/)
+REPO_UNDERSTANDING_SECTIONS = ("System Purpose", "Pipelines", "Concepts", "Candidate Domains")
+KNOWLEDGE_CONFIDENCE_SECTIONS = ("Confirmed Knowledge", "Inferred Knowledge", "Uncertain Knowledge")
+REPO_FACTS_SECTIONS = ("Repository", "Modules", "Entrypoints", "Core Entities", "Configuration")
 
 
 @dataclass
@@ -22,7 +39,7 @@ class RefineStepResult:
     step_index: int
     action: str
     target: str
-    status: str  # "ok", "skipped", "validation_failed", "error"
+    status: str  # "ok", "skipped", "validation_failed", "acceptance_failed", "error"
     artifact_path: str | None = None
     errors: list[str] = field(default_factory=list)
 
@@ -41,22 +58,34 @@ class RefineResult:
     baseline_generated: bool = False
 
 
+def _has_any_section_heading(content: str, headings: tuple[str, ...]) -> bool:
+    """Check if content contains at least one ## heading from the given list."""
+    for heading in headings:
+        pattern = re.compile(rf"^##\s+{re.escape(heading)}\b", re.MULTILINE | re.IGNORECASE)
+        if pattern.search(content) is not None:
+            return True
+    return False
+
+
 def validate_refined_artifact(content: str, name: str) -> list[str]:
-    """Validate a refined artifact — same rules as discovery validation."""
+    """Validate a refined artifact against schema-defined structural checks."""
     errors: list[str] = []
     if not content or not content.strip():
         errors.append(f"{name}: artifact content is empty")
         return errors
 
-    text_lower = content.lower()
-
-    evidence_required = {"repo-understanding", "knowledge-confidence"}
-    if name in evidence_required and "evidence" not in text_lower:
-        errors.append(f"{name}: missing required evidence section")
-
-    confidence_required = {"repo-understanding", "knowledge-confidence"}
-    if name in confidence_required and "confidence" not in text_lower:
-        errors.append(f"{name}: missing required confidence section")
+    if name == "repo-understanding":
+        if not _has_any_section_heading(content, REPO_UNDERSTANDING_SECTIONS):
+            errors.append(
+                f"{name}: missing schema-defined section "
+                f"(expected one of: {', '.join(REPO_UNDERSTANDING_SECTIONS)})"
+            )
+    elif name == "knowledge-confidence":
+        if not _has_any_section_heading(content, KNOWLEDGE_CONFIDENCE_SECTIONS):
+            errors.append(
+                f"{name}: missing schema-defined section "
+                f"(expected one of: {', '.join(KNOWLEDGE_CONFIDENCE_SECTIONS)})"
+            )
 
     return errors
 
@@ -95,7 +124,7 @@ def run_refine(
       1. semantic-change-log.prompt    (generate change log)
       2. validate-artifact.prompt      (validate patched artifacts)
       3. apply: artifact-versioning.md (prune old versions)
-      4. if: acceptance -> baseline-synthesis.prompt (not implemented in Step 6)
+      4. if: acceptance -> baseline-synthesis.prompt (generates baseline artifacts)
 
     Requires:
       - Discovery artifacts must exist
@@ -124,46 +153,17 @@ def run_refine(
 
     result.acceptance_detected = _check_acceptance(feedback)
 
-    # --- Step 0: Patch repo-understanding ---
-    patch_result = _execute_patch_step(
-        root, executor, feedback, artifact_name="repo-understanding",
-    )
-    result.steps.append(patch_result)
+    # --- Steps 0 + 0b: Staged patch of repo-understanding + knowledge-confidence ---
+    staged_result = _execute_staged_patches(root, executor, feedback)
+    result.steps.extend(staged_result["steps"])
+    result.artifacts_written.extend(staged_result["artifacts_written"])
 
-    if patch_result.artifact_path:
-        result.artifacts_written.append(patch_result.artifact_path)
-
-    if patch_result.status == "validation_failed":
-        result.validation_failures.append({
-            "step": 0, "target": "prompts/refine/semantic-refine.patch.prompt",
-            "errors": patch_result.errors,
-        })
+    if staged_result["status"] == "validation_failed":
+        result.validation_failures.extend(staged_result["validation_failures"])
         result.status = "validation_failed"
         return result
 
-    if patch_result.status == "error":
-        result.status = "error"
-        return result
-
-    # --- Step 0b: Patch knowledge-confidence ---
-    kc_patch_result = _execute_patch_step(
-        root, executor, feedback, artifact_name="knowledge-confidence",
-        step_index=0,
-    )
-    result.steps.append(kc_patch_result)
-
-    if kc_patch_result.artifact_path:
-        result.artifacts_written.append(kc_patch_result.artifact_path)
-
-    if kc_patch_result.status == "validation_failed":
-        result.validation_failures.append({
-            "step": 0, "target": "prompts/refine/semantic-refine.patch.prompt",
-            "errors": kc_patch_result.errors,
-        })
-        result.status = "validation_failed"
-        return result
-
-    if kc_patch_result.status == "error":
+    if staged_result["status"] == "error":
         result.status = "error"
         return result
 
@@ -200,16 +200,100 @@ def run_refine(
 
     # --- Step 4: Baseline synthesis (only on acceptance) ---
     if result.acceptance_detected:
-        # Baseline synthesis is not implemented in Step 6.
-        # Return a marker so the caller knows acceptance was detected
-        # but baseline generation is deferred to Step 7.
-        result.steps.append(RefineStepResult(
-            step_index=4, action="conditional",
-            target="prompts/refine/baseline-synthesis.prompt",
-            status="skipped",
-            errors=["Baseline synthesis deferred to Step 7"],
-        ))
+        passed, failures = evaluate_acceptance(root, feedback)
+        if not passed:
+            result.steps.append(RefineStepResult(
+                step_index=4, action="conditional",
+                target="prompts/refine/baseline-synthesis.prompt",
+                status="acceptance_failed", errors=failures,
+            ))
+        else:
+            baseline_result = _execute_baseline_step(root, executor)
+            result.steps.append(baseline_result)
+            if baseline_result.status == "ok":
+                result.baseline_generated = True
+                result.artifacts_written.append(baseline_result.artifact_path)
+                _write_baseline_checkpoint(root, result, feedback)
 
+    return result
+
+
+def _execute_staged_patches(
+    root: Path,
+    executor: HostExecutor,
+    feedback: str,
+) -> dict:
+    """Execute patch steps for repo-understanding and knowledge-confidence atomically.
+
+    Both patches are validated before either is written to disk. If either
+    fails validation or errors, nothing is written.
+
+    Returns dict with keys: status, steps, artifacts_written, validation_failures.
+    """
+    result: dict = {
+        "status": "ok",
+        "steps": [],
+        "artifacts_written": [],
+        "validation_failures": [],
+    }
+
+    prompt_path = root / "prompts" / "refine" / "semantic-refine.patch.prompt"
+    try:
+        prompt_data = prompt_loader.load_prompt(str(prompt_path))
+    except FileNotFoundError:
+        error_step = RefineStepResult(
+            step_index=0, action="run",
+            target="prompts/refine/semantic-refine.patch.prompt",
+            status="error", errors=["Prompt file not found"],
+        )
+        result["steps"].append(error_step)
+        result["status"] = "error"
+        return result
+
+    staged: list[tuple[str, str]] = []
+    step_results: list[RefineStepResult] = []
+
+    for artifact_name in ("repo-understanding", "knowledge-confidence"):
+        ctx = context_builder.build_refine_context(root, "patch", feedback=feedback)
+        patched = executor(
+            prompt_data["_raw"], ctx,
+            artifact_name=artifact_name,
+            sampling_mode="auto",
+        )
+
+        target_path, content, errors = artifact_writer.stage_artifact(
+            root, "discovery", artifact_name, patched,
+            validate_fn=validate_refined_artifact,
+        )
+
+        step = RefineStepResult(
+            step_index=0, action="run",
+            target="prompts/refine/semantic-refine.patch.prompt",
+            status="ok" if not errors else "validation_failed",
+            artifact_path=target_path if not errors else None,
+            errors=errors,
+        )
+        step_results.append(step)
+
+        if errors:
+            result["steps"].extend(step_results)
+            result["validation_failures"].append({
+                "step": 0,
+                "target": "prompts/refine/semantic-refine.patch.prompt",
+                "errors": errors,
+            })
+            result["status"] = "validation_failed"
+            return result
+
+        staged.append((target_path, content))
+
+    # Both passed validation — commit atomically
+    written_paths = artifact_writer.commit_staged(staged)
+    for step, path in zip(step_results, written_paths):
+        step.artifact_path = str(path)
+
+    result["steps"] = step_results
+    result["artifacts_written"] = [str(p) for p in written_paths]
     return result
 
 
@@ -354,3 +438,189 @@ def _apply_versioning_protocol(root: Path) -> list[str]:
         removed = artifact_writer.prune_old_versions(root, category, name)
         pruned.extend(str(p) for p in removed)
     return pruned
+
+
+# ---------------------------------------------------------------------------
+# Baseline synthesis (Step 7)
+# ---------------------------------------------------------------------------
+
+
+def evaluate_acceptance(root: Path, feedback: str) -> tuple[bool, list[str]]:
+    """Evaluate 4 structural runtime gates for baseline synthesis.
+
+    Gates (all must pass):
+      1. acceptance: true in feedback (structured field)
+      2. knowledge-confidence is non-empty and contains expected confidence structure
+      3. repo-understanding is non-empty and contains Evidence sections
+      4. domain-candidates is non-empty
+
+    Returns (passed, failures).
+    """
+    failures: list[str] = []
+
+    # Gate 1: structured acceptance field
+    if not _check_acceptance(feedback):
+        failures.append("acceptance: true not found in feedback")
+
+    # Gate 2: knowledge-confidence with schema-defined sections
+    kc = _read_latest_working(root, "knowledge-confidence")
+    if kc is None:
+        failures.append("knowledge-confidence artifact not found")
+    elif not kc.strip():
+        failures.append("knowledge-confidence artifact is empty")
+    elif not _has_any_section_heading(kc, KNOWLEDGE_CONFIDENCE_SECTIONS):
+        failures.append(
+            "knowledge-confidence missing schema-defined section "
+            f"(expected one of: {', '.join(KNOWLEDGE_CONFIDENCE_SECTIONS)})"
+        )
+
+    # Gate 3: repo-understanding with schema-defined sections
+    ru = _read_latest_working(root, "repo-understanding")
+    if ru is None:
+        failures.append("repo-understanding artifact not found")
+    elif not ru.strip():
+        failures.append("repo-understanding artifact is empty")
+    elif not _has_any_section_heading(ru, REPO_UNDERSTANDING_SECTIONS):
+        failures.append(
+            "repo-understanding missing schema-defined section "
+            f"(expected one of: {', '.join(REPO_UNDERSTANDING_SECTIONS)})"
+        )
+
+    # Gate 4: domain-candidates non-empty
+    dc = _read_latest_working(root, "domain-candidates")
+    if dc is None or not dc.strip():
+        failures.append("domain-candidates artifact is empty or missing")
+
+    return (len(failures) == 0, failures)
+
+
+def _read_latest_working(root: Path, name: str) -> str | None:
+    """Shorthand: read latest working discovery artifact."""
+    path = artifact_writer.get_latest_working_version_path(root, "discovery", name)
+    if path is not None and path.exists():
+        return path.read_text()
+    return None
+
+
+def _execute_baseline_step(root: Path, executor: HostExecutor) -> RefineStepResult:
+    """Execute baseline-synthesis.prompt and write baseline artifacts."""
+    prompt_path = root / "prompts" / "refine" / "baseline-synthesis.prompt"
+    try:
+        prompt_data = prompt_loader.load_prompt(str(prompt_path))
+    except FileNotFoundError:
+        return RefineStepResult(
+            step_index=4, action="run",
+            target="prompts/refine/baseline-synthesis.prompt",
+            status="error", errors=["Prompt file not found"],
+        )
+
+    ctx = context_builder.build_baseline_context(root)
+
+    raw_output = executor(
+        prompt_data["_raw"], ctx,
+        artifact_name="baseline",
+        sampling_mode="auto",
+    )
+
+    sections = parse_baseline_output(raw_output)
+
+    # Validate all sections
+    all_errors: list[str] = []
+    for name in BASELINE_SECTIONS:
+        if name not in sections:
+            all_errors.append(f"missing section: {name}")
+            continue
+        errors = validate_baseline_artifact(sections[name], name)
+        all_errors.extend(errors)
+
+    if all_errors:
+        return RefineStepResult(
+            step_index=4, action="run",
+            target="prompts/refine/baseline-synthesis.prompt",
+            status="validation_failed", errors=all_errors,
+        )
+
+    # Write all 4 baseline files
+    written_paths: list[str] = []
+    for name, content in sections.items():
+        path = artifact_writer.write_baseline(root, name, content)
+        written_paths.append(str(path))
+
+    return RefineStepResult(
+        step_index=4, action="run",
+        target="prompts/refine/baseline-synthesis.prompt",
+        status="ok",
+        artifact_path=written_paths[0] if written_paths else None,
+    )
+
+
+def parse_baseline_output(content: str) -> dict[str, str]:
+    """Parse host executor output into 4 baseline sections by heading.
+
+    Expected headings: ## Purpose, ## Domains, ## Concepts, ## Pipelines.
+    Returns dict mapping section name to content.
+    """
+    section_pattern = re.compile(r"^##\s+(Purpose|Domains|Concepts|Pipelines)\s*$", re.IGNORECASE)
+    sections: dict[str, str] = {}
+    current_name: str | None = None
+    current_lines: list[str] = []
+
+    def _flush():
+        if current_name is not None:
+            sections[current_name] = "\n".join(current_lines).strip()
+
+    for line in content.splitlines():
+        m = section_pattern.match(line.strip())
+        if m:
+            _flush()
+            current_name = m.group(1).lower()
+            current_lines = []
+        elif current_name is not None:
+            current_lines.append(line)
+
+    _flush()
+    return sections
+
+
+def validate_baseline_artifact(content: str, name: str) -> list[str]:
+    """Validate a baseline artifact against its schema's required keyword."""
+    errors: list[str] = []
+    if not content or not content.strip():
+        errors.append(f"{name}: baseline content is empty")
+        return errors
+
+    required_keyword = BASELINE_SECTIONS.get(name)
+    if required_keyword and required_keyword.lower() not in content.lower():
+        errors.append(f"{name}: missing required keyword '{required_keyword}'")
+    return errors
+
+
+def _write_baseline_checkpoint(root: Path, result: RefineResult, feedback: str) -> None:
+    """Write checkpoint.json metadata after successful baseline synthesis."""
+    checkpoint_dir = root / "docs" / "semantic" / "baseline"
+    checkpoint_dir.mkdir(parents=True, exist_ok=True)
+
+    # Collect source version numbers from latest working artifacts
+    source_versions: dict[str, int | None] = {}
+    for name in ("repo-understanding", "knowledge-confidence", "domain-candidates", "review-summary"):
+        category = "review" if name == "review-summary" else "discovery"
+        path = artifact_writer.get_latest_working_version_path(root, category, name)
+        if path is not None:
+            m = re.search(r"\.v(\d+)\.md$", path.name)
+            source_versions[name] = int(m.group(1)) if m else None
+        else:
+            source_versions[name] = None
+
+    baseline_files = [
+        f"{name}.md" for name in BASELINE_SECTIONS
+    ]
+
+    checkpoint = {
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "source_versions": source_versions,
+        "baseline_files": baseline_files,
+        "feedback_hash": hashlib.sha256(feedback.encode()).hexdigest()[:16],
+    }
+
+    checkpoint_path = checkpoint_dir / "checkpoint.json"
+    checkpoint_path.write_text(json.dumps(checkpoint, indent=2) + "\n")

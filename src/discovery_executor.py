@@ -10,6 +10,12 @@ from typing import Any
 from . import artifact_writer, prompt_loader, skill_loader
 from . import context_builder
 from .host_executor import HostExecutor
+from .refine_executor import (
+    KNOWLEDGE_CONFIDENCE_SECTIONS,
+    REPO_FACTS_SECTIONS,
+    REPO_UNDERSTANDING_SECTIONS,
+    _has_any_section_heading,
+)
 
 
 @dataclass
@@ -67,29 +73,35 @@ VALIDATION_STEP_TARGETS = {
 
 
 def validate_artifact_content(content: str, name: str) -> list[str]:
-    """Basic structural validation matching validate-artifact.prompt rules.
+    """Structural validation against schema-defined sections.
 
     Checks:
     - content is non-empty
-    - evidence markers exist (for artifacts that require them)
-    - confidence markers exist (for semantic inference artifacts)
+    - schema-defined section headings exist (for artifacts that require them)
     """
     errors: list[str] = []
     if not content or not content.strip():
         errors.append(f"{name}: artifact content is empty")
         return errors
 
-    text_lower = content.lower()
-
-    # Artifacts that require evidence
-    evidence_required = {"repo-facts", "repo-understanding", "knowledge-confidence"}
-    if name in evidence_required and "evidence" not in text_lower:
-        errors.append(f"{name}: missing required evidence section")
-
-    # Artifacts that require confidence
-    confidence_required = {"repo-understanding", "knowledge-confidence"}
-    if name in confidence_required and "confidence" not in text_lower:
-        errors.append(f"{name}: missing required confidence section")
+    if name == "repo-facts":
+        if not _has_any_section_heading(content, REPO_FACTS_SECTIONS):
+            errors.append(
+                f"{name}: missing schema-defined section "
+                f"(expected one of: {', '.join(REPO_FACTS_SECTIONS)})"
+            )
+    elif name == "repo-understanding":
+        if not _has_any_section_heading(content, REPO_UNDERSTANDING_SECTIONS):
+            errors.append(
+                f"{name}: missing schema-defined section "
+                f"(expected one of: {', '.join(REPO_UNDERSTANDING_SECTIONS)})"
+            )
+    elif name == "knowledge-confidence":
+        if not _has_any_section_heading(content, KNOWLEDGE_CONFIDENCE_SECTIONS):
+            errors.append(
+                f"{name}: missing schema-defined section "
+                f"(expected one of: {', '.join(KNOWLEDGE_CONFIDENCE_SECTIONS)})"
+            )
 
     return errors
 

@@ -154,3 +154,46 @@ def safe_write_artifact(
 
     path = write_artifact(root, category, name, content)
     return path, []
+
+
+def stage_artifact(
+    root: str | Path,
+    category: str,
+    name: str,
+    content: str,
+    *,
+    validate_fn: Any | None = None,
+) -> tuple[str, str, list[str]]:
+    """Validate and prepare an artifact for writing without committing to disk.
+
+    Returns (target_path, content, errors). If errors is non-empty, the
+    artifact should not be written.
+    """
+    base_dir = Path(root) / "docs" / "semantic" / category
+    base_dir.mkdir(parents=True, exist_ok=True)
+
+    if category in VERSIONED_DIRS:
+        version = _next_version(base_dir, name)
+        filename = f"{name}.v{version}.md"
+    else:
+        filename = f"{name}.md"
+
+    target_path = str(base_dir / filename)
+
+    if validate_fn is not None:
+        errors = validate_fn(content, name)
+        if errors:
+            return target_path, content, errors
+
+    return target_path, content, []
+
+
+def commit_staged(staged: list[tuple[str, str]]) -> list[Path]:
+    """Write all staged artifacts to disk. Called only after all validations pass."""
+    written: list[Path] = []
+    for target_path, content in staged:
+        p = Path(target_path)
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text(content)
+        written.append(p)
+    return written

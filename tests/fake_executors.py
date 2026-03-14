@@ -37,21 +37,49 @@ def stub_executor(
             "## Suggested Expansions",
             "- (stub: expansions pending real sampling)",
         ])
-    elif artifact_name in ("repo-facts", "repo-understanding"):
+    elif artifact_name == "repo-facts":
         lines.extend([
-            "## Evidence",
-            "- (stub: evidence pending real extraction)",
+            "## Repository",
+            "- Primary Language: Python",
+            "- Evidence: pyproject.toml",
             "",
-            "## Confidence",
-            "- (stub: confidence pending real assessment)",
+            "## Modules",
+            "- Name: src",
+            "- Evidence: directory listing",
+        ])
+    elif artifact_name == "repo-understanding":
+        lines.extend([
+            "## System Purpose",
+            "- Purpose: (stub: pending real extraction)",
+            "- Evidence: (stub: pending)",
+            "- Confidence: high",
+            "",
+            "## Pipelines",
+            "- Pipeline Name: (stub: pending)",
+            "- Evidence: (stub: pending)",
+            "- Confidence: medium",
+            "",
+            "## Concepts",
+            "- Concept Name: (stub: pending)",
+            "- Evidence: (stub: pending)",
+            "- Confidence: medium",
+            "",
+            "## Candidate Domains",
+            "- Domain Name: (stub: pending)",
         ])
     elif artifact_name == "knowledge-confidence":
         lines.extend([
-            "## Evidence",
-            "- (stub: evidence from repo-understanding)",
+            "## Confirmed Knowledge",
+            "- Item: (stub: confirmed item pending real assessment)",
+            "- Evidence: (stub: pending)",
             "",
-            "## Confidence",
-            "- overall: low (stub: pending real assessment)",
+            "## Inferred Knowledge",
+            "- Item: (stub: inferred item pending real assessment)",
+            "- Evidence: (stub: pending)",
+            "",
+            "## Uncertain Knowledge",
+            "- Item: (stub: uncertain item pending real assessment)",
+            "- Reason: (stub: pending)",
         ])
     elif artifact_name == "domain-candidates":
         lines.extend([
@@ -78,6 +106,28 @@ def stub_executor(
             "## Questions for Architect",
             "- (stub: pending)",
         ])
+    elif artifact_name == "baseline":
+        lines = [
+            "## Purpose",
+            "Primary Purpose: (stub: system purpose pending real synthesis)",
+            "Supported Scenarios: (stub: pending)",
+            "Non Goals: (stub: pending)",
+            "",
+            "## Domains",
+            "Domain Name: (stub: primary domain pending real synthesis)",
+            "Description: (stub: pending)",
+            "Related Pipelines: (stub: pending)",
+            "",
+            "## Concepts",
+            "Concept Name: (stub: core concept pending real synthesis)",
+            "Description: (stub: pending)",
+            "Role: (stub: pending)",
+            "",
+            "## Pipelines",
+            "Pipeline Name: (stub: main pipeline pending real synthesis)",
+            "Purpose: (stub: pending)",
+            "Flow: (stub: pending)",
+        ]
 
     return "\n".join(lines) + "\n"
 
