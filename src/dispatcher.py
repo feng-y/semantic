@@ -7,6 +7,7 @@ from typing import Any
 
 from . import skill_loader, state_inspector
 from .discovery_executor import run_discovery
+from .refine_executor import run_refine
 
 # Directory structure required by init
 REQUIRED_DIRS = [
@@ -115,33 +116,28 @@ def _handle_discover(root: Path, **kwargs: Any) -> dict[str, Any]:
 
 
 def _handle_refine(root: Path, **kwargs: Any) -> dict[str, Any]:
-    """Run the refinement skill.
-
-    Stub: loads the skill definition and reports steps.
-    Real patch logic is not implemented yet.
-    """
-    skills = skill_loader.load_all_skills(root / "manifest.yaml")
-    refine_skill = skills.get("refinement")
-    if refine_skill is None:
-        return {
-            "command": "refine",
-            "status": "error",
-            "error": "Refinement skill not found in manifest.yaml",
-        }
-
-    steps = skill_loader.get_skill_steps(refine_skill)
-
-    # Check if architect feedback exists
-    state = state_inspector.inspect(root)
+    """Run the refinement skill by executing each step in declared order."""
+    result = run_refine(root)
 
     return {
         "command": "refine",
-        "status": "stub",
-        "skill": refine_skill.get("name"),
-        "has_architect_feedback": state.has_architect_feedback,
-        "has_discovery_artifacts": state.has_discovery_artifacts,
-        "steps": steps,
-        "message": "Refinement skill loaded. Patch execution is stubbed.",
+        "status": result.status,
+        "acceptance_detected": result.acceptance_detected,
+        "baseline_generated": result.baseline_generated,
+        "steps": [
+            {
+                "index": s.step_index,
+                "action": s.action,
+                "target": s.target,
+                "status": s.status,
+                "artifact_path": s.artifact_path,
+                "errors": s.errors,
+            }
+            for s in result.steps
+        ],
+        "artifacts_written": result.artifacts_written,
+        "pruned_versions": result.pruned_versions,
+        "validation_failures": result.validation_failures,
     }
 
 

@@ -231,3 +231,68 @@ def _read_latest_artifact(
     if path is not None and path.exists():
         return path.read_text()
     return None
+
+
+# ---------------------------------------------------------------------------
+# Refine context builders
+# ---------------------------------------------------------------------------
+
+
+def build_refine_context(
+    root: Path,
+    step: str,
+    *,
+    feedback: str | None = None,
+) -> dict[str, str]:
+    """Assemble context for a refine prompt.
+
+    Args:
+        step: "patch" or "changelog"
+        feedback: Architect feedback content
+    """
+    if step == "patch":
+        return _ctx_refine_patch(root, feedback=feedback)
+    elif step == "changelog":
+        return _ctx_refine_changelog(root, feedback=feedback)
+    return {}
+
+
+def _ctx_refine_patch(
+    root: Path, *, feedback: str | None = None,
+) -> dict[str, str]:
+    """Context for semantic-refine.patch.prompt.
+
+    Inputs per prompt definition:
+    - latest versioned repo-understanding
+    - latest versioned knowledge-confidence
+    - architect-feedback.md
+    """
+    ctx: dict[str, str] = {}
+    understanding = _read_latest_artifact(root, "discovery", "repo-understanding")
+    if understanding:
+        ctx["repo_understanding"] = understanding
+    confidence = _read_latest_artifact(root, "discovery", "knowledge-confidence")
+    if confidence:
+        ctx["knowledge_confidence"] = confidence
+    if feedback:
+        ctx["architect_feedback"] = feedback
+    return ctx
+
+
+def _ctx_refine_changelog(
+    root: Path, *, feedback: str | None = None,
+) -> dict[str, str]:
+    """Context for semantic-change-log.prompt.
+
+    Inputs: latest repo-understanding + knowledge-confidence + feedback.
+    """
+    ctx: dict[str, str] = {}
+    understanding = _read_latest_artifact(root, "discovery", "repo-understanding")
+    if understanding:
+        ctx["repo_understanding"] = understanding
+    confidence = _read_latest_artifact(root, "discovery", "knowledge-confidence")
+    if confidence:
+        ctx["knowledge_confidence"] = confidence
+    if feedback:
+        ctx["architect_feedback"] = feedback
+    return ctx
