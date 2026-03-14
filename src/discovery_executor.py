@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -11,9 +12,11 @@ from . import artifact_writer, prompt_loader, skill_loader
 from . import context_builder
 from .host_executor import HostExecutor
 from .refine_executor import (
+    DOMAIN_CANDIDATES_SECTIONS,
     KNOWLEDGE_CONFIDENCE_SECTIONS,
     REPO_FACTS_SECTIONS,
     REPO_UNDERSTANDING_SECTIONS,
+    REVIEW_SUMMARY_SECTIONS,
     _has_any_section_heading,
 )
 
@@ -101,6 +104,18 @@ def validate_artifact_content(content: str, name: str) -> list[str]:
             errors.append(
                 f"{name}: missing schema-defined section "
                 f"(expected one of: {', '.join(KNOWLEDGE_CONFIDENCE_SECTIONS)})"
+            )
+    elif name == "domain-candidates":
+        if not _has_any_section_heading(content, DOMAIN_CANDIDATES_SECTIONS):
+            errors.append(
+                f"{name}: missing schema-defined section "
+                f"(expected one of: {', '.join(DOMAIN_CANDIDATES_SECTIONS)})"
+            )
+    elif name == "review-summary":
+        if not _has_any_section_heading(content, REVIEW_SUMMARY_SECTIONS):
+            errors.append(
+                f"{name}: missing schema-defined section "
+                f"(expected one of: {', '.join(REVIEW_SUMMARY_SECTIONS)})"
             )
 
     return errors
@@ -331,7 +346,8 @@ def _apply_versioning_protocol(root: Path) -> list[str]:
     """Apply artifact-versioning.md: prune old versions beyond retention window.
 
     Runs pruning for all known versioned artifact names in both
-    discovery/ and review/ directories.
+    discovery/ and review/ directories. The latest version of each
+    artifact is always protected from pruning.
     """
     pruned: list[str] = []
     versioned_artifacts = [
@@ -342,7 +358,15 @@ def _apply_versioning_protocol(root: Path) -> list[str]:
         ("review", "review-summary"),
     ]
     for category, name in versioned_artifacts:
-        removed = artifact_writer.prune_old_versions(root, category, name)
+        latest = artifact_writer.get_latest_version_path(root, category, name)
+        accepted: set[int] = set()
+        if latest is not None:
+            m = re.search(r"\.v(\d+)\.md$", latest.name)
+            if m:
+                accepted.add(int(m.group(1)))
+        removed = artifact_writer.prune_old_versions(
+            root, category, name, accepted_versions=accepted,
+        )
         pruned.extend(str(p) for p in removed)
     return pruned
 
@@ -379,6 +403,17 @@ def run_discovery(
     root = Path(root).resolve()
     result = DiscoveryResult(status="ok", sampling_mode=sampling_mode)
     start_time = time.monotonic()
+
+    # Check semantic snapshot for version skew before starting
+    skew_warnings = artifact_writer.check_semantic_snapshot(root)
+    if skew_warnings:
+        result.status = "version_skew"
+        result.validation_failures.append({
+            "step": -1,
+            "target": "semantic_snapshot.json",
+            "errors": skew_warnings,
+        })
+        return result
 
     # Host executor is required — no stub fallback in core runtime
     if executor is None:
@@ -464,5 +499,9 @@ def run_discovery(
                 target=target,
                 status="ok",
             ))
+
+    # Write semantic snapshot after successful completion
+    if result.status == "ok":
+        artifact_writer.write_semantic_snapshot(root)
 
     return result

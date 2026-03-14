@@ -30,6 +30,8 @@ BASELINE_SECTIONS: dict[str, str] = {
 REPO_UNDERSTANDING_SECTIONS = ("System Purpose", "Pipelines", "Concepts", "Candidate Domains")
 KNOWLEDGE_CONFIDENCE_SECTIONS = ("Confirmed Knowledge", "Inferred Knowledge", "Uncertain Knowledge")
 REPO_FACTS_SECTIONS = ("Repository", "Modules", "Entrypoints", "Core Entities", "Configuration")
+DOMAIN_CANDIDATES_SECTIONS = ("Candidate Domains",)
+REVIEW_SUMMARY_SECTIONS = ("System Summary", "Pipelines", "Concepts", "Candidate Domains", "Assumptions", "Questions for Architect")
 
 
 @dataclass
@@ -134,6 +136,17 @@ def run_refine(
     root = Path(root).resolve()
     result = RefineResult(status="ok")
 
+    # Check semantic snapshot for version skew before starting
+    skew_warnings = artifact_writer.check_semantic_snapshot(root)
+    if skew_warnings:
+        result.status = "version_skew"
+        result.validation_failures.append({
+            "step": -1,
+            "target": "semantic_snapshot.json",
+            "errors": skew_warnings,
+        })
+        return result
+
     # Host executor required (runtime purity)
     if executor is None:
         result.status = "execution_unavailable"
@@ -214,6 +227,10 @@ def run_refine(
                 result.baseline_generated = True
                 result.artifacts_written.append(baseline_result.artifact_path)
                 _write_baseline_checkpoint(root, result, feedback)
+
+    # Write semantic snapshot after successful completion
+    if result.status == "ok":
+        artifact_writer.write_semantic_snapshot(root)
 
     return result
 
@@ -378,7 +395,7 @@ def _execute_changelog_step(
 
     out_path = root / "docs" / "semantic" / "review" / "semantic-change-log.md"
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    out_path.write_text(content)
+    artifact_writer._atomic_write(out_path, content)
 
     return RefineStepResult(
         step_index=1, action="run",
@@ -425,7 +442,10 @@ def _execute_validation_step(root: Path) -> RefineStepResult:
 
 
 def _apply_versioning_protocol(root: Path) -> list[str]:
-    """Prune old versions for discovery and review artifacts."""
+    """Prune old versions for discovery and review artifacts.
+
+    The latest version of each artifact is always protected from pruning.
+    """
     pruned: list[str] = []
     versioned_artifacts = [
         ("discovery", "repo-facts"),
@@ -435,7 +455,15 @@ def _apply_versioning_protocol(root: Path) -> list[str]:
         ("review", "review-summary"),
     ]
     for category, name in versioned_artifacts:
-        removed = artifact_writer.prune_old_versions(root, category, name)
+        latest = artifact_writer.get_latest_working_version_path(root, category, name)
+        accepted: set[int] = set()
+        if latest is not None:
+            m = re.search(r"\.v(\d+)\.md$", latest.name)
+            if m:
+                accepted.add(int(m.group(1)))
+        removed = artifact_writer.prune_old_versions(
+            root, category, name, accepted_versions=accepted,
+        )
         pruned.extend(str(p) for p in removed)
     return pruned
 

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+import os
 import re
 from pathlib import Path
 from typing import Any
@@ -14,6 +16,13 @@ VERSIONED_DIRS = ("discovery", "review")
 
 # Baseline directory (accepted versions, never auto-pruned)
 BASELINE_DIR = "baseline"
+
+
+def _atomic_write(path: Path, content: str) -> None:
+    """Write content to path using write-then-rename to prevent truncated files."""
+    tmp_path = path.with_suffix(path.suffix + ".tmp")
+    tmp_path.write_text(content)
+    os.replace(str(tmp_path), str(path))
 
 
 def write_artifact(
@@ -46,7 +55,7 @@ def write_artifact(
         filename = f"{name}.md"
 
     out_path = base_dir / filename
-    out_path.write_text(content)
+    _atomic_write(out_path, content)
     return out_path
 
 
@@ -71,12 +80,20 @@ def _find_versions(directory: Path, name: str) -> list[int]:
 
 
 def get_latest_version_path(root: str | Path, category: str, name: str) -> Path | None:
-    """Get the path to the latest versioned artifact, or None if none exist."""
+    """Get the path to the latest valid versioned artifact, or None if none exist.
+
+    Skips empty or truncated files by walking backwards from the highest version.
+    """
     base_dir = Path(root) / "docs" / "semantic" / category
     versions = _find_versions(base_dir, name)
     if not versions:
         return None
-    return base_dir / f"{name}.v{max(versions)}.md"
+    # Walk backwards to find the latest non-empty artifact
+    for v in reversed(versions):
+        p = base_dir / f"{name}.v{v}.md"
+        if p.exists() and p.stat().st_size > 0:
+            return p
+    return None
 
 
 def get_latest_working_version_path(
@@ -194,6 +211,78 @@ def commit_staged(staged: list[tuple[str, str]]) -> list[Path]:
     for target_path, content in staged:
         p = Path(target_path)
         p.parent.mkdir(parents=True, exist_ok=True)
-        p.write_text(content)
+        _atomic_write(p, content)
         written.append(p)
     return written
+
+
+# ---------------------------------------------------------------------------
+# Semantic snapshot — cross-artifact version consistency
+# ---------------------------------------------------------------------------
+
+SNAPSHOT_ARTIFACTS = [
+    ("discovery", "repo-understanding"),
+    ("discovery", "knowledge-confidence"),
+    ("discovery", "domain-candidates"),
+    ("review", "review-summary"),
+]
+
+
+def write_semantic_snapshot(root: str | Path) -> Path:
+    """Record current artifact versions as a consistent snapshot.
+
+    Written after successful pipeline completion. Used on next run
+    to detect cross-artifact version skew.
+    """
+    root = Path(root)
+    versions: dict[str, int | None] = {}
+    for category, name in SNAPSHOT_ARTIFACTS:
+        path = get_latest_working_version_path(root, category, name)
+        if path is not None:
+            m = re.search(r"\.v(\d+)\.md$", path.name)
+            versions[name] = int(m.group(1)) if m else None
+        else:
+            versions[name] = None
+
+    snapshot_path = root / "docs" / "semantic" / "semantic_snapshot.json"
+    snapshot_path.parent.mkdir(parents=True, exist_ok=True)
+    _atomic_write(snapshot_path, json.dumps(versions, indent=2) + "\n")
+    return snapshot_path
+
+
+def check_semantic_snapshot(root: str | Path) -> list[str]:
+    """Check current artifact versions against the last snapshot.
+
+    Returns a list of warnings if version skew is detected.
+    An empty list means versions are consistent (or no snapshot exists).
+    """
+    root = Path(root)
+    snapshot_path = root / "docs" / "semantic" / "semantic_snapshot.json"
+    if not snapshot_path.exists():
+        return []
+
+    try:
+        saved = json.loads(snapshot_path.read_text())
+    except (json.JSONDecodeError, OSError):
+        return ["semantic_snapshot.json is corrupted or unreadable"]
+
+    warnings: list[str] = []
+    for category, name in SNAPSHOT_ARTIFACTS:
+        path = get_latest_working_version_path(root, category, name)
+        if path is not None:
+            m = re.search(r"\.v(\d+)\.md$", path.name)
+            current_v = int(m.group(1)) if m else None
+        else:
+            current_v = None
+
+        saved_v = saved.get(name)
+        if saved_v is not None and current_v is not None:
+            if current_v != saved_v:
+                warnings.append(
+                    f"{name}: version skew detected "
+                    f"(snapshot=v{saved_v}, current=v{current_v})"
+                )
+        elif saved_v is not None and current_v is None:
+            warnings.append(f"{name}: artifact missing (was v{saved_v} at last snapshot)")
+
+    return warnings
