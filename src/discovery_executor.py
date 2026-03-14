@@ -9,12 +9,7 @@ from typing import Any
 
 from . import artifact_writer, prompt_loader, skill_loader
 from . import context_builder
-from .host_executor import (
-    HostExecutor,
-    assemble_prompt_message,
-    stub_augment_executor,
-    stub_executor,
-)
+from .host_executor import HostExecutor
 
 
 @dataclass
@@ -361,8 +356,8 @@ def run_discovery(
       9. apply: artifact-versioning.md
 
     Args:
-        executor: Host-provided prompt executor. If None, uses the default
-                  stub executor for testing and offline runs.
+        executor: Host-provided prompt executor. Required for real execution.
+                  If None, returns execution_unavailable status immediately.
 
     Sampling mode and timeout are honored per sampling-policy.md:
     - auto: continue automatically after sampling
@@ -373,9 +368,12 @@ def run_discovery(
     result = DiscoveryResult(status="ok", sampling_mode=sampling_mode)
     start_time = time.monotonic()
 
-    # Default to stub executor if none provided
-    exec_fn: HostExecutor = executor if executor is not None else stub_executor
-    augment_fn: HostExecutor = executor if executor is not None else stub_augment_executor
+    # Host executor is required — no stub fallback in core runtime
+    if executor is None:
+        result.status = "execution_unavailable"
+        return result
+
+    exec_fn: HostExecutor = executor
 
     # Load the skill to get the canonical step list
     skills = skill_loader.load_all_skills(root / "manifest.yaml")
@@ -417,7 +415,7 @@ def run_discovery(
                 aug_name, aug_category = AUGMENT_PROMPTS[target]
                 step_result = _execute_augment_step(
                     root, i, target, aug_name, aug_category,
-                    result.sampling_mode, augment_fn,
+                    result.sampling_mode, exec_fn,
                 )
             else:
                 step_result = _execute_prompt_step(
