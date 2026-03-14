@@ -233,6 +233,16 @@ def _read_latest_artifact(
     return None
 
 
+def _read_latest_working_artifact(
+    root: Path, category: str, name: str,
+) -> str | None:
+    """Read the latest working (non-baseline) versioned artifact's content."""
+    path = artifact_writer.get_latest_working_version_path(root, category, name)
+    if path is not None and path.exists():
+        return path.read_text()
+    return None
+
+
 # ---------------------------------------------------------------------------
 # Refine context builders
 # ---------------------------------------------------------------------------
@@ -263,15 +273,15 @@ def _ctx_refine_patch(
     """Context for semantic-refine.patch.prompt.
 
     Inputs per prompt definition:
-    - latest versioned repo-understanding
-    - latest versioned knowledge-confidence
+    - latest working repo-understanding (excludes baseline)
+    - latest working knowledge-confidence (excludes baseline)
     - architect-feedback.md
     """
     ctx: dict[str, str] = {}
-    understanding = _read_latest_artifact(root, "discovery", "repo-understanding")
+    understanding = _read_latest_working_artifact(root, "discovery", "repo-understanding")
     if understanding:
         ctx["repo_understanding"] = understanding
-    confidence = _read_latest_artifact(root, "discovery", "knowledge-confidence")
+    confidence = _read_latest_working_artifact(root, "discovery", "knowledge-confidence")
     if confidence:
         ctx["knowledge_confidence"] = confidence
     if feedback:
@@ -284,13 +294,13 @@ def _ctx_refine_changelog(
 ) -> dict[str, str]:
     """Context for semantic-change-log.prompt.
 
-    Inputs: latest repo-understanding + knowledge-confidence + feedback.
+    Inputs: latest working repo-understanding + knowledge-confidence + feedback.
     """
     ctx: dict[str, str] = {}
-    understanding = _read_latest_artifact(root, "discovery", "repo-understanding")
+    understanding = _read_latest_working_artifact(root, "discovery", "repo-understanding")
     if understanding:
         ctx["repo_understanding"] = understanding
-    confidence = _read_latest_artifact(root, "discovery", "knowledge-confidence")
+    confidence = _read_latest_working_artifact(root, "discovery", "knowledge-confidence")
     if confidence:
         ctx["knowledge_confidence"] = confidence
     if feedback:

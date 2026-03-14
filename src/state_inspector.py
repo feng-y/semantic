@@ -108,6 +108,13 @@ def _has_content(path: Path) -> bool:
 
 
 def _check_acceptance(feedback_path: Path) -> bool:
-    """Check if architect-feedback.md contains an acceptance signal."""
-    text = feedback_path.read_text()
-    return "acceptance: semantic baseline accepted" in text.lower()
+    """Check if architect-feedback.md contains structured acceptance field.
+
+    Requires the exact field `acceptance: true` (case-insensitive value).
+    Free-text mentions of acceptance are not sufficient.
+    """
+    for line in feedback_path.read_text().splitlines():
+        stripped = line.strip().lower()
+        if stripped == "acceptance: true":
+            return True
+    return False

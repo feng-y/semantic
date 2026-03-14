@@ -72,8 +72,16 @@ def _read_architect_feedback(root: Path) -> str | None:
 
 
 def _check_acceptance(feedback: str) -> bool:
-    """Check if architect feedback contains the acceptance signal."""
-    return "acceptance: semantic baseline accepted" in feedback.lower()
+    """Check if architect feedback contains structured acceptance field.
+
+    Requires the exact field `acceptance: true` (case-insensitive value).
+    Free-text mentions of acceptance are not sufficient.
+    """
+    for line in feedback.splitlines():
+        stripped = line.strip().lower()
+        if stripped == "acceptance: true":
+            return True
+    return False
 
 
 def run_refine(
@@ -116,8 +124,10 @@ def run_refine(
 
     result.acceptance_detected = _check_acceptance(feedback)
 
-    # --- Step 0: Patch semantic artifacts ---
-    patch_result = _execute_patch_step(root, executor, feedback)
+    # --- Step 0: Patch repo-understanding ---
+    patch_result = _execute_patch_step(
+        root, executor, feedback, artifact_name="repo-understanding",
+    )
     result.steps.append(patch_result)
 
     if patch_result.artifact_path:
@@ -132,6 +142,28 @@ def run_refine(
         return result
 
     if patch_result.status == "error":
+        result.status = "error"
+        return result
+
+    # --- Step 0b: Patch knowledge-confidence ---
+    kc_patch_result = _execute_patch_step(
+        root, executor, feedback, artifact_name="knowledge-confidence",
+        step_index=0,
+    )
+    result.steps.append(kc_patch_result)
+
+    if kc_patch_result.artifact_path:
+        result.artifacts_written.append(kc_patch_result.artifact_path)
+
+    if kc_patch_result.status == "validation_failed":
+        result.validation_failures.append({
+            "step": 0, "target": "prompts/refine/semantic-refine.patch.prompt",
+            "errors": kc_patch_result.errors,
+        })
+        result.status = "validation_failed"
+        return result
+
+    if kc_patch_result.status == "error":
         result.status = "error"
         return result
 
@@ -185,10 +217,13 @@ def _execute_patch_step(
     root: Path,
     executor: HostExecutor,
     feedback: str,
+    *,
+    artifact_name: str = "repo-understanding",
+    step_index: int = 0,
 ) -> RefineStepResult:
-    """Execute semantic-refine.patch.prompt: patch artifacts using feedback.
+    """Execute semantic-refine.patch.prompt for a specific artifact.
 
-    Reads latest repo-understanding and knowledge-confidence, sends them
+    Reads the latest working version of the target artifact, sends it
     with architect feedback to the host executor, validates the patched
     output, and writes the next version.
     """
@@ -197,7 +232,7 @@ def _execute_patch_step(
         prompt_data = prompt_loader.load_prompt(str(prompt_path))
     except FileNotFoundError:
         return RefineStepResult(
-            step_index=0, action="run",
+            step_index=step_index, action="run",
             target="prompts/refine/semantic-refine.patch.prompt",
             status="error",
             errors=["Prompt file not found"],
@@ -207,24 +242,24 @@ def _execute_patch_step(
 
     patched = executor(
         prompt_data["_raw"], ctx,
-        artifact_name="repo-understanding",
+        artifact_name=artifact_name,
         sampling_mode="auto",
     )
 
     path, errors = artifact_writer.safe_write_artifact(
-        root, "discovery", "repo-understanding", patched,
+        root, "discovery", artifact_name, patched,
         validate_fn=validate_refined_artifact,
     )
 
     if errors:
         return RefineStepResult(
-            step_index=0, action="run",
+            step_index=step_index, action="run",
             target="prompts/refine/semantic-refine.patch.prompt",
             status="validation_failed", errors=errors,
         )
 
     return RefineStepResult(
-        step_index=0, action="run",
+        step_index=step_index, action="run",
         target="prompts/refine/semantic-refine.patch.prompt",
         status="ok", artifact_path=str(path),
     )
@@ -269,31 +304,39 @@ def _execute_changelog_step(
 
 
 def _execute_validation_step(root: Path) -> RefineStepResult:
-    """Validate the latest patched repo-understanding artifact."""
-    latest = artifact_writer.get_latest_version_path(root, "discovery", "repo-understanding")
-    if latest is None:
-        return RefineStepResult(
-            step_index=2, action="run",
-            target="prompts/validation/validate-artifact.prompt",
-            status="error",
-            errors=["No repo-understanding artifact to validate"],
+    """Validate the latest patched repo-understanding and knowledge-confidence."""
+    all_errors: list[str] = []
+    validated_paths: list[str] = []
+
+    for name in ("repo-understanding", "knowledge-confidence"):
+        latest = artifact_writer.get_latest_working_version_path(
+            root, "discovery", name,
         )
+        if latest is None:
+            all_errors.append(f"No {name} artifact to validate")
+            continue
 
-    content = latest.read_text()
-    errors = validate_refined_artifact(content, "repo-understanding")
+        content = latest.read_text()
+        errors = validate_refined_artifact(content, name)
+        if errors:
+            all_errors.extend(errors)
+        else:
+            validated_paths.append(str(latest))
 
-    if errors:
+    if all_errors:
         return RefineStepResult(
             step_index=2, action="run",
             target="prompts/validation/validate-artifact.prompt",
-            status="validation_failed", artifact_path=str(latest),
-            errors=errors,
+            status="validation_failed",
+            artifact_path=validated_paths[0] if validated_paths else None,
+            errors=all_errors,
         )
 
     return RefineStepResult(
         step_index=2, action="run",
         target="prompts/validation/validate-artifact.prompt",
-        status="ok", artifact_path=str(latest),
+        status="ok",
+        artifact_path=validated_paths[0] if validated_paths else None,
     )
 
 

@@ -79,6 +79,19 @@ def get_latest_version_path(root: str | Path, category: str, name: str) -> Path 
     return base_dir / f"{name}.v{max(versions)}.md"
 
 
+def get_latest_working_version_path(
+    root: str | Path, category: str, name: str,
+) -> Path | None:
+    """Get the latest working (non-baseline) versioned artifact.
+
+    Reads only from docs/semantic/{category}/, never from baseline/.
+    This ensures refine never accidentally reads accepted checkpoint artifacts.
+    """
+    if category == BASELINE_DIR:
+        return None
+    return get_latest_version_path(root, category, name)
+
+
 def prune_old_versions(
     root: str | Path,
     category: str,
