@@ -17,6 +17,8 @@ from typing import Any
 
 from . import artifact_writer, context_builder, prompt_loader, skill_loader, state_inspector
 from . import artifact_validation
+from .ibs_core_generator import generate_ibs_core
+from .ibs_core_validation import validate_ibs_core_outputs
 from .host_executor import HostExecutor
 
 # Re-export constants for backward compatibility
@@ -525,7 +527,7 @@ def _read_latest_working(root: Path, name: str) -> str | None:
 
 
 def _execute_baseline_step(root: Path, executor: HostExecutor) -> RefineStepResult:
-    """Execute baseline-synthesis.prompt and write baseline artifacts."""
+    """Execute baseline-synthesis.prompt and write IBS Core baseline artifacts."""
     prompt_path = root / "prompts" / "refine" / "baseline-synthesis.prompt"
     try:
         prompt_data = prompt_loader.load_prompt(str(prompt_path))
@@ -562,9 +564,25 @@ def _execute_baseline_step(root: Path, executor: HostExecutor) -> RefineStepResu
             status="validation_failed", errors=all_errors,
         )
 
-    # Write all 4 baseline files
+    ibs_outputs = generate_ibs_core(
+        repo_facts=_read_latest_working(root, "repo-facts") or "",
+        repo_understanding=ctx.get("repo_understanding", ""),
+        domain_candidates=ctx.get("domain_candidates", ""),
+        knowledge_confidence=ctx.get("knowledge_confidence", ""),
+        review_summary=ctx.get("review_summary", ""),
+    )
+    ibs_errors = validate_ibs_core_outputs(ibs_outputs)
+    if ibs_errors:
+        return RefineStepResult(
+            step_index=4, action="run",
+            target="prompts/refine/baseline-synthesis.prompt",
+            status="validation_failed", errors=ibs_errors,
+        )
+
+    # Write all 4 IBS Core baseline files
     written_paths: list[str] = []
-    for name, content in sections.items():
+    for name in BASELINE_SECTIONS:
+        content = ibs_outputs[name]
         path = artifact_writer.write_baseline(root, name, content)
         written_paths.append(str(path))
 
