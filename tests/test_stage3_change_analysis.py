@@ -122,12 +122,61 @@ def test_generator_maps_ibs_core_fields() -> None:
             "Confidence: medium\n"
         ),
     )
-    assert "## Change Intent" in content
-    assert "Preserve semantic model integrity" in content
-    assert "Pipeline: Intake" in content
-    assert "Semantic Core" in content
-    assert "Semantic Artifact" in content
-    assert "Low confidence marker" in content
+    change_intent = _section_body(content, "Change Intent")
+    affected_pipelines = _section_body(content, "Affected Pipelines")
+    affected_domains_concepts = _section_body(content, "Affected Domains and Concepts")
+    impact_risks = _section_body(content, "Impact and Risks")
+    suggested_next = _section_body(content, "Suggested Next Changes")
+
+    assert "Preserve semantic model integrity" in change_intent
+    assert "No implementation planning" in change_intent
+
+    assert "- Pipeline: Intake" in affected_pipelines
+    assert "Flow: A->B" not in affected_pipelines
+
+    assert "- Domains:" in affected_domains_concepts
+    assert "- Concepts:" in affected_domains_concepts
+    assert "Semantic Core" in affected_domains_concepts
+    assert "Semantic Artifact" in affected_domains_concepts
+
+    assert "Primary impact surface includes pipelines: Intake" in impact_risks
+    assert "Low confidence marker" in impact_risks
+
+    assert "Start with pipeline updates in: Intake" in suggested_next
+    assert "Re-run semantic refine after change-analysis review feedback." in suggested_next
+
+
+def test_generator_is_repeatable_for_same_ibs_input() -> None:
+    inputs = {
+        "purpose": (
+            "Primary Purpose: Keep semantic outputs stable\n"
+            "Supported Scenarios:\n"
+            "- Review semantic changes\n"
+            "Non Goals:\n"
+            "- No runtime redesign\n"
+        ),
+        "pipelines": (
+            "Pipeline Name: Discover\n"
+            "Pipeline Name: Refine\n"
+            "Purpose: Extract and patch facts\n"
+            "Flow: discover->refine\n"
+            "Confidence: low\n"
+        ),
+        "domains": (
+            "Domain Name: Discovery\n"
+            "Domain Name: Refinement\n"
+        ),
+        "concepts": (
+            "Concept Name: Fact Artifact\n"
+            "Concept Name: IBS Core\n"
+            "Confidence: low\n"
+        ),
+    }
+    first = generate_change_analysis(**inputs)
+    second = generate_change_analysis(**inputs)
+
+    assert first == second
+    assert first.find("- Pipeline: Discover") < first.find("- Pipeline: Refine")
 
 
 def test_validator_rejects_missing_required_structure() -> None:
@@ -166,3 +215,50 @@ def test_refine_generates_change_analysis_from_ibs_core(semantic_root: Path) -> 
     assert m is not None
     assert m.group(1).strip() in ca_text
 
+
+def test_refine_stage3_failure_after_baseline_is_explicit(
+    semantic_root: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    d = run_discovery(semantic_root, executor=stub_executor, sampling_mode="auto")
+    assert d.status == "ok"
+
+    feedback = semantic_root / "docs" / "semantic" / "review" / "architect-feedback.md"
+    feedback.write_text("acceptance: true\n")
+
+    import src.refine_executor as refine_executor_module
+
+    def _invalid_change_analysis(**_: str) -> str:
+        return "# change-analysis\n\n## Change Intent\n- Intent: incomplete\n"
+
+    monkeypatch.setattr(
+        refine_executor_module,
+        "generate_change_analysis",
+        _invalid_change_analysis,
+    )
+
+    r = run_refine(semantic_root, executor=stub_executor)
+    assert r.status == "validation_failed"
+    assert r.baseline_generated is True
+
+    stage4 = [s for s in r.steps if s.step_index == 4]
+    stage5 = [s for s in r.steps if s.step_index == 5]
+    assert stage4 and stage4[0].status == "ok"
+    assert stage5 and stage5[0].status == "validation_failed"
+
+    baseline_dir = semantic_root / "docs" / "semantic" / "baseline"
+    for name in ("purpose", "pipelines", "domains", "concepts"):
+        assert (baseline_dir / f"{name}.md").exists()
+
+    assert not (semantic_root / "docs" / "semantic" / "review" / "change-analysis.v1.md").exists()
+    assert not (baseline_dir / "checkpoint.json").exists()
+
+
+def _section_body(content: str, heading: str) -> str:
+    pattern = re.compile(
+        rf"^##\s+{re.escape(heading)}\s*$\n(.*?)(?=^##\s+|\Z)",
+        re.MULTILINE | re.DOTALL,
+    )
+    match = pattern.search(content)
+    assert match is not None, f"missing section: {heading}"
+    return match.group(1).strip()
