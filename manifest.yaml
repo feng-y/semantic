@@ -1,5 +1,5 @@
 name: semantic-harness
-version: 0.0.1
+version: 1.0.0
 target: claude-code
 
 skills:
