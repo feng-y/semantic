@@ -54,12 +54,16 @@ src/                   → runtime modules
   discovery_executor.py→ discovery pipeline
   refine_executor.py   → refinement + baseline synthesis
   state_inspector.py   → semantic state routing
-docs/semantic/
-  schemas/             → artifact schema definitions
-  discovery/           → versioned working artifacts
-  review/              → review-summary, architect-feedback
-  baseline/            → accepted baseline (immutable)
+docs/semantic/           → generated semantic state (not human-written docs)
+  schemas/             → artifact schema contracts
+  discovery/           → versioned working artifacts (generated)
+  review/              → review-summary, architect-feedback (generated)
+  baseline/            → accepted baseline (generated, immutable)
+docs/semantic-design/  → human-written architecture decision records
+docs/review/           → development reports and audit artifacts
 ```
+
+> **Note:** `docs/semantic/` contains machine-generated semantic state, not ordinary documentation. The `discovery/`, `review/`, and `baseline/` subdirectories are written by the pipeline at runtime. `docs/semantic/schemas/` defines the structural contracts these artifacts must satisfy. Human-written design docs live in `docs/semantic-design/`.
 
 ## Documentation
 
@@ -67,6 +71,7 @@ docs/semantic/
 - [USER_GUIDE.md](USER_GUIDE.md) — workflow, commands, failure handling
 - [CHANGELOG.md](CHANGELOG.md) — version history
 - `docs/semantic-design/` — architecture decision records (001–010)
+- `docs/review/` — development reports, audits, migration artifacts
 
 ## Release Status
 

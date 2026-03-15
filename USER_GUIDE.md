@@ -22,6 +22,8 @@ docs/semantic/
   baseline/      — accepted baseline (immutable)
 ```
 
+> **Important:** These directories contain generated semantic state, not human-written documentation. The pipeline writes artifacts here at runtime. `schemas/` defines the structural contracts each artifact must satisfy. Human-written design docs are in `docs/semantic-design/`.
+
 ## Run Discovery
 
 Discovery extracts semantic understanding from your repository:
