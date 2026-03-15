@@ -1,2 +1,2 @@
 ## Acceptance
-Acceptance: Semantic Baseline Accepted
+acceptance: true

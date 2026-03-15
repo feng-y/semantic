@@ -16,5 +16,5 @@ Things already correct.
 
 ## Acceptance
 Use:
-acceptance: semantic baseline accepted
+acceptance: true
 when baseline is ready.

@@ -10,4 +10,4 @@ Semantic baseline generation is allowed only if:
 6. Architect explicitly provides acceptance.
 
 Acceptance signal:
-acceptance: semantic baseline accepted
+acceptance: true
