@@ -441,6 +441,11 @@ def run_discovery(
             if step_result.artifact_path:
                 result.artifacts_written.append(step_result.artifact_path)
 
+            # Stop pipeline if step encountered an error
+            if step_result.status == "error":
+                result.status = "error"
+                return result
+
             if step_result.status == "validation_failed":
                 result.validation_failures.append({
                     "step": i,
