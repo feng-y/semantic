@@ -1,34 +1,34 @@
-# Repo Facts
+# Repository Facts
 
 ## Repository
-- Primary Language:
-- Build System:
-- Repository Type:
-- Evidence:
+- Primary Language: <language>
+- Build System: <build/runtime tooling>
+- Repository Type: <library|service|cli|plugin|other>
+- Evidence: <files/commands that support this claim>
 
 ## Modules
-- Name:
-- Path:
-- Responsibility:
-- Evidence:
+### Module: <name>
+- Path: <path>
+- Responsibility: <what this module owns>
+- Evidence: <files/commands>
 
 ## Entrypoints
-- Name:
-- Type:
-- Location:
-- Execution Flow:
-- Evidence:
+### Entrypoint: <name>
+- Type: <cli|api|script|job|hook>
+- Location: <path>
+- Execution Flow: <high-level call flow>
+- Evidence: <files/commands>
 
 ## Core Entities
-- Name:
-- Type:
-- Defined In:
-- Role:
-- Evidence:
+### Entity: <name>
+- Type: <class|function|data-model|config-object|other>
+- Defined In: <path>
+- Role: <why this entity matters>
+- Evidence: <files/commands>
 
 ## Configuration
-- Name:
-- Type:
-- Location:
-- Loaded By:
-- Evidence:
+### Config: <name>
+- Type: <env|yaml|json|toml|code>
+- Location: <path>
+- Loaded By: <module/entrypoint>
+- Evidence: <files/commands>

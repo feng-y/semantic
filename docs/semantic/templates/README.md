@@ -1,9 +1,10 @@
 # Semantic Templates
 
-These templates define the expected section layout for FACT-layer artifacts.
+These templates define generation-oriented output shapes for FACT-layer artifacts.
 
-The files in this directory are human-authored references used to stabilize
-artifact generation and validation consistency.
+They are human-authored hints for LLM generation quality and consistency.
+They are not schema contracts; structural contracts live in
+`docs/semantic/schemas/`.
 
 Templates:
 - repo-facts.template.md
@@ -11,3 +12,9 @@ Templates:
 - knowledge-confidence.template.md
 - domain-candidates.template.md
 - review-summary.template.md
+
+IBS Core templates:
+- purpose.template.md
+- pipelines.template.md
+- domains.template.md
+- concepts.template.md

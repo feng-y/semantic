@@ -1,33 +1,36 @@
 # Repo Understanding
 
 ## System Purpose
-- Purpose:
-- Evidence:
-- Confidence:
+<Describe the main purpose of the repository in 2-4 sentences.>
+- Evidence: <files/commands that support this understanding>
+- Confidence: <high|medium|low>
 
 ## Pipelines
-- Pipeline Name:
-- Purpose:
-- Flow:
-- Inputs:
-- Outputs:
-- Concepts:
-- Evidence:
-- Confidence:
+### Pipeline: <name>
+- Description: <what this pipeline does>
+- Inputs: <inputs and where they come from>
+- Outputs: <outputs and where they go>
+- Key Components: <major modules/functions involved>
+- Concepts: <related domain concepts>
+- Evidence: <files/commands>
+- Confidence: <high|medium|low>
 
 ## Concepts
-- Concept Name:
-- Description:
-- Role:
-- Used By:
-- Evidence:
-- Confidence:
+### Concept: <name>
+- Description: <what this concept means in this repo>
+- Role: <business/technical role>
+- Used By: <pipelines/components>
+- Evidence: <files/commands>
+- Confidence: <high|medium|low>
 
 ## Candidate Domains
-- Domain Name:
-- Description:
+### Domain: <name>
+- Description: <boundary and responsibility>
 - Related Pipelines:
+  - <pipeline>
+- Evidence: <files/commands>
+- Confidence: <high|medium|low>
 
 ## Open Questions
-- Description:
-- Why Unresolved:
+- Question: <what is still unclear>
+- Why Unresolved: <missing evidence / ambiguous behavior>
