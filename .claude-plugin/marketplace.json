@@ -2,13 +2,16 @@
   "name": "semantic-harness-marketplace",
   "version": "0.0.1",
   "description": "Marketplace for semantic harness plugin",
+  "owner": {
+    "name": "feng-y",
+    "email": "feng-y@users.noreply.github.com"
+  },
   "plugins": [
     {
       "name": "semantic-harness",
       "version": "0.0.1",
       "description": "Evidence-driven semantic construction pipeline for Claude Code",
-      "manifest": "manifest.yaml",
-      "repository": "https://github.com/feng-y/semantic"
+      "source": "."
     }
   ]
 }
