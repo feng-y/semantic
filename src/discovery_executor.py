@@ -8,17 +8,9 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from . import artifact_writer, prompt_loader, skill_loader
+from . import artifact_validation, artifact_writer, prompt_loader, skill_loader
 from . import context_builder
 from .host_executor import HostExecutor
-from .refine_executor import (
-    DOMAIN_CANDIDATES_SECTIONS,
-    KNOWLEDGE_CONFIDENCE_SECTIONS,
-    REPO_FACTS_SECTIONS,
-    REPO_UNDERSTANDING_SECTIONS,
-    REVIEW_SUMMARY_SECTIONS,
-    _has_any_section_heading,
-)
 
 
 @dataclass
@@ -82,43 +74,18 @@ def validate_artifact_content(content: str, name: str) -> list[str]:
     - content is non-empty
     - schema-defined section headings exist (for artifacts that require them)
     """
-    errors: list[str] = []
-    if not content or not content.strip():
-        errors.append(f"{name}: artifact content is empty")
-        return errors
-
     if name == "repo-facts":
-        if not _has_any_section_heading(content, REPO_FACTS_SECTIONS):
-            errors.append(
-                f"{name}: missing schema-defined section "
-                f"(expected one of: {', '.join(REPO_FACTS_SECTIONS)})"
-            )
+        return artifact_validation.validate_repo_facts(content)
     elif name == "repo-understanding":
-        if not _has_any_section_heading(content, REPO_UNDERSTANDING_SECTIONS):
-            errors.append(
-                f"{name}: missing schema-defined section "
-                f"(expected one of: {', '.join(REPO_UNDERSTANDING_SECTIONS)})"
-            )
+        return artifact_validation.validate_repo_understanding(content)
     elif name == "knowledge-confidence":
-        if not _has_any_section_heading(content, KNOWLEDGE_CONFIDENCE_SECTIONS):
-            errors.append(
-                f"{name}: missing schema-defined section "
-                f"(expected one of: {', '.join(KNOWLEDGE_CONFIDENCE_SECTIONS)})"
-            )
+        return artifact_validation.validate_knowledge_confidence(content)
     elif name == "domain-candidates":
-        if not _has_any_section_heading(content, DOMAIN_CANDIDATES_SECTIONS):
-            errors.append(
-                f"{name}: missing schema-defined section "
-                f"(expected one of: {', '.join(DOMAIN_CANDIDATES_SECTIONS)})"
-            )
+        return artifact_validation.validate_domain_candidates(content)
     elif name == "review-summary":
-        if not _has_any_section_heading(content, REVIEW_SUMMARY_SECTIONS):
-            errors.append(
-                f"{name}: missing schema-defined section "
-                f"(expected one of: {', '.join(REVIEW_SUMMARY_SECTIONS)})"
-            )
-
-    return errors
+        return artifact_validation.validate_review_summary(content)
+    else:
+        return []
 
 
 def _check_sampling_timeout(
