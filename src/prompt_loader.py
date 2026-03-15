@@ -7,7 +7,26 @@ from pathlib import Path
 from typing import Any
 
 
-def load_prompt(prompt_path: str | Path) -> dict[str, Any]:
+class PathSandboxError(Exception):
+    """Raised when a file path escapes the repository sandbox."""
+
+
+def _validate_path(path: Path, root: Path) -> None:
+    """Validate that path is within root (sandbox check).
+
+    Raises PathSandboxError if the resolved path escapes the root.
+    """
+    try:
+        resolved = path.resolve()
+        resolved_root = root.resolve()
+        resolved.relative_to(resolved_root)
+    except ValueError:
+        raise PathSandboxError(
+            f"Path '{path}' escapes repository sandbox '{root}'"
+        )
+
+
+def load_prompt(prompt_path: str | Path, root: Path | None = None) -> dict[str, Any]:
     """Parse a .prompt file into structured sections.
 
     Prompt files have a simple structure:
@@ -19,8 +38,13 @@ def load_prompt(prompt_path: str | Path) -> dict[str, Any]:
       free text
 
     Returns dict with 'goal', 'inputs', 'output', and other sections.
+
+    Args:
+        root: If provided, validates that prompt_path is within root sandbox.
     """
     path = Path(prompt_path)
+    if root is not None:
+        _validate_path(path, root)
     if not path.exists():
         raise FileNotFoundError(f"Prompt file not found: {path}")
 
@@ -70,8 +94,14 @@ def _normalize_key(section_name: str) -> str:
 
 
 def resolve_prompt_path(prompt_ref: str, root: str | Path) -> Path:
-    """Resolve a prompt reference (from a skill step) to an absolute path."""
-    return Path(root) / prompt_ref
+    """Resolve a prompt reference (from a skill step) to an absolute path.
+
+    Validates that the resolved path is within the repository root sandbox.
+    """
+    root_path = Path(root)
+    resolved = root_path / prompt_ref
+    _validate_path(resolved, root_path)
+    return resolved
 
 
 def load_prompt_chain(prompt_refs: list[str], root: str | Path) -> list[dict[str, Any]]:

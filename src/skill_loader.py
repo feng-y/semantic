@@ -12,16 +12,40 @@ class SkillLoadError(Exception):
     """Raised when a .skill file is invalid or missing required fields."""
 
 
+class PathSandboxError(Exception):
+    """Raised when a file path escapes the repository sandbox."""
+
+
 REQUIRED_FIELDS = {"name"}
 
 
-def load_skill(skill_path: str | Path) -> dict[str, Any]:
+def _validate_path(path: Path, root: Path) -> None:
+    """Validate that path is within root (sandbox check).
+
+    Raises PathSandboxError if the resolved path escapes the root.
+    """
+    try:
+        resolved = path.resolve()
+        resolved_root = root.resolve()
+        resolved.relative_to(resolved_root)
+    except ValueError:
+        raise PathSandboxError(
+            f"Path '{path}' escapes repository sandbox '{root}'"
+        )
+
+
+def load_skill(skill_path: str | Path, root: Path | None = None) -> dict[str, Any]:
     """Parse a .skill YAML file and return a structured dict.
 
     Required fields: name
     Optional fields: purpose, inputs, steps, outputs, logic
+
+    Args:
+        root: If provided, validates that skill_path is within root sandbox.
     """
     path = Path(skill_path)
+    if root is not None:
+        _validate_path(path, root)
     if not path.exists():
         raise FileNotFoundError(f"Skill file not found: {path}")
 
@@ -63,7 +87,7 @@ def load_all_skills(manifest_path: str | Path) -> dict[str, dict[str, Any]]:
     root = path.parent
     skills: dict[str, dict[str, Any]] = {}
     for role, rel_path in manifest["skills"].items():
-        skills[role] = load_skill(root / rel_path)
+        skills[role] = load_skill(root / rel_path, root=root)
 
     return skills
 
