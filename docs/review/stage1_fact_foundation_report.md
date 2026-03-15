@@ -125,9 +125,11 @@ FACT artifact validation is implemented in `src/artifact_validation.py`.
 
 For each artifact, the validator:
 - rejects empty content; and
-- checks that the content contains **at least one** expected section heading,
-  using `_has_any_section_heading(content, SECTIONS)` with a case-insensitive
+- rejects content with no recognized schema section headings; and
+- uses a **"has any recognized section heading"** check via
+  `_has_any_section_heading(content, SECTIONS)` with a case-insensitive
   `## Heading` pattern.
+- does **not** require all expected sections to be present.
 
 Validators:
 
@@ -174,7 +176,8 @@ Validators:
 Coverage:
 - Valid content passes validation for all 5 FACT artifacts.
 - Empty content is rejected.
-- Missing sections are rejected.
+- Content with no recognized schema section headings is rejected.
+- Validation does not require all expected sections.
 - Case-insensitive heading matching is verified.
 
 ### 4.2 System & pipeline tests (existing)
@@ -198,8 +201,10 @@ Coverage:
 
 ### 4.4 Test run status
 
-- Command: `pytest -v`
-- Result: **229 tests passed, 0 failed**.
+- Commands:
+  - `pytest -q`
+  - `pytest -q --maxfail=1`
+- Result: **229 tests passed, 0 failed** (both commands).
 - Conclusion: Stage 1 changes (schema + templates + tests) introduced no regression.
 
 ---
@@ -233,15 +238,24 @@ These aspects of the FACT layer were already in place and remain unchanged:
      - `knowledge-confidence.template.md`
      - `domain-candidates.template.md`
      - `review-summary.template.md`
-   - Templates align with existing schemas and current artifact shape, and follow
-     the heading/list style used by `fake_executors.stub_executor`.
+   - Templates are documentation/generation guidance with explicit placeholders to
+     stabilize LLM output shape.
+   - Templates are aligned with schema/validator heading contracts.
+   - Templates are not guaranteed to exactly match all current runtime output or
+     test stub output shapes.
+   - Schema contracts remain in `docs/semantic/schemas/`.
 
 3. **Added Stage 1 FACT foundation tests**
    - File: `tests/test_stage1_fact_foundation.py`.
    - Encodes the FACT-level acceptance criteria for this stage.
 
 4. **Validated full test suite after changes**
-   - `pytest -v` now runs 229 tests, all passing.
+   - `pytest -q` and `pytest -q --maxfail=1` both pass with 229 tests.
+
+5. **Added semantic model anchor**
+   - File: `docs/semantic/semantic_model.md`.
+   - Captures the global cognitive flow:
+     `repo -> facts -> IBS -> change-analysis -> implementation-plan`.
 
 ### 5.3 Remaining gaps (deferred to later hardening)
 
@@ -255,6 +269,8 @@ later IBS / hardening stages:
 2. **Tighter schema/runtime alignment**
    - Some schema fields (e.g., Evidence, Confidence, Assumptions) are not enforced
      by validators today.
+   - Template shape can differ from current runtime/test stub shape even when
+     section headings remain contract-aligned.
 
 3. **IBS integration and new artifacts**
    - Stage 1 intentionally does **not** introduce any IBS artifacts, prompts, or
@@ -263,15 +279,32 @@ later IBS / hardening stages:
 4. **State/reporting enhancements**
    - `state_inspector` and status-related APIs were not modified in Stage 1.
 
+Short note:
+- The validation strictness gap and template-vs-runtime/test-shape differences are
+  explicitly deferred and are **not Stage 1 blockers**.
+
 ---
 
-## 6. Final Status for Stage 1
+## 6. FACT → IBS Readiness Mapping
+
+- `repo-understanding` → seeds IBS Core `purpose.md`, `pipelines.md`, `concepts.md`.
+- `domain-candidates` → seeds IBS Core `domains.md`.
+- `repo-facts` → provides structure/evidence hints used to ground IBS claims.
+- `knowledge-confidence` → carries uncertainty markers and confidence boundaries into IBS.
+- `review-summary` → provides reviewer-facing synthesis and unresolved questions.
+
+This mapping confirms that FACT outputs are ready to serve as stable upstream inputs
+for Stage 2 IBS Core synthesis.
+
+---
+
+## 7. Final Status for Stage 1
 
 - FACT artifacts (repo-facts, repo-understanding, knowledge-confidence,
   domain-candidates, review-summary) now each have:
   - a documented schema;
   - a validator; and
-  - a human-oriented template aligned with current artifact shape.
+  - a human-oriented template aligned with schema/validator heading contracts.
 - Discovery continues to generate these artifacts consistently.
 - New FACT-focused tests codify the Stage 1 acceptance criteria.
 - Full test suite (229 tests) passes with no regressions.
