@@ -61,7 +61,7 @@ def main(argv: list[str] | None = None) -> int:
 
     result = dispatcher.dispatch(args.command, args.root, **kwargs)
     print(json.dumps(result, indent=2))
-    failure_statuses = {"error", "validation_failed", "execution_unavailable", "version_skew"}
+    failure_statuses = {"error", "validation_failed", "execution_unavailable", "version_skew", "acceptance_failed"}
     return 0 if result.get("status") not in failure_statuses else 1
 
 

@@ -203,6 +203,7 @@ def run_refine(
                 target="prompts/refine/baseline-synthesis.prompt",
                 status="acceptance_failed", errors=failures,
             ))
+            result.status = "acceptance_failed"
         else:
             baseline_result = _execute_baseline_step(root, executor)
             result.steps.append(baseline_result)
@@ -210,6 +211,8 @@ def run_refine(
                 result.baseline_generated = True
                 result.artifacts_written.append(baseline_result.artifact_path)
                 _write_baseline_checkpoint(root, result, feedback)
+            else:
+                result.status = baseline_result.status
 
     # Write semantic snapshot after successful completion
     if result.status == "ok":
