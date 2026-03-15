@@ -17,6 +17,9 @@ VERSIONED_DIRS = ("discovery", "review")
 # Baseline directory (accepted versions, never auto-pruned)
 BASELINE_DIR = "baseline"
 
+# Maximum retries for atomic version allocation
+_MAX_VERSION_RETRIES = 64
+
 
 def _atomic_write(path: Path, content: str) -> None:
     """Write content to path using write-then-rename to prevent truncated files."""
@@ -60,11 +63,43 @@ def write_artifact(
 
 
 def _next_version(directory: Path, name: str) -> int:
-    """Determine the next version number for an artifact."""
+    """Atomically allocate the next version number for an artifact.
+
+    Uses O_CREAT | O_EXCL to create a lock file exclusively, preventing
+    two concurrent writers from claiming the same version number.
+
+    Retries up to _MAX_VERSION_RETRIES times if another writer claims
+    the same version concurrently.
+
+    Returns the allocated version number (lock file is left in place;
+    the caller will overwrite it with the actual artifact content).
+    """
     existing = _find_versions(directory, name)
-    if not existing:
-        return 1
-    return max(existing) + 1
+    candidate = (max(existing) + 1) if existing else 1
+
+    for _ in range(_MAX_VERSION_RETRIES):
+        lock_path = directory / f"{name}.v{candidate}.md"
+        try:
+            fd = os.open(str(lock_path), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+            os.close(fd)
+            return candidate
+        except FileExistsError:
+            candidate += 1
+
+    raise RuntimeError(
+        f"Failed to allocate version for '{name}' after {_MAX_VERSION_RETRIES} retries"
+    )
+
+
+def _peek_next_version(directory: Path, name: str) -> int:
+    """Determine the next version number without creating any files.
+
+    Used for staging/validation passes where no file should be created
+    until all validations pass. Not safe for concurrent use — use
+    _next_version() when atomic allocation is required.
+    """
+    existing = _find_versions(directory, name)
+    return (max(existing) + 1) if existing else 1
 
 
 def _find_versions(directory: Path, name: str) -> list[int]:
@@ -247,7 +282,8 @@ def stage_artifact(
     base_dir.mkdir(parents=True, exist_ok=True)
 
     if category in VERSIONED_DIRS:
-        version = _next_version(base_dir, name)
+        # Use peek (no file creation) — actual atomic allocation happens in commit_staged
+        version = _peek_next_version(base_dir, name)
         filename = f"{name}.v{version}.md"
     else:
         filename = f"{name}.md"
@@ -263,7 +299,12 @@ def stage_artifact(
 
 
 def commit_staged(staged: list[tuple[str, str]]) -> list[Path]:
-    """Write all staged artifacts to disk. Called only after all validations pass."""
+    """Write all staged artifacts to disk atomically. Called only after all validations pass.
+
+    Uses _next_version() for atomic version allocation to prevent race conditions.
+    The paths returned may differ from the staged paths if concurrent writers
+    claimed versions between staging and commit.
+    """
     written: list[Path] = []
     for target_path, content in staged:
         p = Path(target_path)
