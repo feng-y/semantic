@@ -17,6 +17,8 @@ from typing import Any
 
 from . import artifact_writer, context_builder, prompt_loader, skill_loader, state_inspector
 from . import artifact_validation
+from .change_analysis_generator import generate_change_analysis
+from .change_analysis_validation import validate_change_analysis
 from .ibs_core_generator import generate_ibs_core
 from .ibs_core_validation import validate_ibs_core_outputs
 from .host_executor import HostExecutor
@@ -212,6 +214,13 @@ def run_refine(
             if baseline_result.status == "ok":
                 result.baseline_generated = True
                 result.artifacts_written.append(baseline_result.artifact_path)
+                change_result = _execute_change_analysis_step(root)
+                result.steps.append(change_result)
+                if change_result.artifact_path:
+                    result.artifacts_written.append(change_result.artifact_path)
+                if change_result.status != "ok":
+                    result.status = change_result.status
+                    return result
                 _write_baseline_checkpoint(root, result, feedback)
             else:
                 result.status = baseline_result.status
@@ -591,6 +600,63 @@ def _execute_baseline_step(root: Path, executor: HostExecutor) -> RefineStepResu
         target="prompts/refine/baseline-synthesis.prompt",
         status="ok",
         artifact_path=written_paths[0] if written_paths else None,
+    )
+
+
+def _execute_change_analysis_step(root: Path) -> RefineStepResult:
+    """Generate and write change-analysis from accepted IBS Core baseline artifacts."""
+    ctx = context_builder.build_change_analysis_context(root)
+    missing = [name for name in ("purpose", "pipelines", "domains", "concepts") if name not in ctx]
+    if missing:
+        return RefineStepResult(
+            step_index=5,
+            action="generate",
+            target="ibs/change-analysis",
+            status="validation_failed",
+            errors=[f"missing ibs core baseline artifacts: {', '.join(missing)}"],
+        )
+
+    content = generate_change_analysis(
+        purpose=ctx["purpose"],
+        pipelines=ctx["pipelines"],
+        domains=ctx["domains"],
+        concepts=ctx["concepts"],
+    )
+    errors = validate_change_analysis(content)
+    if errors:
+        return RefineStepResult(
+            step_index=5,
+            action="generate",
+            target="ibs/change-analysis",
+            status="validation_failed",
+            errors=errors,
+        )
+
+    def _validate_change_analysis(content: str, _name: str) -> list[str]:
+        return validate_change_analysis(content)
+
+    path, write_errors = artifact_writer.safe_write_artifact(
+        root,
+        "review",
+        "change-analysis",
+        content,
+        validate_fn=_validate_change_analysis,
+    )
+    if write_errors or path is None:
+        return RefineStepResult(
+            step_index=5,
+            action="generate",
+            target="ibs/change-analysis",
+            status="validation_failed",
+            errors=write_errors or ["failed to write change-analysis artifact"],
+        )
+
+    return RefineStepResult(
+        step_index=5,
+        action="generate",
+        target="ibs/change-analysis",
+        status="ok",
+        artifact_path=str(path),
     )
 
 

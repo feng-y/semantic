@@ -18,3 +18,6 @@ IBS Core templates:
 - pipelines.template.md
 - domains.template.md
 - concepts.template.md
+
+Change analysis templates:
+- change-analysis.template.md

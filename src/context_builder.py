@@ -361,3 +361,23 @@ def build_baseline_context(root: Path) -> dict[str, str]:
     if summary:
         ctx["review_summary"] = summary
     return ctx
+
+
+def build_change_analysis_context(root: Path) -> dict[str, str]:
+    """Assemble context for Stage 3 change-analysis generation.
+
+    Reads accepted IBS Core baseline artifacts:
+    - purpose.md
+    - pipelines.md
+    - domains.md
+    - concepts.md
+    """
+    base = root / "docs" / "semantic" / "baseline"
+    ctx: dict[str, str] = {}
+    for name in ("purpose", "pipelines", "domains", "concepts"):
+        path = base / f"{name}.md"
+        if path.exists():
+            text = path.read_text().strip()
+            if text:
+                ctx[name] = text
+    return ctx
