@@ -1,4 +1,5 @@
 {
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
   "name": "semantic-harness-marketplace",
   "version": "0.0.1",
   "description": "Marketplace for semantic harness plugin",
@@ -11,7 +12,18 @@
       "name": "semantic-harness",
       "version": "0.0.1",
       "description": "Evidence-driven semantic construction pipeline for Claude Code",
-      "source": "."
+      "author": {
+        "name": "feng-y",
+        "email": "feng-y@users.noreply.github.com"
+      },
+      "source": "./",
+      "category": "productivity",
+      "homepage": "https://github.com/feng-y/semantic",
+      "tags": [
+        "semantic",
+        "repository-analysis",
+        "documentation"
+      ]
     }
   ]
 }
