@@ -16,22 +16,16 @@ from pathlib import Path
 from typing import Any
 
 from . import artifact_writer, context_builder, prompt_loader, skill_loader, state_inspector
+from . import artifact_validation
 from .host_executor import HostExecutor
 
-# Baseline section headings and their required schema keywords
-BASELINE_SECTIONS: dict[str, str] = {
-    "purpose": "Primary Purpose",
-    "domains": "Domain Name",
-    "concepts": "Concept Name",
-    "pipelines": "Pipeline Name",
-}
-
-# Schema-defined sections for structural validation (from docs/semantic/schemas/)
-REPO_UNDERSTANDING_SECTIONS = ("System Purpose", "Pipelines", "Concepts", "Candidate Domains")
-KNOWLEDGE_CONFIDENCE_SECTIONS = ("Confirmed Knowledge", "Inferred Knowledge", "Uncertain Knowledge")
-REPO_FACTS_SECTIONS = ("Repository", "Modules", "Entrypoints", "Core Entities", "Configuration")
-DOMAIN_CANDIDATES_SECTIONS = ("Candidate Domains",)
-REVIEW_SUMMARY_SECTIONS = ("System Summary", "Pipelines", "Concepts", "Candidate Domains", "Assumptions", "Questions for Architect")
+# Re-export constants for backward compatibility
+BASELINE_SECTIONS = artifact_validation.BASELINE_SECTIONS
+REPO_UNDERSTANDING_SECTIONS = artifact_validation.REPO_UNDERSTANDING_SECTIONS
+KNOWLEDGE_CONFIDENCE_SECTIONS = artifact_validation.KNOWLEDGE_CONFIDENCE_SECTIONS
+REPO_FACTS_SECTIONS = artifact_validation.REPO_FACTS_SECTIONS
+DOMAIN_CANDIDATES_SECTIONS = artifact_validation.DOMAIN_CANDIDATES_SECTIONS
+REVIEW_SUMMARY_SECTIONS = artifact_validation.REVIEW_SUMMARY_SECTIONS
 
 
 @dataclass
@@ -60,36 +54,25 @@ class RefineResult:
     baseline_generated: bool = False
 
 
-def _has_any_section_heading(content: str, headings: tuple[str, ...]) -> bool:
-    """Check if content contains at least one ## heading from the given list."""
-    for heading in headings:
-        pattern = re.compile(rf"^##\s+{re.escape(heading)}\b", re.MULTILINE | re.IGNORECASE)
-        if pattern.search(content) is not None:
-            return True
-    return False
+# Re-export helper for backward compatibility
+_has_any_section_heading = artifact_validation._has_any_section_heading
 
 
 def validate_refined_artifact(content: str, name: str) -> list[str]:
     """Validate a refined artifact against schema-defined structural checks."""
-    errors: list[str] = []
-    if not content or not content.strip():
-        errors.append(f"{name}: artifact content is empty")
-        return errors
-
     if name == "repo-understanding":
-        if not _has_any_section_heading(content, REPO_UNDERSTANDING_SECTIONS):
-            errors.append(
-                f"{name}: missing schema-defined section "
-                f"(expected one of: {', '.join(REPO_UNDERSTANDING_SECTIONS)})"
-            )
+        return artifact_validation.validate_repo_understanding(content)
     elif name == "knowledge-confidence":
-        if not _has_any_section_heading(content, KNOWLEDGE_CONFIDENCE_SECTIONS):
-            errors.append(
-                f"{name}: missing schema-defined section "
-                f"(expected one of: {', '.join(KNOWLEDGE_CONFIDENCE_SECTIONS)})"
-            )
-
-    return errors
+        return artifact_validation.validate_knowledge_confidence(content)
+    elif name == "domain-candidates":
+        return artifact_validation.validate_domain_candidates(content)
+    elif name == "review-summary":
+        return artifact_validation.validate_review_summary(content)
+    elif name == "repo-facts":
+        return artifact_validation.validate_repo_facts(content)
+    else:
+        # Unknown artifact type - no validation
+        return []
 
 
 def _read_architect_feedback(root: Path) -> str | None:
@@ -621,15 +604,7 @@ def parse_baseline_output(content: str) -> dict[str, str]:
 
 def validate_baseline_artifact(content: str, name: str) -> list[str]:
     """Validate a baseline artifact against its schema's required keyword."""
-    errors: list[str] = []
-    if not content or not content.strip():
-        errors.append(f"{name}: baseline content is empty")
-        return errors
-
-    required_keyword = BASELINE_SECTIONS.get(name)
-    if required_keyword and required_keyword.lower() not in content.lower():
-        errors.append(f"{name}: missing required keyword '{required_keyword}'")
-    return errors
+    return artifact_validation.validate_baseline_files({name: content})
 
 
 def _write_baseline_checkpoint(root: Path, result: RefineResult, feedback: str) -> None:
