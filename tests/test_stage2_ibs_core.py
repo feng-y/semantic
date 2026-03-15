@@ -16,7 +16,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from src import artifact_validation
 from src.discovery_executor import run_discovery
 from src.ibs_core_generator import generate_ibs_core
-from src.ibs_core_validation import validate_ibs_core_outputs
+from src.ibs_core_validation import validate_ibs_core_artifact, validate_ibs_core_outputs
 from src.refine_executor import run_refine
 from tests.fake_executors import stub_executor
 
@@ -74,6 +74,7 @@ def test_stage2_mapping_spec_exists() -> None:
         "Pipeline Name",
         "Domain Name",
         "Concept Name",
+        "no direct `knowledge-confidence` overlay",
     ):
         assert key in content
 
@@ -107,6 +108,95 @@ def test_ibs_core_generator_outputs_validate() -> None:
     assert validate_ibs_core_outputs(outputs) == []
     for content in outputs.values():
         assert content.strip()
+
+
+def test_ibs_core_generator_precedence_is_deterministic() -> None:
+    repo_facts = "# repo-facts\n\n## Repository\n- Primary Language: Python\n"
+    repo_understanding = "# repo-understanding\n\n## System Purpose\n- Purpose: RU purpose\n"
+    domain_candidates = "# domain-candidates\n\n## Candidate Domains\n- Domain Name: D\n- Description: DD\n- Related Pipelines: P\n"
+    knowledge_confidence = "# knowledge-confidence\n\n## Confirmed Knowledge\n- Item: known\n"
+    review_summary = (
+        "# review-summary\n\n"
+        "## Pipelines\n- Pipeline Name: Preferred Pipeline\n\n"
+        "## Main Pipelines\n- Pipeline Name: Secondary Pipeline\n\n"
+        "## Concepts\n- Concept Name: Preferred Concept\n\n"
+        "## Core Concepts\n- Concept Name: Secondary Concept\n"
+    )
+
+    first = generate_ibs_core(
+        repo_facts=repo_facts,
+        repo_understanding=repo_understanding,
+        domain_candidates=domain_candidates,
+        knowledge_confidence=knowledge_confidence,
+        review_summary=review_summary,
+    )
+    second = generate_ibs_core(
+        repo_facts=repo_facts,
+        repo_understanding=repo_understanding,
+        domain_candidates=domain_candidates,
+        knowledge_confidence=knowledge_confidence,
+        review_summary=review_summary,
+    )
+
+    assert first == second
+    assert "Pipeline Name: Preferred Pipeline" in first["pipelines"]
+    assert "Pipeline Name: Secondary Pipeline" not in first["pipelines"]
+    assert "Concept Name: Preferred Concept" in first["concepts"]
+    assert "Concept Name: Secondary Concept" not in first["concepts"]
+
+
+def test_ibs_core_field_level_fact_to_mapping() -> None:
+    outputs = generate_ibs_core(
+        repo_facts=(
+            "# repo-facts\n\n"
+            "## Repository\n- Primary Language: Python\n\n"
+            "## Entrypoints\n- Name: cli\n"
+        ),
+        repo_understanding=(
+            "# repo-understanding\n\n"
+            "## System Purpose\n- Purpose: Canonical purpose from RU\n\n"
+            "## Pipelines\n- Pipeline Name: Intake\n- Purpose: Intake purpose\n\n"
+            "## Concepts\n- Concept Name: Ledger\n- Description: Ledger concept\n- Role: Core role\n- Used By: Intake\n\n"
+            "## Candidate Domains\n- Domain Name: RU Domain\n- Description: RU Description\n- Related Pipelines: Intake\n"
+        ),
+        domain_candidates=(
+            "# domain-candidates\n\n"
+            "## Candidate Domains\n- Domain Name: DC Domain\n- Description: DC Description\n- Related Pipelines: Intake\n"
+        ),
+        knowledge_confidence="# knowledge-confidence\n\n## Confirmed Knowledge\n- Item: known\n",
+        review_summary="# review-summary\n\n## System Summary\nFallback summary from RS\n",
+    )
+
+    assert "Primary Purpose: Canonical purpose from RU" in outputs["purpose"]
+    assert "Fallback summary from RS" not in outputs["purpose"]
+    assert "Pipeline Name: Intake" in outputs["pipelines"]
+    assert "Purpose: Intake purpose" in outputs["pipelines"]
+    assert "Domain Name: DC Domain" in outputs["domains"]
+    assert "Description: DC Description" in outputs["domains"]
+    assert "Concept Name: Ledger" in outputs["concepts"]
+
+
+def test_ibs_core_validation_rejects_missing_required_structure() -> None:
+    bad_outputs = {
+        "purpose": "Primary Purpose: only one line\n",
+        "pipelines": "Pipeline Name: only\n",
+        "domains": "Domain Name: d\nDescription: desc\nRelated Pipelines:\n",
+        "concepts": "Concept Name: c\n",
+    }
+    errors = validate_ibs_core_outputs(bad_outputs)
+    assert errors
+    joined = "\n".join(errors)
+    assert "Supported Scenarios" in joined
+    assert "Non Goals" in joined
+    assert "pipelines" in joined.lower()
+    assert "Related Pipelines" in joined
+    assert "Role" in joined
+
+
+def test_ibs_core_validation_rejects_empty_artifact() -> None:
+    errors = validate_ibs_core_artifact("purpose", "")
+    assert errors
+    assert "empty" in errors[0].lower()
 
 
 def test_refine_writes_ibs_core_baseline(semantic_root: Path) -> None:

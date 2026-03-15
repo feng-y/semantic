@@ -25,7 +25,8 @@ This stage is intentionally limited to IBS Core synthesis only.
 
 - Primary source: `repo-understanding` (`System Purpose`) and `review-summary` (`System Summary`)
 - Supporting source: `repo-facts` (repository type, entrypoints, entities)
-- Confidence overlay: `knowledge-confidence` (confirmed/inferred/uncertain markers)
+- Stage 2 behavior: no direct `knowledge-confidence` overlay is applied in `purpose.md`;
+  confidence handling remains implicit in upstream FACT artifacts.
 - Output intent:
   - `Primary Purpose`
   - `Supported Scenarios`

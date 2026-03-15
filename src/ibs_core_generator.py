@@ -230,7 +230,7 @@ def _generate_concepts(
 def _extract_section(content: str, headings: tuple[str, ...]) -> str:
     if not content:
         return ""
-    normalized = {h.lower() for h in headings}
+    normalized = [h.strip().lower() for h in headings if h and h.strip()]
     current_heading: str | None = None
     current_lines: list[str] = []
     sections: dict[str, str] = {}
@@ -249,6 +249,7 @@ def _extract_section(content: str, headings: tuple[str, ...]) -> str:
     if current_heading is not None:
         sections[current_heading] = "\n".join(current_lines).strip()
 
+    # Deterministic precedence: first heading in the tuple wins.
     for key in normalized:
         if key in sections:
             return sections[key]
