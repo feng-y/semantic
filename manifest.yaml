@@ -6,3 +6,10 @@ skills:
   orchestrator: skills/semantic-harness.skill
   discovery: skills/repo-semantic-discovery.skill
   refinement: skills/semantic-refinement.skill
+  init: skills/semantic-init.skill
+  discover: skills/semantic-discover.skill
+  review: skills/semantic-review.skill
+  refine: skills/semantic-refine.skill
+  baseline: skills/semantic-baseline.skill
+  status: skills/semantic-status.skill
+  reset: skills/semantic-reset.skill

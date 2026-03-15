@@ -39,6 +39,7 @@ def dispatch(command: str, root: str | Path, **kwargs: Any) -> dict[str, Any]:
         "discover": _handle_discover,
         "refine": _handle_refine,
         "status": _handle_status,
+        "reset": _handle_reset,
     }
 
     handler = handlers.get(command)
@@ -158,4 +159,29 @@ def _handle_status(root: Path, **kwargs: Any) -> dict[str, Any]:
         "has_sampling_report": state.has_sampling_report,
         "feedback_has_acceptance": state.feedback_has_acceptance,
         "baseline_files": state.baseline_files,
+    }
+
+
+def _handle_reset(root: Path, **kwargs: Any) -> dict[str, Any]:
+    """Reset working semantic state. Preserves baseline and schemas."""
+    import shutil
+
+    removed: list[str] = []
+    for d in ("discovery", "review"):
+        dd = root / "docs" / "semantic" / d
+        if dd.exists():
+            for f in dd.iterdir():
+                if f.is_file():
+                    f.unlink()
+                    removed.append(str(f.relative_to(root)))
+
+    snap = root / "docs" / "semantic" / "semantic_snapshot.json"
+    if snap.exists():
+        snap.unlink()
+        removed.append(str(snap.relative_to(root)))
+
+    return {
+        "command": "reset",
+        "status": "ok",
+        "removed": removed,
     }

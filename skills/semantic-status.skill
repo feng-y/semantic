@@ -1,0 +1,6 @@
+name: semantic-status
+description: >
+  Report current semantic state and recommend next action
+  (discover, refine, or done).
+entrypoint: src.state_inspector.inspect
+prompt: null

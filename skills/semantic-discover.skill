@@ -1,0 +1,18 @@
+name: semantic-discover
+description: >
+  Run full semantic discovery pipeline: sampling, fact extraction,
+  evidence augmentation, domain analysis, repo understanding,
+  knowledge confidence, and review summary.
+entrypoint: src.discovery_executor.run_discovery
+
+steps:
+  - run: prompts/discover/repo-sampling.prompt
+  - run: prompts/discover/repo-facts.prompt
+  - run: prompts/discover/evidence-extraction.prompt
+  - run: prompts/validation/validate-artifact.prompt
+  - run: prompts/discover/domain-candidates.prompt
+  - run: prompts/discover/repo-understanding.prompt
+  - run: prompts/validation/validate-artifact.prompt
+  - run: prompts/discover/knowledge-confidence.prompt
+  - run: prompts/discover/review-summary.prompt
+  - apply: protocols/artifact-versioning.md
