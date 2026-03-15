@@ -45,7 +45,7 @@ def load_skill(skill_path: str | Path) -> dict[str, Any]:
 def load_all_skills(manifest_path: str | Path) -> dict[str, dict[str, Any]]:
     """Load all skills referenced in manifest.yaml.
 
-    Returns a dict keyed by skill role (orchestrator, discovery, refinement).
+    Returns a dict keyed by skill role (init, discover, review, refine, etc.).
     """
     path = Path(manifest_path)
     if not path.exists():

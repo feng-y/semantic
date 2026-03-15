@@ -59,15 +59,15 @@ def repo(tmp_path: Path) -> Path:
     (tmp_path / "manifest.yaml").write_text(
         "name: semantic-harness\nversion: 1.0.0\ntarget: claude-code\n"
         "skills:\n"
-        "  orchestrator: skills/semantic-harness.skill\n"
-        "  discovery: skills/repo-semantic-discovery.skill\n"
-        "  refinement: skills/semantic-refinement.skill\n"
+        "  init: skills/semantic-init.skill\n"
+        "  discover: skills/semantic-discover.skill\n"
+        "  refine: skills/semantic-refine.skill\n"
     )
     for name, content in {
-        "semantic-harness.skill": "name: semantic-harness\npurpose: orchestrator\n",
-        "repo-semantic-discovery.skill": "name: repo-semantic-discovery\npurpose: discovery\nsteps: []\n",
-        "semantic-refinement.skill": (
-            "name: semantic-refinement\npurpose: refinement\n"
+        "semantic-init.skill": "name: semantic-init\npurpose: workspace initialization\n",
+        "semantic-discover.skill": "name: semantic-discover\npurpose: discovery\nsteps: []\n",
+        "semantic-refine.skill": (
+            "name: semantic-refine\npurpose: refinement\n"
             "steps:\n"
             "  - run: prompts/refine/semantic-refine.patch.prompt\n"
             "  - run: prompts/refine/semantic-change-log.prompt\n"

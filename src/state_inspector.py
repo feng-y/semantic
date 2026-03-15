@@ -69,7 +69,7 @@ def inspect(root: str | Path) -> SemanticState:
 def recommend_action(state: SemanticState) -> str:
     """Recommend the next action based on current semantic state.
 
-    Routing logic (from semantic-harness.skill):
+    Routing logic (from semantic-init / semantic-discover / semantic-refine skills):
       - no versioned discovery artifacts -> run discovery
       - no accepted baseline -> run refinement
       - else -> report baseline exists, wait for new feedback

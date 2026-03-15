@@ -3,9 +3,6 @@ version: 1.0.0
 target: claude-code
 
 skills:
-  orchestrator: skills/semantic-harness.skill
-  discovery: skills/repo-semantic-discovery.skill
-  refinement: skills/semantic-refinement.skill
   init: skills/semantic-init.skill
   discover: skills/semantic-discover.skill
   review: skills/semantic-review.skill
