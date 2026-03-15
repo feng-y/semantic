@@ -61,7 +61,8 @@ def main(argv: list[str] | None = None) -> int:
 
     result = dispatcher.dispatch(args.command, args.root, **kwargs)
     print(json.dumps(result, indent=2))
-    return 0 if result.get("status") != "error" else 1
+    failure_statuses = {"error", "validation_failed", "execution_unavailable", "version_skew"}
+    return 0 if result.get("status") not in failure_statuses else 1
 
 
 if __name__ == "__main__":

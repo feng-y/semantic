@@ -30,6 +30,9 @@ def dispatch(command: str, root: str | Path, **kwargs: Any) -> dict[str, Any]:
 
     Supported commands: init, discover, refine, status
 
+    Keyword Args:
+        executor: Optional HostExecutor passed to discover/refine handlers.
+
     Returns:
         Dict with 'command', 'status', and command-specific results.
     """
@@ -87,11 +90,13 @@ def _handle_discover(root: Path, **kwargs: Any) -> dict[str, Any]:
     """Run the discovery skill by executing each step in declared order."""
     sampling_mode = kwargs.get("sampling_mode", "auto")
     sampling_timeout = kwargs.get("sampling_timeout")
+    executor = kwargs.get("executor")
 
     result = run_discovery(
         root,
         sampling_mode=sampling_mode,
         sampling_timeout=sampling_timeout,
+        executor=executor,
     )
 
     return {
@@ -118,7 +123,8 @@ def _handle_discover(root: Path, **kwargs: Any) -> dict[str, Any]:
 
 def _handle_refine(root: Path, **kwargs: Any) -> dict[str, Any]:
     """Run the refinement skill by executing each step in declared order."""
-    result = run_refine(root)
+    executor = kwargs.get("executor")
+    result = run_refine(root, executor=executor)
 
     return {
         "command": "refine",
