@@ -313,8 +313,8 @@ def _apply_versioning_protocol(root: Path) -> list[str]:
     """Apply artifact-versioning.md: prune old versions beyond retention window.
 
     Runs pruning for all known versioned artifact names in both
-    discovery/ and review/ directories. The latest version of each
-    artifact is always protected from pruning.
+    discovery/ and review/ directories. The latest version and any
+    accepted baseline versions are always protected from pruning.
     """
     pruned: list[str] = []
     versioned_artifacts = [
@@ -324,13 +324,20 @@ def _apply_versioning_protocol(root: Path) -> list[str]:
         ("discovery", "domain-candidates"),
         ("review", "review-summary"),
     ]
+
+    # Load accepted versions from baseline checkpoint
+    checkpoint_accepted = artifact_writer.get_accepted_versions(root)
+
     for category, name in versioned_artifacts:
         latest = artifact_writer.get_latest_working_version_path(root, category, name)
-        accepted: set[int] = set()
+        accepted: set[int] = checkpoint_accepted.get(name, set()).copy()
+
+        # Also protect the latest version
         if latest is not None:
             m = re.search(r"\.v(\d+)\.md$", latest.name)
             if m:
                 accepted.add(int(m.group(1)))
+
         removed = artifact_writer.prune_old_versions(
             root, category, name, accepted_versions=accepted,
         )

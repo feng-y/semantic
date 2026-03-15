@@ -176,6 +176,30 @@ def prune_old_versions(
     return removed
 
 
+def get_accepted_versions(root: str | Path) -> dict[str, set[int]]:
+    """Read accepted baseline versions from checkpoint.json.
+
+    Returns a dict mapping artifact name to set of accepted version numbers.
+    These versions should be protected from pruning.
+    """
+    checkpoint_path = Path(root) / "docs" / "semantic" / "baseline" / "checkpoint.json"
+    if not checkpoint_path.exists():
+        return {}
+
+    try:
+        checkpoint = json.loads(checkpoint_path.read_text())
+        source_versions = checkpoint.get("source_versions", {})
+
+        # Convert to dict[str, set[int]], filtering out None values
+        result: dict[str, set[int]] = {}
+        for name, version in source_versions.items():
+            if version is not None:
+                result[name] = {version}
+        return result
+    except (json.JSONDecodeError, OSError):
+        return {}
+
+
 def write_baseline(root: str | Path, name: str, content: str) -> Path:
     """Write an accepted baseline artifact (never auto-pruned)."""
     return write_artifact(root, BASELINE_DIR, name, content, versioned=False)
