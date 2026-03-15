@@ -14,8 +14,8 @@ README_SECTIONS = [
     "What It Does",
     "Quickstart",
     "Installation",
-    "Core Commands",
-    "Architecture Overview",
+    "Public Skills",
+    "Repository Structure",
     "Documentation",
     "Release Status",
 ]
