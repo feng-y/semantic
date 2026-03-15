@@ -45,7 +45,11 @@ def inspect(root: str | Path) -> SemanticState:
 
     # Check review artifacts
     if review_dir.exists():
-        state.has_review_summary = _has_content(review_dir / "review-summary.md")
+        # Check for versioned review-summary files
+        review_versions = _scan_versions(review_dir)
+        state.has_review_summary = "review-summary" in review_versions and bool(
+            review_versions["review-summary"]
+        )
         state.has_architect_feedback = _has_content(
             review_dir / "architect-feedback.md"
         )
