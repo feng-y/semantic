@@ -3,6 +3,7 @@
 **Version**: 1.0
 **Date**: 2026-03-16
 **Status**: Contract Definition
+**Role**: This document is canonical for semantic stage contracts. All stage implementations must follow these contracts.
 
 ---
 
@@ -131,19 +132,20 @@ Generate candidate semantic models:
 candidates:
   domains:
     - name: "Domain Name"
-      responsibility: "What this domain does"
-      modules: ["module1", "module2"]
+      summary: "What this domain does"
+      boundary:
+        modules: ["module1", "module2"]
       evidence: ["file:line"]
       confidence: "high|medium|low"
   concepts:
     - name: "Concept Name"
-      definition: "What this concept represents"
+      summary: "What this concept represents"
       relationships: ["related_concept"]
       evidence: ["file:line"]
       confidence: "high|medium|low"
   rules:
     - name: "Rule Name"
-      constraint: "What this rule enforces"
+      summary: "What this rule enforces"
       evidence: ["file:line"]
       confidence: "high|medium|low"
   demand_models:

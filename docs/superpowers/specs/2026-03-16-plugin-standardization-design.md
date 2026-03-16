@@ -80,6 +80,10 @@ semantic-harness/
 
 ### SKILL.md Format
 
+**Key Discovery:** Claude Code uses YAML frontmatter + Markdown body format. The frontmatter contains ALL metadata including complex fields like `steps` arrays.
+
+**Reference:** Verified from oh-my-claudecode plugin at `~/.claude/plugins/cache/omc/oh-my-claudecode/4.8.2/skills/cancel/SKILL.md`
+
 Each skill follows this structure:
 
 ```markdown
@@ -106,6 +110,36 @@ Run this command first before any semantic operations.
 
 Creates the `docs/fact/` directory structure if it doesn't exist.
 ```
+
+**For skills with steps (like semantic-discover):**
+
+```markdown
+---
+name: semantic-discover
+description: >
+  Run full semantic discovery pipeline: sampling, fact extraction,
+  evidence augmentation, domain analysis, repo understanding,
+  knowledge confidence, and review summary.
+entrypoint: src.discovery_executor.run_discovery
+steps:
+  - run: prompts/discover/repo-sampling.prompt
+  - run: prompts/discover/repo-facts.prompt
+  - run: prompts/discover/evidence-extraction.prompt
+  - run: prompts/validation/validate-artifact.prompt
+  - run: prompts/discover/domain-candidates.prompt
+  - run: prompts/discover/repo-understanding.prompt
+  - run: prompts/validation/validate-artifact.prompt
+  - run: prompts/discover/knowledge-confidence.prompt
+  - run: prompts/discover/review-summary.prompt
+  - apply: protocols/artifact-versioning.md
+---
+
+# Semantic Discover
+
+[Documentation content here]
+```
+
+**Critical:** The `steps` array stays in YAML frontmatter, NOT in markdown body.
 
 ## Component Details
 
@@ -183,32 +217,114 @@ entrypoint: src.dispatcher._handle_init
 
 ### 3. Python Runtime Updates
 
-**File: src/dispatcher.py**
+**CORRECTION:** The file that needs updating is `src/skill_loader.py`, NOT `dispatcher.py`.
+
+**File: src/skill_loader.py**
+
+**Current implementation:**
+```python
+def load_skill(skill_path: str | Path, root: Path | None = None) -> dict[str, Any]:
+    """Parse a .skill YAML file and return a structured dict."""
+    path = Path(skill_path)
+    # ... validation ...
+    text = path.read_text()
+    skill = yaml.safe_load(text)  # Loads entire file as YAML
+    # ... validation ...
+    return skill
+```
+
+**New implementation (parse YAML frontmatter from markdown):**
+```python
+import re
+
+def load_skill(skill_path: str | Path, root: Path | None = None) -> dict[str, Any]:
+    """Parse a SKILL.md file with YAML frontmatter and return a structured dict.
+
+    Format:
+    ---
+    name: skill-name
+    description: ...
+    entrypoint: ...
+    steps:
+      - run: ...
+    ---
+
+    # Markdown content
+    """
+    path = Path(skill_path)
+    # ... validation ...
+    text = path.read_text()
+
+    # Extract YAML frontmatter
+    frontmatter_match = re.match(r'^---\s*\n(.*?)\n---\s*\n', text, re.DOTALL)
+    if not frontmatter_match:
+        raise SkillLoadError(f"No YAML frontmatter found in {path}")
+
+    frontmatter_text = frontmatter_match.group(1)
+    try:
+        skill = yaml.safe_load(frontmatter_text)
+    except yaml.YAMLError as e:
+        raise SkillLoadError(f"Invalid YAML frontmatter in {path}: {e}") from e
+
+    # ... validation ...
+    skill["_path"] = str(path)
+    return skill
+```
+
+**File: src/skill_loader.py - load_all_skills()**
 
 **Current:**
 ```python
-# Reads manifest.yaml
-with open('manifest.yaml') as f:
-    config = yaml.safe_load(f)
+def load_all_skills(manifest_path: str | Path) -> dict[str, dict[str, Any]]:
+    """Load all skills referenced in manifest.yaml."""
+    # Reads manifest.yaml, loads each .skill file
 ```
 
-**New:**
+**New (Option A - Keep manifest.yaml internally):**
 ```python
-# Reads .claude-plugin/plugin.json
-import json
-from pathlib import Path
+def load_all_skills(manifest_path: str | Path) -> dict[str, dict[str, Any]]:
+    """Load all skills referenced in manifest.yaml.
 
-plugin_root = Path(__file__).parent.parent
-plugin_json = plugin_root / '.claude-plugin' / 'plugin.json'
-
-with open(plugin_json) as f:
-    config = json.load(f)
+    Note: manifest.yaml is kept for internal use. Claude Code discovers
+    skills via plugin.json pointing to ./skills/ directory.
+    """
+    # Same logic, but now loads SKILL.md files instead of .skill files
+    # Update path resolution: skills/semantic-init.skill -> skills/semantic-init/SKILL.md
 ```
+
+**New (Option B - Read from plugin.json):**
+```python
+def load_all_skills(plugin_json_path: str | Path) -> dict[str, dict[str, Any]]:
+    """Load all skills from plugin.json skills directory.
+
+    Auto-discovers all SKILL.md files in the skills directory.
+    """
+    import json
+    path = Path(plugin_json_path)
+    with open(path) as f:
+        config = json.load(f)
+
+    skills_dir = path.parent.parent / config["skills"].lstrip("./")
+    skills = {}
+
+    # Auto-discover all SKILL.md files
+    for skill_dir in skills_dir.iterdir():
+        if skill_dir.is_dir():
+            skill_file = skill_dir / "SKILL.md"
+            if skill_file.exists():
+                skill = load_skill(skill_file, root=skills_dir.parent)
+                skills[skill["name"]] = skill
+
+    return skills
+```
+
+**Recommendation:** Use Option A during migration (keep manifest.yaml for Python runtime), then migrate to Option B later if needed.
 
 **Changes needed:**
-- Update config loading in `dispatcher.py`
-- Update skill discovery logic (if any)
-- Update tests that reference `manifest.yaml`
+1. Update `load_skill()` to parse YAML frontmatter from markdown
+2. Update `load_all_skills()` to look for `SKILL.md` files in subdirectories
+3. Update path resolution: `skills/semantic-init.skill` → `skills/semantic-init/SKILL.md`
+4. Update tests that reference `.skill` files
 
 ### 4. Marketplace Configuration
 

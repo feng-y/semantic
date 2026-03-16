@@ -3,6 +3,7 @@
 **Version**: 1.0
 **Date**: 2026-03-16
 **Status**: Contract Definition
+**Role**: This document is canonical for semantic output specifications. All semantic stages must generate outputs according to these contracts.
 
 ---
 
@@ -79,28 +80,33 @@ metadata:
 ```yaml
 candidates:
   domains:
-    - name: string
-      responsibility: string
-      modules: [string]
+    - id: string
+      name: string
+      summary: string
+      boundary:
+        modules: [string]
       evidence: [string]
       confidence: "high|medium|low"
 
   concepts:
-    - name: string
-      definition: string
+    - id: string
+      name: string
+      summary: string
       relationships: [string]
       evidence: [string]
       confidence: "high|medium|low"
 
   rules:
-    - name: string
-      constraint: string
+    - id: string
+      name: string
+      summary: string
       evidence: [string]
       confidence: "high|medium|low"
 
   demand_models:
-    - name: string
-      structure: string
+    - id: string
+      name: string
+      summary: string
       evidence: [string]
       confidence: "high|medium|low"
 
@@ -111,9 +117,13 @@ metadata:
 ```
 
 **Required Fields**:
+- `id`: Unique identifier
 - `name`: Candidate name
+- `summary`: Brief description
 - `evidence`: Evidence refs supporting candidate
 - `confidence`: Confidence level
+
+**Note**: Legacy field `responsibility` has been replaced with `summary`. Field `modules` is now a subfield under `boundary` for domains.
 
 ---
 

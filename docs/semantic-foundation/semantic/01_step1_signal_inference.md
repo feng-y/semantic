@@ -3,6 +3,7 @@
 **Stage**: Step1 (Signal Inference)
 **Purpose**: Extract semantic signals from FACT layer outputs
 **Status**: Design Document
+**Role**: This document is explanatory and must follow canonical contract documents (semantic_stage_contracts.md, semantic_input_contract.md, semantic_output_contract.md).
 
 ---
 

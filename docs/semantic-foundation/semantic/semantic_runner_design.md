@@ -3,6 +3,7 @@
 **Version**: 1.0
 **Date**: 2026-03-16
 **Status**: Contract Definition
+**Role**: This document is canonical for semantic runner behavior. All runner implementations must follow these contracts.
 
 ---
 

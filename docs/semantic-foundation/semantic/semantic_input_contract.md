@@ -3,6 +3,7 @@
 **Version**: 1.0
 **Date**: 2026-03-16
 **Status**: Contract Definition
+**Role**: This document is canonical for semantic input consumption rules. All semantic stages must follow these input rules.
 
 ---
 
