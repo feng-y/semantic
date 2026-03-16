@@ -1,0 +1,9 @@
+domains:
+- id: domain_d921991b
+  name: Repository Structure
+  summary: 'Domain: Repository Structure'
+  evidence_refs:
+  - 14 modules observed
+  source_decision_id: review_domain_d921991b
+metadata:
+  generated_at: '2026-03-17T01:30:49.746774'

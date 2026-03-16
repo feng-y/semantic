@@ -1,0 +1,62 @@
+domains:
+- id: review_domain_d921991b
+  name: Repository Structure
+  final_action: keep
+  final_reason: Approved for inclusion in final semantic assets
+  source_recommendation_id: rec_domain_d921991b
+  source_candidate_id: domain_2aa02a6c
+  evidence_refs:
+  - 14 modules observed
+  merge_target: null
+- id: review_domain_b179cd8c
+  name: Proposed Domains
+  final_action: verify_first
+  final_reason: Approved pending evidence verification
+  source_recommendation_id: rec_domain_b179cd8c
+  source_candidate_id: domain_6c73dfe9
+  evidence_refs:
+  - 5 domain proposals
+  merge_target: null
+concepts:
+- id: review_concept_9ed2d0d5
+  name: Core Entities
+  final_action: keep
+  final_reason: Approved for inclusion in final semantic assets
+  source_recommendation_id: rec_concept_9ed2d0d5
+  source_candidate_id: concept_2eebcc40
+  evidence_refs:
+  - 4 entities observed
+  merge_target: null
+- id: review_concept_9ce40bca
+  name: Identified Concepts
+  final_action: verify_first
+  final_reason: Approved pending evidence verification
+  source_recommendation_id: rec_concept_9ce40bca
+  source_candidate_id: concept_6226d237
+  evidence_refs:
+  - 5 concepts identified
+  merge_target: null
+rules:
+- id: review_rule_24d1c2ed
+  name: Validation Rules
+  final_action: keep
+  final_reason: Approved for inclusion in final semantic assets
+  source_recommendation_id: rec_rule_24d1c2ed
+  source_candidate_id: rule_d51909c6
+  evidence_refs:
+  - 2 validation modules
+  merge_target: null
+demand_models:
+- id: review_demand_model_b8505647
+  name: Change Analysis Model
+  final_action: verify_first
+  final_reason: Approved pending evidence verification
+  source_recommendation_id: rec_demand_model_b8505647
+  source_candidate_id: demand_e3ae72cd
+  evidence_refs:
+  - 2 change-related modules
+  merge_target: null
+metadata:
+  generated_at: '2026-03-17T01:25:54.161825+08:00'
+  recommendations_source: recommendations.yaml
+  decision_count: 6

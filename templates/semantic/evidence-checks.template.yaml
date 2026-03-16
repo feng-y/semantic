@@ -1,1 +1,17 @@
-checks: []
+# Semantic Evidence Checks Output Template
+
+evidence_checks:
+  - id: string                    # Stable ID (e.g., "check_abc123")
+    target_id: string             # Target recommendation ID
+    target_type: string           # "domain", "concept", "rule", or "demand_model"
+    target_name: string           # Target name
+    reason: string                # Why verification is needed
+    required_evidence: [string]   # List of required evidence items
+    status: string                # "pending", "in_progress", "completed", or "failed"
+    source_recommendation_id: string  # Source recommendation ID
+    source_candidate_id: string   # Source candidate ID
+
+metadata:
+  generated_at: string            # ISO 8601 timestamp
+  recommendations_source: string  # Source recommendations file
+  check_count: integer            # Total number of evidence checks

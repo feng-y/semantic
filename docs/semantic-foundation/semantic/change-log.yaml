@@ -1,0 +1,25 @@
+added:
+- name: Repository Structure
+  type: domain
+  reason: Approved for inclusion in final semantic assets
+- name: Core Entities
+  type: concept
+  reason: Approved for inclusion in final semantic assets
+- name: Validation Rules
+  type: rule
+  reason: Approved for inclusion in final semantic assets
+merged: []
+dropped: []
+deferred:
+- name: Proposed Domains
+  type: domain
+  reason: Approved pending evidence verification
+- name: Identified Concepts
+  type: concept
+  reason: Approved pending evidence verification
+- name: Change Analysis Model
+  type: demand_model
+  reason: Approved pending evidence verification
+metadata:
+  generated_at: '2026-03-17T01:30:49.746813'
+  total_changes: 6

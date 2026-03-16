@@ -24,12 +24,17 @@ pytest                    # verify tests pass in your current checkout
 Then use via Claude Code skill execution:
 
 ```
-semantic-init      → creates docs/fact/ workspace
-semantic-discover  → runs full discovery pipeline
-semantic-refine    → patches artifacts with architect feedback
-semantic-baseline  → synthesizes accepted baseline
-semantic-status    → reports current semantic state
-semantic-reset     → resets working state
+# Composite workflows
+semantic-fact-pipeline     → run FACT pipeline (discover → review → refine → baseline)
+semantic-pipeline          → run semantic pipeline (signals → candidates → recommend → review → finalize)
+
+# Individual skills
+semantic-init              → creates docs/fact/ workspace
+semantic-discover          → runs full discovery pipeline
+semantic-refine            → patches artifacts with architect feedback
+semantic-baseline          → synthesizes accepted baseline
+semantic-status            → reports current semantic state
+semantic-reset             → resets working state
 ```
 
 ## Installation
@@ -74,7 +79,14 @@ See [INSTALL.md](INSTALL.md) for detailed setup instructions.
 
 ## Public Skills
 
-The plugin provides skills organized into two layers:
+The plugin provides skills organized into layers and workflows:
+
+### Composite Workflows
+
+| Skill | Description | Pipeline |
+|-------|-------------|----------|
+| `semantic-fact-pipeline` | Run FACT workflow (discover → review → refine → baseline) | FACT Layer |
+| `semantic-pipeline` | Run semantic workflow (signals → candidates → recommend → review → finalize) | Semantic Layer |
 
 ### FACT Layer (Foundation)
 
@@ -94,6 +106,7 @@ The plugin provides skills organized into two layers:
 | `semantic-candidates` | Synthesize semantic candidates from signals | Stage 2 |
 | `semantic-recommend` | Score and recommend semantic assets | Stage 3 |
 | `semantic-review` | Generate review decisions from recommendations | Stage 4 |
+| `semantic-finalize` | Generate final semantic asset maps | Stage 5 |
 
 ### Utility Skills
 
@@ -112,12 +125,15 @@ Plugin manifest:
     plugin.json          → Claude Code plugin manifest
     marketplace.json     → marketplace metadata
   skills/                → skill definitions (SKILL.md format)
+    semantic-fact-pipeline/  → FACT workflow composite
+    semantic-pipeline/       → Semantic workflow composite
     semantic-init/
     semantic-discover/
     semantic-signals/
     semantic-candidates/
     semantic-recommend/
     semantic-review/
+    semantic-finalize/
     semantic-refine/
     semantic-baseline/
     semantic-status/
@@ -130,6 +146,9 @@ Internal runtime:
       extract_signals.py
       build_candidates.py
       score_recommend.py
+      apply_review.py
+      evidence_check.py
+      finalize_assets.py
     artifact_writer.py   → versioned artifact I/O
     context_builder.py   → bounded prompt context assembly
     discovery_executor.py→ discovery pipeline

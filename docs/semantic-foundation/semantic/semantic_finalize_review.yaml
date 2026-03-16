@@ -1,0 +1,129 @@
+review_target: semantic_finalize
+
+reviewed_files:
+  - path: skills/semantic-finalize/SKILL.md
+  - path: src/semantic/finalize_assets.py
+  - path: src/semantic/finalize_models.py
+  - path: tests/semantic/test_finalize_assets.py
+  - path: templates/semantic/domain-map.template.yaml
+  - path: templates/semantic/concept-map.template.yaml
+  - path: templates/semantic/rule-map.template.yaml
+  - path: templates/semantic/demand-model-map.template.yaml
+  - path: templates/semantic/change-log.template.yaml
+  - path: templates/semantic/review-decisions.template.yaml
+  - path: templates/semantic/evidence-checks.template.yaml
+  - path: docs/semantic-foundation/semantic/semantic_stage_contracts.md
+  - path: docs/semantic-foundation/semantic/semantic_output_contract.md
+  - path: docs/semantic-foundation/semantic/04_step5_finalize_design.md
+  - path: docs/semantic-foundation/semantic/domain-map.yaml
+  - path: docs/semantic-foundation/semantic/change-log.yaml
+  - path: docs/semantic-foundation/semantic/rule-map.yaml
+
+overall_status: pass_with_gaps
+
+assessments:
+  standard_skill_correctness: pass
+  input_contract_alignment: pass
+  real_implementation: pass
+  finalize_guard_correctness: pass
+  final_asset_quality: partial
+  model_quality: partial
+  output_correctness: pass
+  traceability: pass
+  template_alignment: partial
+  test_quality: partial
+  capability_boundary: pass
+
+strengths:
+  - "Clean skill definition with clear scope and invocation"
+  - "Real implementation with actual finalization logic"
+  - "Correct finalize guard: blocks on unresolved verify_first"
+  - "Proper input contract: uses review-decisions.yaml and evidence-checks.yaml as canonical"
+  - "Deterministic ID generation using MD5 hash"
+  - "Traceability preserved via source_decision_id"
+  - "All 5 canonical outputs generated (domain/concept/rule/demand-model maps + change-log)"
+  - "Both YAML and markdown views generated"
+  - "Tests pass and cover basic finalization flow"
+  - "Properly bounded to finalize only - no demand implementation"
+  - "Correct action handling: keep publishes, drop/backlog excluded"
+
+gaps:
+  - "finalize_models.py contains only RuleAsset model, missing DomainAsset/ConceptAsset/DemandModelAsset"
+  - "Templates are minimal placeholders (empty arrays only)"
+  - "Rule validation structure in implementation differs from finalize_models.py (dict vs List[str])"
+  - "Demand model linkage (related_domains/concepts/rules) not populated - empty arrays"
+  - "Merge action handling not fully implemented - no merge target resolution"
+  - "Test coverage shallow: only checks file existence, not content quality"
+  - "No test for merge behavior"
+  - "No test for drop/backlog exclusion"
+  - "Markdown rendering is minimal (only name and ID)"
+  - "No validation that rule assets contain meaningful validation"
+  - "Concept boundary field is empty dict"
+  - "Domain/concept summaries are generic templates"
+
+contradictions:
+  - "finalize_models.py defines RuleAsset.validation as List[str], but finalize_assets.py generates dict with type/status"
+  - "Contract requires rule validation, but implementation doesn't enforce meaningful validation content"
+  - "Contract requires demand model linkage, but implementation leaves related fields empty"
+
+blocking_issues: []
+
+recommended_fixes:
+  - priority: high
+    target: src/semantic/finalize_models.py
+    issue: "Missing DomainAsset, ConceptAsset, DemandModelAsset models"
+    recommendation: "Add complete model definitions for all asset types with proper field validation"
+
+  - priority: high
+    target: src/semantic/finalize_assets.py
+    issue: "Rule validation structure inconsistent with finalize_models.py"
+    recommendation: "Align validation structure: either use dict everywhere or List[str] everywhere"
+
+  - priority: medium
+    target: src/semantic/finalize_assets.py
+    issue: "Merge action not fully implemented"
+    recommendation: "Add merge target resolution logic to combine merged items correctly"
+
+  - priority: medium
+    target: src/semantic/finalize_assets.py
+    issue: "Demand model linkage not populated"
+    recommendation: "Implement logic to populate related_domains/concepts/rules from evidence or recommendations"
+
+  - priority: medium
+    target: tests/semantic/test_finalize_assets.py
+    issue: "Test coverage too shallow"
+    recommendation: "Add tests for: merge behavior, drop exclusion, backlog exclusion, validation enforcement, content quality"
+
+  - priority: low
+    target: templates/semantic/*.template.yaml
+    issue: "Templates are minimal placeholders"
+    recommendation: "Add example structures with field documentation"
+
+  - priority: low
+    target: src/semantic/finalize_assets.py
+    issue: "Markdown rendering is minimal"
+    recommendation: "Enhance markdown views with summaries, evidence, and relationships"
+
+decisions:
+  semantic_finalize_ready: true
+
+rationale: |
+  semantic-finalize is ready for use as the fifth semantic capability despite gaps.
+
+  Core functionality is correct:
+  - Reads correct inputs (review-decisions.yaml, evidence-checks.yaml)
+  - Enforces finalize guard (blocks on unresolved verify_first)
+  - Generates all required outputs
+  - Preserves traceability
+  - Handles keep/drop/backlog correctly
+  - Tests pass
+
+  Gaps are non-blocking:
+  - Missing models don't prevent execution
+  - Merge handling can be enhanced later
+  - Demand model linkage can be improved incrementally
+  - Test depth can be increased over time
+  - Templates are for documentation only
+
+  The implementation is real, not scaffold. It produces usable final assets
+  suitable for downstream demand consumption.

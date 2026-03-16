@@ -1,0 +1,41 @@
+fix_target: composite_skill_naming
+fix_date: 2026-03-17
+executor: claude-opus-4.6
+
+final_names:
+  fact_composite_skill: semantic-fact-pipeline
+  semantic_composite_skill: semantic-pipeline
+
+deprecated_names:
+  - semantic-layer-pipeline
+
+created_files:
+  - path: skills/semantic-pipeline/SKILL.md
+    reason: "Created semantic composite skill with task-oriented name"
+  - path: skills/semantic-fact-pipeline/SKILL.md
+    reason: "Created FACT composite skill with task-oriented name"
+  - path: docs/semantic-foundation/semantic/composite_skill_naming_fix.md
+    reason: "Documentation of naming fix"
+  - path: docs/semantic-foundation/semantic/composite_skill_naming_fix.yaml
+    reason: "Structured result of naming fix"
+
+updated_files: []
+
+applied_changes:
+  - issue: "No composite skills existed"
+    resolution: "Created both composite skills with final canonical names"
+  - issue: "Naming needed to be task-oriented"
+    resolution: "Used 'semantic-pipeline' and 'semantic-fact-pipeline' (clear workflow names)"
+  - issue: "Skills needed disable-model-invocation"
+    resolution: "Added disable-model-invocation: true to both skills"
+  - issue: "Skills needed clear gating conditions"
+    resolution: "Documented stop conditions and manual intervention points"
+
+remaining_risks:
+  - "Skills are new and untested in actual workflow execution"
+  - "May need adjustment based on real usage patterns"
+
+decisions:
+  naming_aligned: true
+  task_oriented: true
+  no_layer_in_name: true

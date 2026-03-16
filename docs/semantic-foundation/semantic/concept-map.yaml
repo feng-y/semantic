@@ -1,0 +1,10 @@
+concepts:
+- id: concept_9ed2d0d5
+  name: Core Entities
+  summary: 'Concept: Core Entities'
+  boundary: {}
+  evidence_refs:
+  - 4 entities observed
+  source_decision_id: review_concept_9ed2d0d5
+metadata:
+  generated_at: '2026-03-17T01:30:49.746804'

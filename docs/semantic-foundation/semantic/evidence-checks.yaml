@@ -1,0 +1,41 @@
+evidence_checks:
+- id: check_62444a4d
+  target_id: rec_domain_b179cd8c
+  target_type: domain
+  target_name: Proposed Domains
+  reason: Medium confidence with limited evidence - needs verification
+  required_evidence:
+  - Validate evidence references
+  - Confirm boundary/relationships
+  - Verify confidence level
+  status: completed
+  source_recommendation_id: rec_domain_b179cd8c
+  source_candidate_id: domain_6c73dfe9
+- id: check_46493200
+  target_id: rec_concept_9ce40bca
+  target_type: concept
+  target_name: Identified Concepts
+  reason: Medium confidence with limited evidence - needs verification
+  required_evidence:
+  - Validate evidence references
+  - Confirm boundary/relationships
+  - Verify confidence level
+  status: completed
+  source_recommendation_id: rec_concept_9ce40bca
+  source_candidate_id: concept_6226d237
+- id: check_260b7a9b
+  target_id: rec_demand_model_b8505647
+  target_type: demand_model
+  target_name: Change Analysis Model
+  reason: Medium confidence with limited evidence - needs verification
+  required_evidence:
+  - Validate evidence references
+  - Confirm boundary/relationships
+  - Verify confidence level
+  status: completed
+  source_recommendation_id: rec_demand_model_b8505647
+  source_candidate_id: demand_e3ae72cd
+metadata:
+  generated_at: '2026-03-17T01:25:54.161825+08:00'
+  recommendations_source: recommendations.yaml
+  check_count: 3

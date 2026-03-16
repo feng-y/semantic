@@ -1,0 +1,224 @@
+review_target: semantic_review
+review_date: 2026-03-17
+reviewer: claude-opus-4.6
+review_type: implementation_review
+
+reviewed_files:
+  - path: skills/semantic-review/SKILL.md
+    role: skill_definition
+  - path: src/semantic/apply_review.py
+    role: implementation
+    lines: 243
+  - path: src/semantic/evidence_check.py
+    role: implementation
+    lines: 90
+  - path: templates/semantic/review-decisions.template.yaml
+    role: template
+  - path: templates/semantic/evidence-checks.template.yaml
+    role: template
+  - path: tests/semantic/test_apply_review.py
+    role: tests
+    lines: 213
+    test_count: 10
+  - path: tests/semantic/test_evidence_check.py
+    role: tests
+    lines: 182
+    test_count: 8
+  - path: docs/semantic-foundation/semantic/review-decisions.yaml
+    role: generated_output
+  - path: docs/semantic-foundation/semantic/evidence-checks.yaml
+    role: generated_output
+  - path: docs/semantic-foundation/semantic/review-note.md
+    role: generated_view
+
+overall_status: pass
+
+assessments:
+  standard_skill_correctness: pass
+  input_contract_alignment: pass
+  real_implementation: pass
+  review_decision_correctness: pass
+  evidence_check_correctness: pass
+  model_quality: pass
+  output_correctness: pass
+  traceability: pass
+  template_alignment: pass
+  test_quality: pass
+  capability_boundary: pass
+
+detailed_assessments:
+  standard_skill_correctness:
+    status: pass
+    findings:
+      - "✅ SKILL.md follows standard omc format with YAML frontmatter"
+      - "✅ Clear decision tree showing execution flow"
+      - "✅ Clearly states when to use (after semantic-recommend)"
+      - "✅ Clearly states required inputs (recommendations.yaml)"
+      - "✅ Clearly states outputs (review-decisions.yaml, evidence-checks.yaml, review-note.md)"
+      - "✅ Skill remains thin - calls Python implementation"
+      - "✅ Explicitly bounded to review only (not finalize)"
+      - "✅ Allowed final actions clearly listed"
+    issues: []
+
+  input_contract_alignment:
+    status: pass
+    findings:
+      - "✅ Primary input: recommendations.yaml - correctly implemented"
+      - "✅ recommendations.yaml treated as direct primary input"
+      - "✅ Review decisions derived from recommendations"
+      - "✅ No dependence on finalize outputs"
+      - "✅ load_recommendations() reads recommendations.yaml directly"
+    issues: []
+
+  real_implementation:
+    status: pass
+    findings:
+      - "✅ apply_review.py is 243 lines of real logic, NOT scaffold"
+      - "✅ evidence_check.py is 90 lines of real logic, NOT scaffold"
+      - "✅ load_recommendations() - real YAML loading"
+      - "✅ convert_to_review_decision() - real deterministic conversion"
+      - "✅ generate_review_decisions() - real decision generation"
+      - "✅ create_evidence_check() - real evidence check creation"
+      - "✅ generate_evidence_checks() - real check generation logic"
+      - "✅ render_review_note_markdown() - real markdown generation"
+      - "✅ main() - real CLI with argparse"
+      - "✅ Executable and functional (verified by running)"
+    issues: []
+
+  review_decision_correctness:
+    status: pass
+    findings:
+      - "✅ Review decisions generated from recommendation groups"
+      - "✅ Stable IDs generated (hash-based, deterministic)"
+      - "✅ Names preserved from recommendations"
+      - "✅ final_action present and correct"
+      - "✅ final_reason generated appropriately"
+      - "✅ source_recommendation_id preserved"
+      - "✅ source_candidate_id preserved"
+      - "✅ evidence_refs preserved"
+      - "✅ merge_target preserved"
+      - "✅ Allowed actions enforced (keep, merge, drop, backlog, verify_first)"
+      - "✅ Deterministic 1:1 mapping from recommendation.action to final_action"
+    issues: []
+
+  evidence_check_correctness:
+    status: pass
+    findings:
+      - "✅ Evidence checks generated for needs_evidence_check=true"
+      - "✅ Evidence checks generated for action=verify_first"
+      - "✅ Stable check IDs generated"
+      - "✅ target_id linkage preserved"
+      - "✅ target_type correct"
+      - "✅ target_name preserved"
+      - "✅ reason from evidence_gap"
+      - "✅ required_evidence list present"
+      - "✅ status set to 'pending'"
+      - "✅ source_recommendation_id preserved"
+      - "✅ source_candidate_id preserved"
+      - "✅ Suitable for finalize guard logic"
+    issues: []
+
+  model_quality:
+    status: pass
+    findings:
+      - "✅ Dict-based approach consistent with other semantic capabilities"
+      - "✅ Structure enforced by code and templates"
+      - "✅ ReviewDecision structure: id, name, final_action, final_reason, source_recommendation_id, source_candidate_id, evidence_refs, merge_target"
+      - "✅ EvidenceCheck structure: id, target_id, target_type, target_name, reason, required_evidence, status, source_recommendation_id, source_candidate_id"
+      - "✅ All required fields present"
+      - "✅ No separate review_models.py needed - dict approach works well"
+    issues: []
+
+  output_correctness:
+    status: pass
+    findings:
+      - "✅ Workspace: docs/semantic-foundation/semantic/ (correct)"
+      - "✅ Canonical output: review-decisions.yaml (correct)"
+      - "✅ Canonical output: evidence-checks.yaml (correct)"
+      - "✅ View output: review-note.md (correct)"
+      - "✅ All 4 decision groups present: domains, concepts, rules, demand_models"
+      - "✅ YAML structure valid"
+      - "✅ Required fields present in decisions"
+      - "✅ Required fields present in evidence checks"
+      - "✅ Metadata present with correct fields"
+      - "✅ Output suitable for downstream semantic-finalize"
+    issues: []
+
+  traceability:
+    status: pass
+    findings:
+      - "✅ source_recommendation_id preserved in decisions"
+      - "✅ source_candidate_id preserved in decisions"
+      - "✅ evidence_refs preserved in decisions"
+      - "✅ source_recommendation_id preserved in evidence checks"
+      - "✅ source_candidate_id preserved in evidence checks"
+      - "✅ target_id linkage in evidence checks"
+      - "✅ Provenance not discarded"
+    issues: []
+
+  template_alignment:
+    status: pass
+    findings:
+      - "✅ templates/semantic/review-decisions.template.yaml aligned with output"
+      - "✅ templates/semantic/evidence-checks.template.yaml aligned with output"
+      - "✅ Template defines all 4 decision groups"
+      - "✅ Template defines required fields"
+      - "✅ No drift between templates and implementation"
+    issues: []
+
+  test_quality:
+    status: pass
+    findings:
+      - "✅ 18 real tests implemented (10 apply_review + 8 evidence_check)"
+      - "✅ All 18 tests passing"
+      - "✅ test_load_recommendations - tests loading"
+      - "✅ test_generate_stable_id - tests ID stability"
+      - "✅ test_convert_to_review_decision_keep - tests keep action"
+      - "✅ test_convert_to_review_decision_verify_first - tests verify_first"
+      - "✅ test_convert_to_review_decision_drop - tests drop action"
+      - "✅ test_generate_review_decisions - tests all groups"
+      - "✅ test_review_decisions_yaml_structure - tests YAML structure"
+      - "✅ test_allowed_final_actions - tests action enforcement"
+      - "✅ test_traceability_preservation - tests traceability"
+      - "✅ test_merge_target_preservation - tests merge_target"
+      - "✅ test_generate_check_id - tests check ID generation"
+      - "✅ test_create_evidence_check - tests check creation"
+      - "✅ test_generate_evidence_checks_needs_check - tests needs_evidence_check"
+      - "✅ test_generate_evidence_checks_verify_first - tests verify_first"
+      - "✅ test_generate_evidence_checks_no_verification_needed - tests no checks for keep/drop"
+      - "✅ test_evidence_checks_yaml_structure - tests YAML structure"
+      - "✅ test_check_traceability - tests traceability"
+      - "✅ test_deterministic_check_generation - tests determinism"
+    issues: []
+
+  capability_boundary:
+    status: pass
+    findings:
+      - "✅ Depends on semantic-recommend outputs (recommendations.yaml)"
+      - "✅ Does not implement finalize"
+      - "✅ Does not implement demand"
+      - "✅ Remains fourth semantic capability only"
+      - "✅ No scope creep"
+    issues: []
+
+strengths:
+  - "Real implementation with meaningful review decision generation (not scaffold)"
+  - "Strong test coverage (18 tests, all passing)"
+  - "Clear contract alignment (recommendations.yaml as primary input)"
+  - "Good traceability (source_recommendation_id, source_candidate_id, evidence_refs preserved)"
+  - "Proper capability boundary (review only, no scope creep)"
+  - "Deterministic conversion with stable IDs"
+  - "Evidence checks properly generated for verify_first items"
+  - "Suitable for downstream finalize consumption"
+
+gaps:
+  - "No separate review_models.py (but dict-based approach is acceptable and consistent)"
+
+contradictions: []
+
+blocking_issues: []
+
+recommended_fixes: []
+
+decisions:
+  semantic_review_ready: true

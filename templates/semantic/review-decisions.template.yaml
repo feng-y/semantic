@@ -1,1 +1,46 @@
-decisions: []
+# Semantic Review Decisions Output Template
+
+domains:
+  - id: string                    # Stable ID (e.g., "review_domain_abc123")
+    name: string                  # Domain name
+    final_action: string          # "keep", "merge", "drop", "backlog", or "verify_first"
+    final_reason: string          # Reason for final decision
+    source_recommendation_id: string  # Source recommendation ID
+    source_candidate_id: string   # Source candidate ID
+    evidence_refs: [string]       # Evidence references
+    merge_target: string          # null or target ID (required if final_action=merge)
+
+concepts:
+  - id: string
+    name: string
+    final_action: string
+    final_reason: string
+    source_recommendation_id: string
+    source_candidate_id: string
+    evidence_refs: [string]
+    merge_target: string
+
+rules:
+  - id: string
+    name: string
+    final_action: string
+    final_reason: string
+    source_recommendation_id: string
+    source_candidate_id: string
+    evidence_refs: [string]
+    merge_target: string
+
+demand_models:
+  - id: string
+    name: string
+    final_action: string
+    final_reason: string
+    source_recommendation_id: string
+    source_candidate_id: string
+    evidence_refs: [string]
+    merge_target: string
+
+metadata:
+  generated_at: string            # ISO 8601 timestamp
+  recommendations_source: string  # Source recommendations file
+  decision_count: integer         # Total number of review decisions
