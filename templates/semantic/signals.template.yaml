@@ -1,4 +1,35 @@
-domain_signals: []
-concept_signals: []
-rule_signals: []
-demand_pattern_signals: []
+# Semantic Signals Output Template
+# This template defines the structure of signals.yaml output
+
+domain_signals:
+  - signal_type: string  # Type of domain signal (e.g., "module_grouping", "domain_proposal")
+    source: string       # Source of signal (e.g., "fact_canonical:modules")
+    evidence: string     # Evidence supporting the signal
+    confidence: string   # Confidence level: "high", "medium", or "low"
+    summary: string      # Brief description of the signal
+
+concept_signals:
+  - signal_type: string  # Type of concept signal (e.g., "entity_definition", "concept_identification")
+    source: string       # Source of signal
+    evidence: string     # Evidence supporting the signal
+    confidence: string   # Confidence level: "high", "medium", or "low"
+    summary: string      # Brief description of the signal
+
+rule_signals:
+  - signal_type: string  # Type of rule signal (e.g., "validation_logic")
+    source: string       # Source of signal
+    evidence: string     # Evidence supporting the signal
+    confidence: string   # Confidence level: "high", "medium", or "low"
+    summary: string      # Brief description of the signal
+
+demand_pattern_signals:
+  - signal_type: string  # Type of demand pattern signal (e.g., "change_analysis_pattern")
+    source: string       # Source of signal
+    evidence: string     # Evidence supporting the signal
+    confidence: string   # Confidence level: "high", "medium", or "low"
+    summary: string      # Brief description of the signal
+
+metadata:
+  generated_at: string   # ISO 8601 timestamp
+  fact_source: string    # Source FACT file (e.g., "fact_canonical_sample.yaml")
+  signal_count: integer  # Total number of signals extracted
