@@ -34,30 +34,102 @@ semantic-reset     → resets working state
 
 ## Installation
 
+### From Claude Code Marketplace (Recommended)
+
+```bash
+# Search for the plugin
+claude-code plugin search semantic
+
+# Install from marketplace
+claude-code plugin install semantic-harness
+```
+
+### From Repository (Development)
+
+```bash
+# Install directly from local path
+claude-code plugin install /path/to/semantic-harness
+
+# Or install from git URL
+claude-code plugin install git+https://github.com/your-org/semantic-harness.git
+```
+
+The plugin will be available in Claude Code with skills prefixed by the plugin name:
+```
+/semantic-harness:semantic-init
+/semantic-harness:semantic-discover
+/semantic-harness:semantic-review
+...
+```
+
+### For Python Development
+
+```bash
+git clone <repo-url> && cd semantic-harness
+pip install -e ".[test]"
+pytest                    # verify tests pass
+```
+
 See [INSTALL.md](INSTALL.md) for detailed setup instructions.
 
 ## Public Skills
 
+The plugin provides skills organized into two layers:
+
+### FACT Layer (Foundation)
+
+| Skill | Description | Stage |
+|-------|-------------|-------|
+| `semantic-init` | Create workspace directories | Setup |
+| `semantic-discover` | Run sampling, fact extraction, domain analysis | Discovery |
+| `semantic-review` | Present artifacts for architect review | Review |
+| `semantic-refine` | Patch artifacts using architect feedback | Refinement |
+| `semantic-baseline` | Synthesize accepted baseline (requires acceptance) | Finalization |
+
+### Semantic Layer (Advanced)
+
+| Skill | Description | Stage |
+|-------|-------------|-------|
+| `semantic-signals` | Extract semantic signals from repository facts | Stage 1 |
+| `semantic-candidates` | Synthesize semantic candidates from signals | Stage 2 |
+| `semantic-recommend` | Score and recommend semantic assets | Stage 3 |
+| `semantic-review` | Generate review decisions from recommendations | Stage 4 |
+
+### Utility Skills
+
 | Skill | Description |
 |-------|-------------|
-| `semantic-init` | Create `docs/fact/` workspace directories |
-| `semantic-discover` | Run sampling, fact extraction, domain analysis |
-| `semantic-review` | Present artifacts for architect review |
-| `semantic-refine` | Patch artifacts using `architect-feedback.md` |
-| `semantic-baseline` | Synthesize accepted baseline (requires acceptance) |
-| `semantic-status` | Report current semantic state and recommend next action |
+| `semantic-status` | Report current state and recommend next action |
 | `semantic-reset` | Reset working state (preserves baseline and schemas) |
+
+Each skill is defined in `skills/<skill-name>/SKILL.md` with YAML frontmatter containing metadata and markdown documentation.
 
 ## Repository Structure
 
 ```
-Plugin-facing layer:
-  manifest.yaml          → plugin manifest (skill registry)
-  skills/                → .skill YAML files (7 public skills)
-  prompts/               → .prompt files per pipeline step
+Plugin manifest:
+  .claude-plugin/
+    plugin.json          → Claude Code plugin manifest
+    marketplace.json     → marketplace metadata
+  skills/                → skill definitions (SKILL.md format)
+    semantic-init/
+    semantic-discover/
+    semantic-signals/
+    semantic-candidates/
+    semantic-recommend/
+    semantic-review/
+    semantic-refine/
+    semantic-baseline/
+    semantic-status/
+    semantic-reset/
+  prompts/               → prompt files per pipeline step
 
 Internal runtime:
   src/                   → Python runtime modules
+    semantic/            → semantic layer implementation
+      extract_signals.py
+      build_candidates.py
+      score_recommend.py
     artifact_writer.py   → versioned artifact I/O
     context_builder.py   → bounded prompt context assembly
     discovery_executor.py→ discovery pipeline
@@ -66,18 +138,18 @@ Internal runtime:
     state_inspector.py   → semantic state routing
 
 Semantic state (generated):
-  docs/fact/           → generated semantic state (not human-written docs)
+  docs/semantic-foundation/semantic/  → generated semantic state
     schemas/             → artifact schema contracts
     discovery/           → versioned working artifacts (generated)
     review/              → review-summary, architect-feedback (generated)
     baseline/            → accepted baseline (generated, immutable)
 
 Documentation:
-  docs/fact-design/  → human-written architecture decision records
-  docs/review/           → development reports and audit artifacts
+  docs/semantic-foundation/  → architecture decision records
+  docs/review/               → development reports and audit artifacts
 ```
 
-> **Note:** `docs/fact/` contains machine-generated semantic state, not ordinary documentation. The `discovery/`, `review/`, and `baseline/` subdirectories are written by the pipeline at runtime. `docs/fact/schemas/` defines the structural contracts these artifacts must satisfy. Human-written design docs live in `docs/fact-design/`.
+> **Note:** `docs/semantic-foundation/semantic/` contains machine-generated semantic state, not ordinary documentation. The `discovery/`, `review/`, and `baseline/` subdirectories are written by the pipeline at runtime.
 
 ## Documentation
 
