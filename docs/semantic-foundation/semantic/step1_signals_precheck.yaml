@@ -1,0 +1,211 @@
+review_target: step1_signals
+review_date: 2026-03-16
+reviewer: claude-opus-4.6
+
+fact_inputs:
+  - path: docs/semantic-foundation/fact/fact_canonical_sample.yaml
+    exists: true
+    role: primary
+    size: 11.8KB
+    quality: high
+
+  - path: docs/semantic-foundation/fact/fact_working_summary_sample.yaml
+    exists: true
+    role: auxiliary
+    size: 11.8KB
+    quality: high
+
+  - path: docs/semantic-foundation/fact/fact_canonical_contract.md
+    exists: true
+    role: reference
+    size: 13.6KB
+    quality: high
+
+  - path: docs/semantic-foundation/fact/fact_contract_mapping.md
+    exists: true
+    role: reference
+    size: 11.3KB
+    quality: high
+
+  - path: docs/fact/baseline/purpose.md
+    exists: false
+    role: primary
+    note: "Directory exists but empty (only .keep file)"
+
+  - path: docs/fact/baseline/pipelines.md
+    exists: false
+    role: primary
+    note: "Directory exists but empty"
+
+  - path: docs/fact/baseline/domains.md
+    exists: false
+    role: primary
+    note: "Directory exists but empty"
+
+  - path: docs/fact/baseline/concepts.md
+    exists: false
+    role: primary
+    note: "Directory exists but empty"
+
+semantic_docs:
+  - path: docs/semantic-foundation/semantic/semantic_stage_contracts.md
+    exists: true
+    sufficient: true
+    note: "Step1 contract clearly defined"
+
+  - path: docs/semantic-foundation/semantic/semantic_input_contract.md
+    exists: true
+    sufficient: true
+    note: "Input consumption rules clear"
+
+  - path: docs/semantic-foundation/semantic/semantic_output_contract.md
+    exists: true
+    sufficient: true
+    note: "Output structure fully specified"
+
+  - path: docs/semantic-foundation/semantic/01_step1_signal_inference.md
+    exists: true
+    sufficient: true
+    note: "Complete Step1 design document (359 lines)"
+
+  - path: docs/semantic-foundation/semantic/semantic_runner_design.md
+    exists: true
+    sufficient: true
+    note: "Runner behavior specified"
+
+  - path: docs/semantic-foundation/semantic/README.md
+    exists: true
+    sufficient: true
+    note: "Workspace semantics clarified"
+
+implementation_dependencies:
+  prompt:
+    path: prompts/semantic/step1_signal_inference.prompt.md
+    exists: true
+    aligned: true
+    note: "Prompt matches contract (domain/concept/rule/demand_pattern signal groups)"
+
+  template:
+    path: templates/semantic/signals.template.yaml
+    exists: true
+    aligned: true
+    note: "Template matches expected output structure"
+
+  code_files:
+    - path: src/semantic/extract_signals.py
+      exists: true
+      usable: true
+      note: "Scaffold exists, needs full implementation"
+
+    - path: src/semantic/models.py
+      exists: true
+      usable: true
+      note: "Models exist but no Signal models yet"
+
+    - path: src/semantic/run.py
+      exists: true
+      usable: true
+      note: "Runner exists"
+
+    - path: src/semantic/stage_registry.py
+      exists: true
+      usable: true
+      note: "Registry exists"
+
+  test_files:
+    - path: tests/semantic/test_layout.py
+      exists: true
+      usable: true
+
+    - path: tests/semantic/test_runner_smoke.py
+      exists: true
+      usable: true
+
+    - path: tests/semantic/fixtures/
+      exists: true
+      usable: true
+
+  output_workspace:
+    path: docs/semantic/
+    exists: false
+    note: "Needs to be created before step1 runs"
+
+assessments:
+  fact_input_readiness: partial
+  doc_readiness: pass
+  prompt_template_alignment: pass
+  code_skeleton_readiness: partial
+
+gaps:
+  - "docs/fact/baseline/*.md files do not exist (directory empty except .keep)"
+  - "docs/semantic/ output workspace does not exist"
+  - "src/semantic/models.py lacks Signal-specific models"
+  - "src/semantic/extract_signals.py is scaffold only, needs full implementation"
+  - "No step1-specific tests exist yet"
+
+blocking_issues:
+  - "docs/fact/baseline/*.md files missing - Step1 contract requires these as primary input"
+  - "Without baseline files, Step1 cannot extract signals from FACT layer"
+
+recommended_fixes:
+  - priority: high
+    target: "docs/fact/baseline/*.md"
+    issue: "Baseline files do not exist"
+    recommendation: "Either: (1) Run FACT pipeline to generate baseline, OR (2) Create sample baseline files for testing, OR (3) Modify Step1 to work with fact_canonical_sample.yaml only"
+
+  - priority: high
+    target: "docs/semantic/ workspace"
+    issue: "Output workspace does not exist"
+    recommendation: "Create docs/semantic/ directory before running Step1"
+
+  - priority: medium
+    target: "src/semantic/models.py"
+    issue: "No Signal models defined"
+    recommendation: "Add Signal, DomainSignal, ConceptSignal, RuleSignal, DemandPatternSignal models"
+
+  - priority: medium
+    target: "src/semantic/extract_signals.py"
+    issue: "Only scaffold implementation exists"
+    recommendation: "Implement full signal extraction logic"
+
+  - priority: low
+    target: "tests/semantic/"
+    issue: "No step1-specific tests"
+    recommendation: "Add test_extract_signals.py with signal extraction tests"
+
+decisions:
+  can_implement_step1_signals: false
+  blocking_reason: "Primary FACT input (docs/fact/baseline/*.md) does not exist"
+  workaround_available: true
+  workaround_description: "Can modify Step1 to work with fact_canonical_sample.yaml only, or generate sample baseline files"
+
+alternative_approaches:
+  - approach: "Use fact_canonical_sample.yaml as sole primary input"
+    feasibility: high
+    changes_required:
+      - "Update semantic_stage_contracts.md to make baseline/*.md optional"
+      - "Update 01_step1_signal_inference.md to clarify canonical YAML is sufficient"
+      - "Implement extract_signals.py to parse YAML directly"
+
+  - approach: "Generate sample baseline files from fact_canonical_sample.yaml"
+    feasibility: high
+    changes_required:
+      - "Create docs/fact/baseline/purpose.md from canonical YAML"
+      - "Create docs/fact/baseline/pipelines.md from canonical YAML"
+      - "Create docs/fact/baseline/domains.md from canonical YAML"
+      - "Create docs/fact/baseline/concepts.md from canonical YAML"
+
+  - approach: "Run full FACT pipeline first"
+    feasibility: medium
+    changes_required:
+      - "Execute discover → review → refine → baseline"
+      - "Wait for baseline generation"
+      - "Then proceed with Step1"
+
+notes:
+  - "All semantic documentation is ready and aligned"
+  - "Prompt and template are aligned with contracts"
+  - "Code skeleton exists and is usable"
+  - "Only blocker is missing FACT baseline files"
+  - "Workarounds are available and straightforward"
+  - "Recommended: Use fact_canonical_sample.yaml as primary input (simplest path)"

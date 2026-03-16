@@ -1,5 +1,31 @@
 # semantic_asset_build MVP 实施设计（可编码、可运行）
 
+---
+
+**⚠️ TRANSITIONAL DOCUMENT NOTICE**
+
+**Status**: Transitional / Legacy Naming
+
+**Current Canonical Layer Name**: `semantic` (not `semantic_asset_build`)
+
+**Current Canonical Workspace**: `docs/semantic/` (not `docs/semantic-foundation/semantic-asset-build/`)
+
+**Current Canonical Input**: `docs/fact/baseline/*` (not `docs/semantic/*`)
+
+**For Implementation**: Use the following canonical contract documents:
+- `semantic_stage_contracts.md` - Stage definitions
+- `semantic_input_contract.md` - Input consumption rules
+- `semantic_output_contract.md` - Output specifications
+- `semantic_runner_design.md` - Runner behavior
+- `01_step1_signal_inference.md` - Step1 design
+- `02_step3_scoring_design.md` - Step3 design
+- `03_step4_review_and_evidence_design.md` - Step4 design
+- `04_step5_finalize_design.md` - Step5 design
+
+This document uses legacy naming (`semantic_asset_build`) and is kept for historical context only.
+
+---
+
 ## 背景与约束
 
 当前仓库已经有稳定的 plugin-facing 结构：`manifest.yaml` 注册了 `init / discover / review / refine / baseline / status / reset` 等 skill；README 说明生成态写在 `docs/semantic/`，而内部 runtime 组织在 `src/` 下。现有 discover 阶段会产出 `repo-facts.vN.md`、`domain-candidates.vN.md`、`repo-understanding.vN.md`、`knowledge-confidence.vN.md` 和 `review-summary.vN.md`；baseline 会合成 `purpose.md / domains.md / concepts.md / pipelines.md`。这些都是 `semantic_asset_build` 的输入，不应被重做，也不应打穿现有主链。citeturn305275view0turn305275view1turn305275view2turn305275view3

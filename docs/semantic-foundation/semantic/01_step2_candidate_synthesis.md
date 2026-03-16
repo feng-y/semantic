@@ -1,5 +1,25 @@
 # semantic_asset_build · 第二步（候选合成）实施手册
 
+---
+
+**⚠️ TRANSITIONAL DOCUMENT NOTICE**
+
+**Status**: Transitional / Chinese Language / Legacy Naming
+
+**Current Canonical Documents** (English):
+- `semantic_stage_contracts.md` - Canonical stage definitions (includes Step2)
+- `semantic_output_contract.md` - Canonical output specifications
+
+**Current Canonical Layer Name**: `semantic` (not `semantic_asset_build`)
+
+**Current Canonical Output Names**: `candidates.yaml` (not `step2_candidates.yaml`)
+
+**For Implementation**: Use `semantic_stage_contracts.md` as the canonical reference for Step2 (Candidate Synthesis).
+
+This document is in Chinese and uses legacy naming. It is kept for historical context only.
+
+---
+
 ## 目标
 
 第二步的目标不是“再提取一次信息”，而是：
