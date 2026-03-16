@@ -1,7 +1,0 @@
-name: semantic-review
-description: >
-  Present discovery artifacts for architect review. Reads latest
-  repo-understanding, knowledge-confidence, and review-summary
-  for human inspection.
-entrypoint: src.state_inspector.inspect
-prompt: null

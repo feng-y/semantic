@@ -1,6 +1,0 @@
-name: semantic-reset
-description: >
-  Reset the semantic workspace by removing all working artifacts.
-  Preserves accepted baseline and schemas.
-entrypoint: src.dispatcher._handle_reset
-prompt: null

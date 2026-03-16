@@ -1,4 +1,0 @@
-name: semantic-init
-description: Initialize the semantic harness workspace directory structure.
-entrypoint: src.dispatcher._handle_init
-prompt: null
