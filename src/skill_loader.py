@@ -1,7 +1,8 @@
-"""Skill loader — parses .skill files (YAML) into structured dicts."""
+"""Skill loader — parses .skill files (YAML) and SKILL.md files (YAML frontmatter) into structured dicts."""
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 from typing import Any
 
@@ -35,7 +36,11 @@ def _validate_path(path: Path, root: Path) -> None:
 
 
 def load_skill(skill_path: str | Path, root: Path | None = None) -> dict[str, Any]:
-    """Parse a .skill YAML file and return a structured dict.
+    """Parse a .skill YAML file or SKILL.md (YAML frontmatter) and return a structured dict.
+
+    Supports two formats:
+    1. .skill files: Pure YAML
+    2. SKILL.md files: YAML frontmatter (--- ... ---) followed by markdown
 
     Required fields: name
     Optional fields: purpose, inputs, steps, outputs, logic
@@ -50,8 +55,20 @@ def load_skill(skill_path: str | Path, root: Path | None = None) -> dict[str, An
         raise FileNotFoundError(f"Skill file not found: {path}")
 
     text = path.read_text()
+
+    # Check if this is a SKILL.md file with YAML frontmatter
+    if path.name == "SKILL.md":
+        # Extract YAML frontmatter: ---\n...\n---
+        match = re.match(r'^---\s*\n(.*?)\n---\s*\n', text, re.DOTALL)
+        if not match:
+            raise SkillLoadError(f"SKILL.md file missing YAML frontmatter: {path}")
+        yaml_text = match.group(1)
+    else:
+        # Legacy .skill format: pure YAML
+        yaml_text = text
+
     try:
-        skill = yaml.safe_load(text)
+        skill = yaml.safe_load(yaml_text)
     except yaml.YAMLError as e:
         raise SkillLoadError(f"Invalid YAML in {path}: {e}") from e
 
@@ -67,11 +84,21 @@ def load_skill(skill_path: str | Path, root: Path | None = None) -> dict[str, An
 
 
 def load_all_skills(manifest_path: str | Path) -> dict[str, dict[str, Any]]:
-    """Load all skills referenced in manifest.yaml.
+    """Load all skills referenced in manifest.yaml or from plugin.json + skills directory.
+
+    Supports two modes:
+    1. Legacy: manifest.yaml with explicit skill paths
+    2. Standard: plugin.json with skills directory auto-discovery
 
     Returns a dict keyed by skill role (init, discover, review, refine, etc.).
     """
     path = Path(manifest_path)
+
+    # Check if this is plugin.json (standard format)
+    if path.name == "plugin.json":
+        return _load_skills_from_plugin_json(path)
+
+    # Legacy manifest.yaml format
     if not path.exists():
         raise FileNotFoundError(f"Manifest not found: {path}")
 
@@ -88,6 +115,55 @@ def load_all_skills(manifest_path: str | Path) -> dict[str, dict[str, Any]]:
     skills: dict[str, dict[str, Any]] = {}
     for role, rel_path in manifest["skills"].items():
         skills[role] = load_skill(root / rel_path, root=root)
+
+    return skills
+
+
+def _load_skills_from_plugin_json(plugin_json_path: Path) -> dict[str, dict[str, Any]]:
+    """Load skills from plugin.json by scanning the skills directory.
+
+    Expects structure:
+    .claude-plugin/plugin.json
+    skills/
+      semantic-init/SKILL.md
+      semantic-discover/SKILL.md
+      ...
+
+    Returns dict keyed by skill name (e.g., "init" -> semantic-init skill data).
+    """
+    try:
+        plugin_data = yaml.safe_load(plugin_json_path.read_text())
+    except yaml.YAMLError as e:
+        raise SkillLoadError(f"Invalid JSON in {plugin_json_path}: {e}") from e
+
+    if not isinstance(plugin_data, dict):
+        raise SkillLoadError(f"plugin.json must be a JSON object: {plugin_json_path}")
+
+    # Get skills directory path (default: "./skills/")
+    skills_dir_rel = plugin_data.get("skills", "./skills/")
+    root = plugin_json_path.parent.parent  # .claude-plugin/plugin.json -> repo root
+    skills_dir = root / skills_dir_rel.lstrip("./")
+
+    if not skills_dir.exists():
+        raise FileNotFoundError(f"Skills directory not found: {skills_dir}")
+
+    skills: dict[str, dict[str, Any]] = {}
+
+    # Scan for skill directories containing SKILL.md
+    for skill_path in skills_dir.iterdir():
+        if not skill_path.is_dir():
+            continue
+
+        skill_md = skill_path / "SKILL.md"
+        if not skill_md.exists():
+            continue
+
+        skill_data = load_skill(skill_md, root=root)
+        skill_name = skill_data["name"]
+
+        # Map to role (strip "semantic-" prefix for backward compatibility)
+        role = skill_name.replace("semantic-", "")
+        skills[role] = skill_data
 
     return skills
 
