@@ -87,7 +87,7 @@ def repo(tmp_path: Path) -> Path:
 
 def _write_discovery_artifact(repo: Path, name: str, content: str, version: int = 1) -> Path:
     """Write a versioned discovery artifact."""
-    d = repo / "docs" / "semantic" / "discovery"
+    d = repo / "docs" / "fact" / "discovery"
     d.mkdir(parents=True, exist_ok=True)
     p = d / f"{name}.v{version}.md"
     p.write_text(content)
@@ -95,7 +95,7 @@ def _write_discovery_artifact(repo: Path, name: str, content: str, version: int 
 
 
 def _write_review_artifact(repo: Path, name: str, content: str) -> Path:
-    d = repo / "docs" / "semantic" / "review"
+    d = repo / "docs" / "fact" / "review"
     d.mkdir(parents=True, exist_ok=True)
     p = d / f"{name}.md"
     p.write_text(content)
@@ -195,7 +195,7 @@ class TestArtifactAtomicity:
 
         # Do NOT call commit_staged — simulating the staged flow in run_refine
         # Verify neither file exists on disk
-        disc = repo / "docs" / "semantic" / "discovery"
+        disc = repo / "docs" / "fact" / "discovery"
         ru_files = list(disc.glob("repo-understanding.v*.md")) if disc.exists() else []
         kc_files = list(disc.glob("knowledge-confidence.v*.md")) if disc.exists() else []
         assert ru_files == []
@@ -212,7 +212,7 @@ class TestArtifactAtomicity:
 
         assert len(err_ru) > 0  # first failed, don't even stage second
 
-        disc = repo / "docs" / "semantic" / "discovery"
+        disc = repo / "docs" / "fact" / "discovery"
         assert not list(disc.glob("*.md")) if disc.exists() else True
 
 
@@ -342,7 +342,7 @@ class TestCheckpointMetadata:
             f"steps={[(s.status, s.errors) for s in result.steps]}"
         )
 
-        checkpoint_path = repo / "docs" / "semantic" / "baseline" / "checkpoint.json"
+        checkpoint_path = repo / "docs" / "fact" / "baseline" / "checkpoint.json"
         assert checkpoint_path.exists(), "checkpoint.json not written"
 
         checkpoint = json.loads(checkpoint_path.read_text())
@@ -359,7 +359,7 @@ class TestCheckpointMetadata:
         assert result.baseline_generated
 
         checkpoint = json.loads(
-            (repo / "docs" / "semantic" / "baseline" / "checkpoint.json").read_text()
+            (repo / "docs" / "fact" / "baseline" / "checkpoint.json").read_text()
         )
         assert "timestamp" in checkpoint
         assert "source_versions" in checkpoint
@@ -386,7 +386,7 @@ class TestE2ERefineBaseline:
         assert result.acceptance_detected is True
         assert result.baseline_generated is True
 
-        baseline_dir = repo / "docs" / "semantic" / "baseline"
+        baseline_dir = repo / "docs" / "fact" / "baseline"
         assert baseline_dir.exists()
         baseline_files = {f.name for f in baseline_dir.iterdir() if f.suffix == ".md"}
         assert baseline_files == {"purpose.md", "domains.md", "concepts.md", "pipelines.md"}
@@ -402,7 +402,7 @@ class TestE2ERefineBaseline:
         assert result.acceptance_detected is False
         assert result.baseline_generated is False
 
-        baseline_dir = repo / "docs" / "semantic" / "baseline"
+        baseline_dir = repo / "docs" / "fact" / "baseline"
         md_files = list(baseline_dir.glob("*.md")) if baseline_dir.exists() else []
         assert md_files == []
 
