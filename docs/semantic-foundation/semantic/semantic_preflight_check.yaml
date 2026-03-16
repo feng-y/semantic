@@ -1,0 +1,249 @@
+review_target: semantic_preflight
+review_date: 2026-03-16
+reviewer: claude-opus-4.6
+
+# ============================================================================
+# FACT INPUT FILES
+# ============================================================================
+
+fact_inputs:
+  required_files:
+    - path: "docs/semantic-foundation/fact/fact_expected_sample.md"
+      exists: true
+      role: "FACT layer specification and explanation"
+      size: "14KB"
+
+    - path: "docs/semantic-foundation/fact/fact_expected_sample.yaml"
+      exists: true
+      role: "Legacy mixed FACT sample (transitional)"
+      size: "21KB"
+
+    - path: "docs/semantic-foundation/fact/fact_naming_mapping.md"
+      exists: true
+      role: "FACT naming and layer boundary mapping"
+      size: "13KB"
+
+  optional_files:
+    - path: "docs/semantic-foundation/fact/fact_canonical_sample.yaml"
+      exists: true
+      role: "Canonical facts (observable only) - PRIMARY INPUT"
+      size: "12KB"
+
+    - path: "docs/semantic-foundation/fact/fact_working_summary_sample.yaml"
+      exists: true
+      role: "Working summary (interpretation) - AUXILIARY INPUT"
+      size: "12KB"
+
+    - path: "docs/semantic-foundation/fact/fact_for_semantic_review.md"
+      exists: true
+      role: "Detailed FACT readiness review report"
+      size: "18KB"
+
+    - path: "docs/semantic-foundation/fact/fact_for_semantic_review.yaml"
+      exists: true
+      role: "Structured FACT readiness review result"
+      size: "5.3KB"
+
+    - path: "docs/semantic-foundation/fact/fact_canonical_contract.md"
+      exists: true
+      role: "Frozen canonical FACT schema contract"
+      size: "13KB"
+
+    - path: "docs/semantic-foundation/fact/fact_contract_mapping.md"
+      exists: true
+      role: "Canonical/working boundary rules"
+      size: "11KB"
+
+    - path: "docs/semantic-foundation/fact/fact_remediation_plan.md"
+      exists: true
+      role: "FACT remediation completion record"
+      size: "15KB"
+
+# ============================================================================
+# SEMANTIC TARGET DIRECTORIES
+# ============================================================================
+
+target_directories:
+  - path: "prompts/semantic/"
+    exists: false
+    should_create: true
+    purpose: "Semantic layer prompt templates"
+
+  - path: "templates/semantic/"
+    exists: false
+    should_create: true
+    purpose: "Semantic artifact templates"
+
+  - path: "src/semantic/"
+    exists: false
+    should_create: true
+    purpose: "Semantic layer runtime code"
+
+  - path: "docs/semantic-foundation/semantic/"
+    exists: true
+    should_create: false
+    purpose: "Semantic layer documentation and samples"
+
+  - path: "tests/semantic/"
+    exists: false
+    should_create: true
+    purpose: "Semantic layer tests"
+
+# ============================================================================
+# REFERENCE DOCS
+# ============================================================================
+
+reference_docs:
+  - path: "README.md"
+    exists: true
+    usable: true
+    size: "3.8KB"
+    lines: 92
+
+  - path: "USER_GUIDE.md"
+    exists: true
+    usable: true
+    size: "3.8KB"
+    lines: 104
+
+  - path: "IMPLEMENTATION_ORDER.md"
+    exists: true
+    usable: true
+    size: "4.4KB"
+    lines: 205
+
+# ============================================================================
+# NAMING CONSISTENCY
+# ============================================================================
+
+naming_consistency:
+  old_pipeline_is_fact_only: true
+  semantic_naming_is_clear_enough: true
+  can_bootstrap_without_skill_rename: true
+
+  evidence:
+    - "fact_naming_mapping.md clearly states: current pipeline = FACT only"
+    - "fact_expected_sample.md explains FACT vs Semantic separation"
+    - "No semantic implementation exists yet"
+    - "Old skills (semantic-discover, semantic-refine) are FACT-layer skills, not semantic-layer"
+    - "Naming is transitional but documented"
+
+# ============================================================================
+# MISSING PREREQUISITES
+# ============================================================================
+
+missing_prerequisites:
+  - "prompts/semantic/ directory (can be created)"
+  - "templates/semantic/ directory (can be created)"
+  - "src/semantic/ directory (can be created)"
+  - "tests/semantic/ directory (can be created)"
+
+# ============================================================================
+# BLOCKING ISSUES
+# ============================================================================
+
+blocking_issues: []
+
+# ============================================================================
+# NON-BLOCKING GAPS
+# ============================================================================
+
+non_blocking_gaps:
+  - "Semantic target directories don't exist yet (can be created during initialization)"
+  - "No semantic templates exist yet (expected, will be created)"
+  - "No semantic runtime code exists yet (expected, will be implemented)"
+  - "Old skill names use 'semantic-' prefix but are FACT-layer (documented as transitional)"
+
+# ============================================================================
+# FACT INPUT QUALITY ASSESSMENT
+# ============================================================================
+
+fact_input_quality:
+  canonical_facts_available: true
+  working_summary_available: true
+  contract_frozen: true
+  mapping_documented: true
+  review_completed: true
+
+  canonical_facts_quality:
+    - "12KB of observable facts"
+    - "Evidence-backed"
+    - "Low ambiguity"
+    - "Schema-friendly"
+    - "Frozen contract"
+
+  working_summary_quality:
+    - "12KB of interpretation"
+    - "Purpose, roles, domains"
+    - "Open questions"
+    - "Confidence ratings"
+    - "Bootstrap context"
+
+# ============================================================================
+# SEMANTIC BOOTSTRAP READINESS
+# ============================================================================
+
+semantic_bootstrap_readiness:
+  fact_inputs_ready: true
+  directories_ready: false  # Need to create
+  reference_docs_ready: true
+  naming_clear_enough: true
+
+  readiness_details:
+    - "FACT inputs are complete and high quality"
+    - "Canonical/working split is done"
+    - "Contract is frozen"
+    - "Mapping is documented"
+    - "Reference docs exist and are usable"
+    - "Naming is documented (transitional but clear)"
+    - "Only need to create semantic target directories"
+
+# ============================================================================
+# DECISIONS
+# ============================================================================
+
+decisions:
+  can_initialize_semantic: true
+
+  rationale:
+    - "All required FACT input files exist"
+    - "Optional FACT files (canonical, working summary, contract) exist and are high quality"
+    - "Reference docs exist and are usable"
+    - "Naming consistency is documented"
+    - "No blocking issues"
+    - "Semantic target directories can be created safely"
+    - "FACT layer is stable and ready to be consumed"
+
+# ============================================================================
+# INITIALIZATION REQUIREMENTS
+# ============================================================================
+
+initialization_requirements:
+  directories_to_create:
+    - "prompts/semantic/"
+    - "templates/semantic/"
+    - "src/semantic/"
+    - "tests/semantic/"
+
+  files_to_create:
+    - "docs/semantic-foundation/semantic/README.md"
+    - "docs/semantic-foundation/semantic/semantic_model.md"
+    - "templates/semantic/semantic-artifact.template.yaml"
+
+  no_changes_needed:
+    - "Do not rename old skills"
+    - "Do not modify manifest"
+    - "Do not change FACT runtime logic"
+    - "Do not modify docs/fact/ generated artifacts"
+
+# ============================================================================
+# NEXT STEPS
+# ============================================================================
+
+next_steps:
+  - "Create semantic target directories"
+  - "Define semantic layer contract"
+  - "Create semantic templates"
+  - "Implement semantic runtime code"
+  - "Add semantic tests"
+  - "Update IMPLEMENTATION_ORDER.md with semantic stages"
