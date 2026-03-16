@@ -1,4 +1,42 @@
-domains: []
-concepts: []
-rules: []
-demand_models: []
+# Semantic Candidates Output Template
+# This template defines the structure of candidates.yaml output
+
+domains:
+  - id: string              # Stable ID (e.g., "domain_abc123")
+    name: string            # Domain name
+    summary: string         # What this domain does
+    boundary:
+      modules: [string]     # Modules in this domain
+    source_signal_ids: [string]  # Source signal types
+    evidence_refs: [string]      # Evidence supporting this candidate
+    confidence: string      # Confidence level: "high", "medium", or "low"
+
+concepts:
+  - id: string              # Stable ID (e.g., "concept_abc123")
+    name: string            # Concept name
+    summary: string         # What this concept represents
+    relationships: [string] # Related concepts
+    source_signal_ids: [string]  # Source signal types
+    evidence_refs: [string]      # Evidence supporting this candidate
+    confidence: string      # Confidence level: "high", "medium", or "low"
+
+rules:
+  - id: string              # Stable ID (e.g., "rule_abc123")
+    name: string            # Rule name
+    summary: string         # What this rule enforces
+    source_signal_ids: [string]  # Source signal types
+    evidence_refs: [string]      # Evidence supporting this candidate
+    confidence: string      # Confidence level: "high", "medium", or "low"
+
+demand_models:
+  - id: string              # Stable ID (e.g., "demand_abc123")
+    name: string            # Demand model name
+    summary: string         # What this demand model represents
+    source_signal_ids: [string]  # Source signal types
+    evidence_refs: [string]      # Evidence supporting this candidate
+    confidence: string      # Confidence level: "high", "medium", or "low"
+
+metadata:
+  generated_at: string      # ISO 8601 timestamp
+  signals_source: string    # Source signals file (e.g., "signals.yaml")
+  candidate_count: integer  # Total number of candidates synthesized

@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import List, Optional, Literal
+from typing import List, Optional, Literal, Dict, Any
 from enum import Enum
 from pydantic import BaseModel, Field, model_validator
 
@@ -46,7 +46,59 @@ class SignalsOutput(BaseModel):
         extra = "allow"
 
 # ============================================================================
-# Candidate Models (for later semantic capabilities)
+# Candidate Models (for semantic-candidates capability)
+# ============================================================================
+
+class DomainCandidate(BaseModel):
+    """Domain candidate model"""
+    id: str
+    name: str
+    summary: str
+    boundary: Dict[str, Any]
+    source_signal_ids: List[str] = Field(default_factory=list)
+    evidence_refs: List[str] = Field(default_factory=list)
+    confidence: ConfidenceLevel
+
+class ConceptCandidate(BaseModel):
+    """Concept candidate model"""
+    id: str
+    name: str
+    summary: str
+    relationships: List[str] = Field(default_factory=list)
+    source_signal_ids: List[str] = Field(default_factory=list)
+    evidence_refs: List[str] = Field(default_factory=list)
+    confidence: ConfidenceLevel
+
+class RuleCandidate(BaseModel):
+    """Rule candidate model"""
+    id: str
+    name: str
+    summary: str
+    source_signal_ids: List[str] = Field(default_factory=list)
+    evidence_refs: List[str] = Field(default_factory=list)
+    confidence: ConfidenceLevel
+
+class DemandModelCandidate(BaseModel):
+    """Demand model candidate model"""
+    id: str
+    name: str
+    summary: str
+    source_signal_ids: List[str] = Field(default_factory=list)
+    evidence_refs: List[str] = Field(default_factory=list)
+    confidence: ConfidenceLevel
+
+class CandidatesOutput(BaseModel):
+    """Complete candidates output structure"""
+    domains: List[DomainCandidate] = Field(default_factory=list)
+    concepts: List[ConceptCandidate] = Field(default_factory=list)
+    rules: List[RuleCandidate] = Field(default_factory=list)
+    demand_models: List[DemandModelCandidate] = Field(default_factory=list)
+
+    class Config:
+        extra = "allow"
+
+# ============================================================================
+# Recommendation Models (for later semantic capabilities)
 # ============================================================================
 
 class SemanticValidity(str, Enum):
