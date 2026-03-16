@@ -2,3 +2,5 @@ __pycache__/
 *.pyc
 .omc/
 .worktrees/
+.DS_Store
+*.zip
