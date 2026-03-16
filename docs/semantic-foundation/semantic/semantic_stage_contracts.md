@@ -29,20 +29,26 @@ Extract semantic signals from FACT layer outputs that indicate:
 
 ### Inputs
 
-**Primary**:
-- `docs/fact/baseline/purpose.md`
-- `docs/fact/baseline/pipelines.md`
-- `docs/fact/baseline/domains.md`
-- `docs/fact/baseline/concepts.md`
-- `fact_canonical_sample.yaml`
+**Primary Hard Input**:
+- `docs/semantic-foundation/fact/fact_canonical_sample.yaml` - Canonical observable facts (REQUIRED)
 
-**Auxiliary**:
-- `fact_working_summary_sample.yaml`
-- `docs/fact/discovery/repo-understanding.vN.md`
+**Auxiliary Soft Input**:
+- `docs/semantic-foundation/fact/fact_working_summary_sample.yaml` - Interpretation and guidance (optional)
+
+**Reference Input** (optional, if available):
+- `docs/fact/baseline/purpose.md` - System purpose baseline
+- `docs/fact/baseline/pipelines.md` - Pipeline baseline
+- `docs/fact/baseline/domains.md` - Domain baseline
+- `docs/fact/baseline/concepts.md` - Concept baseline
+- `docs/fact/discovery/repo-understanding.vN.md` - Discovery artifacts
 
 ### Outputs
 
-**File**: `signals.yaml`
+**Canonical Output**: `signals.yaml`
+
+**View Output**: `signals.md`
+
+**Location**: `docs/semantic-foundation/semantic/`
 
 **Structure**:
 ```yaml
@@ -59,15 +65,22 @@ signals:
     - signal_type: "validation_logic"
       evidence: "file:line"
       confidence: "high|medium|low"
+  demand_pattern_signals:
+    - signal_type: "change_analysis_pattern"
+      evidence: "file:line"
+      confidence: "high|medium|low"
 ```
 
 ### Program Responsibilities
 
-- Read FACT baseline files
+- Read `fact_canonical_sample.yaml` (primary input)
+- Read `fact_working_summary_sample.yaml` (auxiliary input, optional)
+- Read baseline files if available (reference input, optional)
 - Parse canonical facts
 - Extract semantic signals
 - Assign confidence ratings
-- Write `signals.yaml`
+- Write `signals.yaml` to `docs/semantic-foundation/semantic/`
+- Render `signals.md` to `docs/semantic-foundation/semantic/`
 
 ### Model Responsibilities
 
@@ -82,8 +95,9 @@ None (fully automated).
 
 ### Blocking Rules
 
-- **BLOCK** if baseline files missing
-- **BLOCK** if canonical facts malformed
+- **BLOCK** if `fact_canonical_sample.yaml` missing or malformed
+- **WARN** if `fact_working_summary_sample.yaml` missing (can proceed without it)
+- **WARN** if baseline files missing (can proceed without them)
 - **WARN** if confidence is low across all signals
 
 ---

@@ -800,8 +800,11 @@ These view outputs are the final human-readable semantic models.
 
 ## Output Location
 
-**Canonical outputs**: `docs/semantic/` or semantic workspace
-**View outputs**: `docs/semantic/*.md`
+**Canonical outputs**: `docs/semantic-foundation/semantic/` (semantic workspace)
+
+**View outputs**: `docs/semantic-foundation/semantic/*.md`
+
+**Note**: Do not confuse with `docs/semantic/` which contains old FACT runtime artifacts (transitional naming).
 
 ---
 

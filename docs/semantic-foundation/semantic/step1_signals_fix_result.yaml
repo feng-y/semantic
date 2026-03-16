@@ -1,0 +1,93 @@
+fix_target: step1_signals_contract
+fix_date: 2026-03-16
+reviewer: claude-opus-4.6
+
+updated_files:
+  - path: docs/semantic-foundation/semantic/semantic_stage_contracts.md
+    reason: "Fixed Step1 input contract - made fact_canonical_sample.yaml the primary hard input, demoted baseline files to optional reference input, updated workspace to docs/semantic-foundation/semantic/"
+
+  - path: docs/semantic-foundation/semantic/01_step1_signal_inference.md
+    reason: "Fixed Step1 design doc - aligned inputs with contract (canonical YAML primary, baseline optional), updated output workspace to docs/semantic-foundation/semantic/, updated blocking rules"
+
+  - path: docs/semantic-foundation/semantic/semantic_runner_design.md
+    reason: "Fixed workspace location from docs/semantic/ to docs/semantic-foundation/semantic/, added note about transitional naming"
+
+  - path: docs/semantic-foundation/semantic/semantic_output_contract.md
+    reason: "Fixed output location from docs/semantic/ to docs/semantic-foundation/semantic/, added note about transitional naming"
+
+normalization_decisions:
+  primary_hard_input: docs/semantic-foundation/fact/fact_canonical_sample.yaml
+  auxiliary_soft_input: docs/semantic-foundation/fact/fact_working_summary_sample.yaml
+  reference_input: docs/fact/baseline/*.md (optional)
+  semantic_workspace: docs/semantic-foundation/semantic/
+  canonical_output: signals.yaml
+  view_output: signals.md
+  signal_groups:
+    - domain_signals
+    - concept_signals
+    - rule_signals
+    - demand_pattern_signals
+
+fixed_issues:
+  - severity: high
+    issue: "Step1 contract required docs/fact/baseline/*.md as primary input, but these files don't exist"
+    resolution: "Made fact_canonical_sample.yaml the sole REQUIRED primary input, demoted baseline files to optional reference input"
+
+  - severity: high
+    issue: "Step1 blocking rule would BLOCK if baseline files missing"
+    resolution: "Changed blocking rule to BLOCK only if fact_canonical_sample.yaml missing, WARN if baseline files missing"
+
+  - severity: high
+    issue: "Workspace location inconsistent - docs/semantic/ vs docs/semantic-foundation/semantic/"
+    resolution: "Normalized all docs to use docs/semantic-foundation/semantic/ as semantic workspace, added notes about transitional naming"
+
+  - severity: medium
+    issue: "Step1 program responsibilities assumed baseline files were required"
+    resolution: "Updated to load canonical YAML (required), working summary (optional), baseline files (optional reference)"
+
+  - severity: medium
+    issue: "Output location ambiguous between docs/semantic/ and docs/semantic-foundation/semantic/"
+    resolution: "Clarified docs/semantic-foundation/semantic/ is semantic workspace, docs/semantic/ is old FACT runtime artifacts"
+
+  - severity: low
+    issue: "Signal groups inconsistent - missing demand_pattern_signals in some docs"
+    resolution: "Added demand_pattern_signals to semantic_stage_contracts.md output structure"
+
+remaining_risks:
+  - "docs/semantic/ directory still referenced in old FACT runtime code - this is intentional (transitional naming)"
+  - "Baseline files may be generated in future by FACT pipeline - Step1 should use them as reference if available"
+  - "Working summary is optional but recommended - Step1 may have less context without it"
+
+decisions:
+  step1_contract_ready_for_implementation: true
+  blocking_reason: null
+  can_implement_immediately: true
+
+implementation_readiness:
+  primary_input_clear: true
+  auxiliary_input_clear: true
+  reference_input_clear: true
+  workspace_clear: true
+  output_files_clear: true
+  blocking_rules_clear: true
+  no_ambiguity: true
+
+contract_changes:
+  input_contract:
+    before: "Primary: baseline/*.md + canonical YAML"
+    after: "Primary: canonical YAML only (baseline optional reference)"
+
+  blocking_rules:
+    before: "BLOCK if baseline files missing"
+    after: "BLOCK if canonical YAML missing, WARN if baseline missing"
+
+  workspace:
+    before: "docs/semantic/ (ambiguous)"
+    after: "docs/semantic-foundation/semantic/ (clear)"
+
+verification:
+  fact_canonical_sample_yaml_is_primary: true
+  baseline_files_are_optional: true
+  working_summary_is_auxiliary: true
+  workspace_is_normalized: true
+  step1_can_run_without_baseline: true

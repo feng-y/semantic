@@ -87,7 +87,7 @@ Pipeline stopped: human review required
 
 **File**: `run-state.yaml`
 
-**Path**: `docs/semantic/run-state.yaml` (or semantic workspace)
+**Path**: `docs/semantic-foundation/semantic/run-state.yaml`
 
 ### Structure
 
@@ -234,19 +234,25 @@ verify_first_status:
 
 ### Location
 
-**Path**: `docs/semantic/` (or configurable semantic workspace)
+**Path**: `docs/semantic-foundation/semantic/`
 
 **Purpose**: Store all semantic outputs in one location.
+
+**Note**: This is the semantic layer workspace. Do not confuse with `docs/semantic/` which contains old FACT runtime artifacts (transitional naming).
 
 ### Structure
 
 ```
-docs/semantic/
+docs/semantic-foundation/semantic/
 ├── signals.yaml
+├── signals.md (view)
 ├── candidates.yaml
+├── candidates.md (view)
 ├── recommendations.yaml
+├── recommendations.md (view)
 ├── review-decisions.yaml
 ├── evidence-checks.yaml
+├── review-note.md (view)
 ├── domain-map.yaml
 ├── concept-map.yaml
 ├── rule-map.yaml

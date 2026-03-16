@@ -22,7 +22,37 @@ Extract semantic signals from FACT layer that indicate:
 
 ### Primary Hard Input
 
-**Source**: `docs/fact/baseline/*.md` + `fact_canonical_sample.yaml`
+**Source**: `docs/semantic-foundation/fact/fact_canonical_sample.yaml`
+
+**Content**:
+- `repo_identity`: Repository metadata (name, type, language, build_system)
+- `modules`: Observable module structure (name, path, functions, evidence)
+- `entrypoints`: Observable entrypoints (name, type, location, command, evidence)
+- `core_entities`: Observable data structures (name, type, defined_in, fields, evidence)
+- `configuration`: Observable config (name, type, location, evidence)
+- `dependencies`: Observable imports and packages
+- `execution_flows`: Observable call chains
+- `baseline_reference`: Checkpoint metadata (if baseline exists)
+
+**Consumption Rule**: Trust as ground truth, use evidence refs for validation. This is the REQUIRED primary input.
+
+### Auxiliary Soft Input
+
+**Source**: `docs/semantic-foundation/fact/fact_working_summary_sample.yaml`
+
+**Content**:
+- System purpose interpretation
+- Domain boundary proposals
+- Concept role assignments
+- Pipeline relationship analysis
+- Open questions
+- Assumptions
+
+**Consumption Rule**: Use as guidance/bootstrap context, NOT as hard truth. When conflict with canonical, prefer canonical. This input is OPTIONAL.
+
+### Reference Input (Optional)
+
+**Source**: `docs/fact/baseline/*.md` (if available)
 
 **Files**:
 - `docs/fact/baseline/purpose.md` - System purpose and non-goals
@@ -30,22 +60,8 @@ Extract semantic signals from FACT layer that indicate:
 - `docs/fact/baseline/domains.md` - Domain boundaries (FACT-level)
 - `docs/fact/baseline/concepts.md` - Core domain concepts
 - `docs/fact/baseline/checkpoint.json` - Version metadata
-- `fact_canonical_sample.yaml` - Observable repository structure
 
-**Consumption Rule**: Trust as ground truth, use evidence refs for validation.
-
-### Auxiliary Soft Input
-
-**Source**: `fact_working_summary_sample.yaml`
-
-**Content**:
-- System purpose interpretation
-- Domain boundary proposals
-- Concept role assignments
-- Open questions
-- Assumptions
-
-**Consumption Rule**: Use as guidance/bootstrap context, NOT as hard truth. When conflict with canonical, prefer canonical.
+**Consumption Rule**: Use as additional reference if available. Step1 can proceed without these files.
 
 ---
 
@@ -55,7 +71,7 @@ Extract semantic signals from FACT layer that indicate:
 
 **File**: `signals.yaml`
 
-**Location**: `docs/semantic/`
+**Location**: `docs/semantic-foundation/semantic/`
 
 **Minimum Structure**:
 ```yaml
@@ -94,7 +110,7 @@ metadata:
 
 **File**: `signals.md`
 
-**Location**: `docs/semantic/`
+**Location**: `docs/semantic-foundation/semantic/`
 
 **Purpose**: Human-readable signal summary for review
 
@@ -156,16 +172,16 @@ metadata:
 
 The Step1 program must:
 
-1. **Read FACT baseline files**
-   - Parse `purpose.md`, `pipelines.md`, `domains.md`, `concepts.md`
-   - Load `fact_canonical_sample.yaml`
-   - Load `fact_working_summary_sample.yaml` (auxiliary)
+1. **Read FACT inputs**
+   - Load `docs/semantic-foundation/fact/fact_canonical_sample.yaml` (REQUIRED)
+   - Load `docs/semantic-foundation/fact/fact_working_summary_sample.yaml` (optional)
+   - Load `docs/fact/baseline/*.md` if available (optional reference)
 
 2. **Extract semantic signals**
-   - Identify domain boundary indicators
-   - Recognize concept definitions
-   - Detect business rule patterns
-   - Identify demand model structures
+   - Identify domain boundary indicators from canonical facts
+   - Recognize concept definitions from entities and terminology
+   - Detect business rule patterns from validation logic
+   - Identify demand model structures from change patterns
 
 3. **Assign confidence ratings**
    - High: Strong evidence from multiple sources
@@ -174,11 +190,13 @@ The Step1 program must:
 
 4. **Write canonical output**
    - Generate `signals.yaml` with all required fields
+   - Write to `docs/semantic-foundation/semantic/signals.yaml`
    - Ensure evidence refs are valid
    - Include metadata (timestamp, version, count)
 
 5. **Render view output**
    - Generate `signals.md` for human review
+   - Write to `docs/semantic-foundation/semantic/signals.md`
    - Group signals by type
    - Include confidence ratings
 
@@ -222,11 +240,9 @@ Human review occurs in Step4 (Review & Evidence), not Step1.
 
 ### Fatal Errors (Stop Execution)
 
-- **BLOCK** if baseline files missing
-  - `docs/fact/baseline/purpose.md` not found
-  - `docs/fact/baseline/pipelines.md` not found
-  - `docs/fact/baseline/domains.md` not found
-  - `docs/fact/baseline/concepts.md` not found
+- **BLOCK** if `fact_canonical_sample.yaml` missing
+  - `docs/semantic-foundation/fact/fact_canonical_sample.yaml` not found
+  - This is the REQUIRED primary input
 
 - **BLOCK** if canonical facts malformed
   - `fact_canonical_sample.yaml` invalid YAML
@@ -234,6 +250,15 @@ Human review occurs in Step4 (Review & Evidence), not Step1.
   - Evidence refs malformed
 
 ### Warnings (Continue with Caution)
+
+- **WARN** if `fact_working_summary_sample.yaml` missing
+  - Step1 can proceed without auxiliary input
+  - May have less context for signal inference
+
+- **WARN** if baseline files missing
+  - `docs/fact/baseline/*.md` not found
+  - Step1 can proceed without reference input
+  - Canonical YAML contains all necessary information
 
 - **WARN** if confidence is low across all signals
   - Less than 30% high-confidence signals
