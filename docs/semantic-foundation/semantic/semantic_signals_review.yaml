@@ -1,0 +1,224 @@
+review_target: semantic_signals
+review_date: 2026-03-17
+reviewer: claude-opus-4.6
+review_type: implementation_review
+
+reviewed_files:
+  - path: skills/semantic-signals/SKILL.md
+    role: skill_definition
+  - path: src/semantic/extract_signals.py
+    role: implementation
+  - path: src/semantic/models.py
+    role: models
+  - path: templates/semantic/signals.template.yaml
+    role: template
+  - path: tests/semantic/test_extract_signals.py
+    role: tests
+  - path: docs/semantic-foundation/semantic/semantic_stage_contracts.md
+    role: contract_reference
+  - path: docs/semantic-foundation/semantic/semantic_input_contract.md
+    role: contract_reference
+  - path: docs/semantic-foundation/semantic/semantic_output_contract.md
+    role: contract_reference
+
+overall_status: pass
+
+assessments:
+  standard_skill_correctness: pass
+  input_contract_alignment: pass
+  real_implementation: pass
+  model_quality: pass
+  output_correctness: pass
+  traceability: pass
+  template_alignment: pass
+  test_quality: pass
+  capability_boundary: pass
+
+detailed_assessments:
+  standard_skill_correctness:
+    status: pass
+    findings:
+      - "✅ SKILL.md follows standard omc format with frontmatter"
+      - "✅ Clear decision tree showing execution flow"
+      - "✅ 6 execution steps detailed (validate inputs, extract 4 signal types, write outputs)"
+      - "✅ Clearly states when to use (after FACT layer, before candidates)"
+      - "✅ Clearly states required inputs (canonical YAML required, working summary optional)"
+      - "✅ Clearly states outputs (signals.yaml canonical, signals.md view)"
+      - "✅ Skill remains thin - calls Python implementation, doesn't embed logic"
+      - "✅ Explicitly bounded to signals only (not candidates/recommend/finalize)"
+      - "✅ Usage examples provided (CLI and skill invocation)"
+    issues: []
+
+  input_contract_alignment:
+    status: pass
+    findings:
+      - "✅ Primary hard input: fact_canonical_sample.yaml (REQUIRED) - correctly implemented"
+      - "✅ Auxiliary soft input: fact_working_summary_sample.yaml (optional) - correctly implemented"
+      - "✅ Reference input: baseline/*.md (optional) - correctly handled"
+      - "✅ Canonical fact treated as primary truth (high confidence)"
+      - "✅ Working summary treated as guidance only (medium confidence)"
+      - "✅ Conflict resolution: canonical wins (implemented via confidence levels)"
+      - "✅ Baseline markdown optional - implementation doesn't block if missing"
+    issues: []
+
+  real_implementation:
+    status: pass
+    findings:
+      - "✅ extract_signals.py is 214 lines of real logic, NOT scaffold"
+      - "✅ load_fact_canonical() - real YAML loading with error handling"
+      - "✅ load_fact_working_summary() - real YAML loading with error handling"
+      - "✅ extract_domain_signals() - real extraction logic (module grouping, domain proposals)"
+      - "✅ extract_concept_signals() - real extraction logic (entities, concepts)"
+      - "✅ extract_rule_signals() - real extraction logic (validation modules)"
+      - "✅ extract_demand_pattern_signals() - real extraction logic (change modules)"
+      - "✅ render_signals_markdown() - real markdown generation"
+      - "✅ main() - real CLI with argparse"
+      - "✅ Deterministic extraction (same inputs → same outputs)"
+      - "✅ Evidence preservation (source and evidence fields populated)"
+      - "✅ Executable and functional (verified by running)"
+    issues: []
+
+  model_quality:
+    status: pass
+    findings:
+      - "✅ Signal base model defined with Pydantic"
+      - "✅ DomainSignal, ConceptSignal, RuleSignal, DemandPatternSignal defined"
+      - "✅ SignalsOutput structure defined"
+      - "✅ Fields include: signal_type, source, evidence, confidence, summary"
+      - "✅ Type safety via Pydantic"
+      - "✅ Models are usable (not placeholders)"
+      - "✅ Suitable for serialization/deserialization"
+    issues:
+      - "⚠️ Models define fields but extract_signals.py uses dicts instead of model instances"
+      - "Impact: Low - output is still correct, models provide structure reference"
+
+  output_correctness:
+    status: pass
+    findings:
+      - "✅ Workspace: docs/semantic-foundation/semantic/ (correct)"
+      - "✅ Canonical output: signals.yaml (correct)"
+      - "✅ View output: signals.md (correct)"
+      - "✅ All 4 signal groups present: domain, concept, rule, demand_pattern"
+      - "✅ YAML structure valid (verified by yaml.safe_load)"
+      - "✅ Required fields present: signal_type, source, evidence, confidence, summary"
+      - "✅ Metadata present: generated_at, fact_source, signal_count"
+      - "✅ Output suitable for downstream semantic-candidates"
+      - "✅ Functional test: successfully extracts 6 signals"
+    issues: []
+
+  traceability:
+    status: pass
+    findings:
+      - "✅ Source refs preserved (fact_canonical:modules, fact_working_summary:concepts, etc.)"
+      - "✅ Evidence refs preserved (N modules observed, N entities observed, etc.)"
+      - "✅ Confidence levels indicate source reliability (high for canonical, medium for working)"
+      - "✅ Signals can be traced back to inputs"
+      - "✅ Provenance not discarded unnecessarily"
+    issues: []
+
+  template_alignment:
+    status: pass
+    findings:
+      - "✅ templates/semantic/signals.template.yaml exists and is aligned"
+      - "✅ Template defines all 4 signal groups"
+      - "✅ Template defines required fields: signal_type, source, evidence, confidence, summary"
+      - "✅ Template defines metadata section"
+      - "✅ Template matches extract_signals.py output structure"
+      - "✅ No drift between template and implementation"
+    issues: []
+
+  test_quality:
+    status: pass
+    findings:
+      - "✅ 10 real tests implemented (not just file existence checks)"
+      - "✅ test_load_fact_canonical - tests canonical loading"
+      - "✅ test_load_fact_working_summary - tests working summary loading"
+      - "✅ test_extract_domain_signals - tests domain extraction logic"
+      - "✅ test_extract_concept_signals - tests concept extraction logic"
+      - "✅ test_extract_rule_signals - tests rule extraction logic"
+      - "✅ test_extract_demand_pattern_signals - tests demand pattern extraction logic"
+      - "✅ test_signals_yaml_structure - tests YAML validity and structure"
+      - "✅ test_signals_markdown_generation - tests markdown generation"
+      - "✅ test_deterministic_extraction - tests same inputs → same outputs"
+      - "✅ test_evidence_preservation - tests evidence refs preserved"
+      - "✅ All 10 tests passing"
+      - "✅ Tests exercise actual behavior (not shallow)"
+      - "✅ Contract rules tested (canonical-only path, working summary optional)"
+    issues:
+      - "⚠️ 2 deprecation warnings for datetime.utcnow()"
+      - "Impact: Low - doesn't affect functionality"
+
+  capability_boundary:
+    status: pass
+    findings:
+      - "✅ Only implements semantic-signals"
+      - "✅ Does NOT implement semantic-candidates"
+      - "✅ Does NOT implement semantic-recommend"
+      - "✅ Does NOT implement semantic-review"
+      - "✅ Does NOT implement semantic-finalize"
+      - "✅ Does NOT implement demand"
+      - "✅ Does NOT modify FACT runtime"
+      - "✅ Properly bounded to first semantic capability only"
+    issues: []
+
+strengths:
+  - "Real implementation (214 lines of executable logic, not scaffold)"
+  - "All 10 tests passing with meaningful coverage"
+  - "Contract-aligned (input, output, naming all correct)"
+  - "Evidence and source traceability preserved"
+  - "Deterministic extraction (same inputs → same outputs)"
+  - "Proper capability boundary (signals only, no scope creep)"
+  - "Standard omc skill format"
+  - "Template aligned with implementation"
+  - "Functional verification successful (extracts 6 signals)"
+
+gaps:
+  - severity: low
+    gap: "Models defined but not used as instances in extract_signals.py"
+    impact: "Low - output is still correct, models provide structure reference"
+
+  - severity: low
+    gap: "datetime.utcnow() deprecation warnings"
+    impact: "Low - doesn't affect functionality, can be fixed later"
+
+  - severity: low
+    gap: "Extraction logic is deterministic-first, not model-intelligent"
+    impact: "Low - appropriate for first implementation, can be enhanced later"
+
+contradictions: []
+
+blocking_issues: []
+
+recommended_fixes:
+  - priority: low
+    target: src/semantic/extract_signals.py
+    issue: "datetime.utcnow() is deprecated"
+    recommendation: "Replace with datetime.now(datetime.UTC)"
+
+  - priority: low
+    target: src/semantic/extract_signals.py
+    issue: "Uses dicts instead of model instances"
+    recommendation: "Consider using Signal model instances for type safety (optional enhancement)"
+
+  - priority: low
+    target: src/semantic/extract_signals.py
+    issue: "Extraction logic is basic pattern matching"
+    recommendation: "Can be enhanced with more sophisticated signal detection in future iterations"
+
+decisions:
+  semantic_signals_ready: true
+  blocking_reason: null
+  can_use_immediately: true
+
+verification:
+  tests_passing: true
+  functional_test_passing: true
+  output_valid: true
+  contract_compliant: true
+  properly_bounded: true
+
+summary: |
+  semantic-signals is a real, contract-aligned, test-backed implementation
+  that is ready to be used as the first semantic capability. All assessments
+  pass, no blocking issues found. Minor gaps are non-blocking and can be
+  addressed in future iterations.
