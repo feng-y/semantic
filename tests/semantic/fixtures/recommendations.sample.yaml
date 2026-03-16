@@ -1,0 +1,22 @@
+domains:
+  - id: domain_candidate_001
+    name: Runtime Orchestration
+    type: domain
+    semantic_validity: pass
+    validity_reason: Stable structural domain
+    business_score: 2.5
+    value_score: 9.0
+    priority: 9.0
+    recommendation:
+      status: recommend
+      action: keep
+      target_layer: final_asset
+      target_asset_type: domain_map
+    recommended_reasons: [Foundation domain]
+    not_recommended_reasons: [Not a frequent business entry domain]
+    needs_evidence_check: false
+    evidence_gap: null
+    merge_target: null
+concepts: []
+rules: []
+demand_models: []
