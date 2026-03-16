@@ -19,8 +19,6 @@ from . import artifact_writer, context_builder, prompt_loader, skill_loader, sta
 from . import artifact_validation
 from .change_analysis_generator import generate_change_analysis
 from .change_analysis_validation import validate_change_analysis
-from .ibs_core_generator import generate_ibs_core
-from .ibs_core_validation import validate_ibs_core_outputs
 from .host_executor import HostExecutor
 
 # Re-export constants for backward compatibility
@@ -536,7 +534,7 @@ def _read_latest_working(root: Path, name: str) -> str | None:
 
 
 def _execute_baseline_step(root: Path, executor: HostExecutor) -> RefineStepResult:
-    """Execute baseline-synthesis.prompt and write IBS Core baseline artifacts."""
+    """Execute baseline-synthesis.prompt and write baseline artifacts."""
     prompt_path = root / "prompts" / "refine" / "baseline-synthesis.prompt"
     try:
         prompt_data = prompt_loader.load_prompt(str(prompt_path))
@@ -573,25 +571,10 @@ def _execute_baseline_step(root: Path, executor: HostExecutor) -> RefineStepResu
             status="validation_failed", errors=all_errors,
         )
 
-    ibs_outputs = generate_ibs_core(
-        repo_facts=_read_latest_working(root, "repo-facts") or "",
-        repo_understanding=ctx.get("repo_understanding", ""),
-        domain_candidates=ctx.get("domain_candidates", ""),
-        knowledge_confidence=ctx.get("knowledge_confidence", ""),
-        review_summary=ctx.get("review_summary", ""),
-    )
-    ibs_errors = validate_ibs_core_outputs(ibs_outputs)
-    if ibs_errors:
-        return RefineStepResult(
-            step_index=4, action="run",
-            target="prompts/refine/baseline-synthesis.prompt",
-            status="validation_failed", errors=ibs_errors,
-        )
-
-    # Write all 4 IBS Core baseline files
+    # Write baseline files
     written_paths: list[str] = []
     for name in BASELINE_SECTIONS:
-        content = ibs_outputs[name]
+        content = sections[name]
         path = artifact_writer.write_baseline(root, name, content)
         written_paths.append(str(path))
 
@@ -604,16 +587,16 @@ def _execute_baseline_step(root: Path, executor: HostExecutor) -> RefineStepResu
 
 
 def _execute_change_analysis_step(root: Path) -> RefineStepResult:
-    """Generate and write change-analysis from accepted IBS Core baseline artifacts."""
+    """Generate and write change-analysis from accepted baseline artifacts."""
     ctx = context_builder.build_change_analysis_context(root)
     missing = [name for name in ("purpose", "pipelines", "domains", "concepts") if name not in ctx]
     if missing:
         return RefineStepResult(
             step_index=5,
             action="generate",
-            target="ibs/change-analysis",
+            target="baseline/change-analysis",
             status="validation_failed",
-            errors=[f"missing ibs core baseline artifacts: {', '.join(missing)}"],
+            errors=[f"missing baseline artifacts: {', '.join(missing)}"],
         )
 
     content = generate_change_analysis(
@@ -627,7 +610,7 @@ def _execute_change_analysis_step(root: Path) -> RefineStepResult:
         return RefineStepResult(
             step_index=5,
             action="generate",
-            target="ibs/change-analysis",
+            target="baseline/change-analysis",
             status="validation_failed",
             errors=errors,
         )
@@ -646,7 +629,7 @@ def _execute_change_analysis_step(root: Path) -> RefineStepResult:
         return RefineStepResult(
             step_index=5,
             action="generate",
-            target="ibs/change-analysis",
+            target="baseline/change-analysis",
             status="validation_failed",
             errors=write_errors or ["failed to write change-analysis artifact"],
         )
@@ -654,7 +637,7 @@ def _execute_change_analysis_step(root: Path) -> RefineStepResult:
     return RefineStepResult(
         step_index=5,
         action="generate",
-        target="ibs/change-analysis",
+        target="baseline/change-analysis",
         status="ok",
         artifact_path=str(path),
     )

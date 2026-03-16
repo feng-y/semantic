@@ -1,4 +1,4 @@
-"""Generate change-analysis from IBS Core artifacts."""
+"""Generate change-analysis from baseline artifacts."""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ def generate_change_analysis(
     domains: str,
     concepts: str,
 ) -> str:
-    """Generate deterministic change-analysis content from IBS Core artifacts."""
+    """Generate deterministic change-analysis content from baseline artifacts."""
     primary_purpose = _first_or_default(
         _find_labeled_values(purpose, "Primary Purpose"),
         "Preserve semantic intent while applying targeted repository changes.",
@@ -67,7 +67,7 @@ def generate_change_analysis(
     if low_confidence:
         lines.extend([f"  - {risk}" for risk in low_confidence[:5]])
     else:
-        lines.append("  - No explicit low-confidence signals found in IBS Core artifacts.")
+        lines.append("  - No explicit low-confidence signals found in baseline artifacts.")
 
     lines.extend([
         "",

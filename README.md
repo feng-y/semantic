@@ -18,7 +18,7 @@ All artifacts are versioned, validated, and stored in `docs/semantic/`.
 ```bash
 git clone <repo-url> && cd semantic-harness
 pip install -e ".[test]"
-pytest                    # verify 143 tests pass
+pytest                    # verify tests pass in your current checkout
 ```
 
 Then use via Claude Code skill execution:
@@ -89,4 +89,4 @@ Documentation:
 
 ## Release Status
 
-v1.0.0 — stable. 143 tests passing. All safety boundaries verified.
+v0.0.1 — stable. Test status is tracked by current CI/local `pytest` results.

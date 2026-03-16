@@ -76,7 +76,6 @@ def test_stage3_design_doc_exists() -> None:
     path = REPO_ROOT / "docs" / "semantic-design" / "012-change-analysis-output-model.md"
     assert path.exists(), "missing 012 change-analysis design doc"
     text = path.read_text()
-    assert "IBS Core" in text
     assert "change-analysis" in text
 
 
@@ -88,7 +87,7 @@ def test_change_analysis_template_passes_validator() -> None:
     assert errors == [], f"template should pass validation, got: {errors}"
 
 
-def test_generator_maps_ibs_core_fields() -> None:
+def test_generator_maps_baseline_fields() -> None:
     content = generate_change_analysis(
         purpose=(
             "Primary Purpose: Preserve semantic model integrity\n"
@@ -146,7 +145,7 @@ def test_generator_maps_ibs_core_fields() -> None:
     assert "Re-run semantic refine after change-analysis review feedback." in suggested_next
 
 
-def test_generator_is_repeatable_for_same_ibs_input() -> None:
+def test_generator_is_repeatable_for_same_baseline_input() -> None:
     inputs = {
         "purpose": (
             "Primary Purpose: Keep semantic outputs stable\n"
@@ -168,7 +167,7 @@ def test_generator_is_repeatable_for_same_ibs_input() -> None:
         ),
         "concepts": (
             "Concept Name: Fact Artifact\n"
-            "Concept Name: IBS Core\n"
+            "Concept Name: Baseline Artifact\n"
             "Confidence: low\n"
         ),
     }
@@ -194,7 +193,7 @@ def test_validator_rejects_missing_required_structure() -> None:
     assert "Affected Pipelines" in joined
 
 
-def test_refine_generates_change_analysis_from_ibs_core(semantic_root: Path) -> None:
+def test_refine_generates_change_analysis_from_baseline(semantic_root: Path) -> None:
     d = run_discovery(semantic_root, executor=stub_executor, sampling_mode="auto")
     assert d.status == "ok"
 

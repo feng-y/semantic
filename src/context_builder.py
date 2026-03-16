@@ -366,7 +366,7 @@ def build_baseline_context(root: Path) -> dict[str, str]:
 def build_change_analysis_context(root: Path) -> dict[str, str]:
     """Assemble context for Stage 3 change-analysis generation.
 
-    Reads accepted IBS Core baseline artifacts:
+    Reads accepted baseline artifacts:
     - purpose.md
     - pipelines.md
     - domains.md
