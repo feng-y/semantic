@@ -364,6 +364,56 @@ def load_all_skills(plugin_json_path: str | Path) -> dict[str, dict[str, Any]]:
 
 **Note:** This file is separate from `plugin.json` and only used for marketplace distribution.
 
+### 5. Skill Discovery Mechanism
+
+**How Claude Code discovers skills:**
+
+Based on verified oh-my-claudecode plugin structure at `~/.claude/plugins/cache/omc/oh-my-claudecode/4.8.2/`:
+- `plugin.json` contains: `"skills": "./skills/"`
+- Claude Code auto-discovers all subdirectories in `./skills/`
+- Each subdirectory must contain a `SKILL.md` file
+- Skill name comes from YAML frontmatter `name` field, NOT directory name
+- Directory name convention: use skill name (e.g., `semantic-init/` for skill named `semantic-init`)
+
+**Auto-discovery rules:**
+```
+skills/
+  ├── semantic-init/
+  │   └── SKILL.md          # name: semantic-init
+  ├── semantic-discover/
+  │   └── SKILL.md          # name: semantic-discover
+  └── semantic-review/
+      └── SKILL.md          # name: semantic-review
+```
+
+Claude Code scans `./skills/` and loads all `SKILL.md` files found in subdirectories.
+
+**No explicit registration needed** - the `"skills": "./skills/"` pointer triggers auto-discovery.
+
+### 6. Entrypoint Field Clarification
+
+**Question:** Does Claude Code support Python entrypoints?
+
+**Answer:** Yes, but indirectly through our Python runtime:
+
+1. **SKILL.md frontmatter** contains: `entrypoint: src.dispatcher._handle_init`
+2. **Claude Code** invokes the skill (triggers our Python runtime)
+3. **Python runtime** (`src/dispatcher.py`) reads the skill definition
+4. **Dispatcher** calls the entrypoint function specified in the skill
+
+**How it works:**
+- Claude Code doesn't directly call Python functions
+- Instead, it invokes the skill as a command
+- Our Python runtime receives the command
+- Dispatcher reads the skill definition and calls the entrypoint function
+
+**This means:**
+- Entrypoint format stays the same: `src.module.function`
+- Python runtime must be invokable (via `python -m` or entry point script)
+- The skill system is a layer on top of our Python runtime
+
+**No changes needed to entrypoint format** - it's consumed by our Python code, not by Claude Code directly.
+
 ## Installation Methods
 
 After this refactor, the plugin will support all standard installation methods:
@@ -415,12 +465,37 @@ After this refactor, the plugin will support all standard installation methods:
 1. Create `.claude-plugin/plugin.json`
 2. Create `skills/<name>/` directories
 3. Create `SKILL.md` files with content from `.skill` files
-4. Keep old `.skill` files temporarily
+4. Keep old `.skill` files and `manifest.yaml` temporarily
+
+### Phase 1.5: Verify Claude Code Recognition (CRITICAL)
+
+**Goal:** Confirm Claude Code recognizes the plugin before modifying Python runtime.
+
+**Steps:**
+1. Test local installation: `/plugin install /path/to/semantic-harness`
+2. Verify plugin appears: `/plugin list`
+3. Check skills are discoverable: try `/semantic-init`, `/semantic-discover`, etc.
+4. Check Claude Code console for errors
+
+**Success Criteria:**
+- ✅ Plugin shows up in `/plugin list`
+- ✅ All 7 skills are discoverable (appear in autocomplete)
+- ✅ Skills can be invoked (even if execution fails due to Python runtime)
+- ✅ No errors in Claude Code console about plugin structure
+
+**If verification fails:**
+- DO NOT proceed to Phase 2
+- Debug plugin.json format
+- Check SKILL.md frontmatter syntax
+- Verify directory structure matches standard
+- Consult Claude Code documentation or working plugin examples
+
+**Only proceed to Phase 2 after successful verification.**
 
 ### Phase 2: Update Python Runtime
-5. Update `src/dispatcher.py` to read `plugin.json`
-6. Update any other code that reads `manifest.yaml`
-7. Update tests to use `plugin.json`
+5. Update `src/skill_loader.py` to parse YAML frontmatter from SKILL.md
+6. Update `src/skill_loader.py` load_all_skills() to discover SKILL.md files
+7. Update tests to use new skill format
 8. Run pytest to verify no regressions
 
 ### Phase 3: Cleanup
