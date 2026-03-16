@@ -4,6 +4,50 @@ from enum import Enum
 from pydantic import BaseModel, Field, model_validator
 
 CandidateType = Literal["domain", "concept", "rule", "demand_model"]
+SignalType = Literal["domain", "concept", "rule", "demand_pattern"]
+ConfidenceLevel = Literal["high", "medium", "low"]
+
+# ============================================================================
+# Signal Models (for semantic-signals capability)
+# ============================================================================
+
+class Signal(BaseModel):
+    """Base signal model for semantic signal extraction"""
+    signal_type: str
+    source: str
+    evidence: str
+    confidence: ConfidenceLevel
+    summary: Optional[str] = None
+
+class DomainSignal(Signal):
+    """Domain boundary indicator signal"""
+    pass
+
+class ConceptSignal(Signal):
+    """Concept definition indicator signal"""
+    pass
+
+class RuleSignal(Signal):
+    """Business rule indicator signal"""
+    pass
+
+class DemandPatternSignal(Signal):
+    """Demand model structure indicator signal"""
+    pass
+
+class SignalsOutput(BaseModel):
+    """Complete signals output structure"""
+    domain_signals: List[DomainSignal] = Field(default_factory=list)
+    concept_signals: List[ConceptSignal] = Field(default_factory=list)
+    rule_signals: List[RuleSignal] = Field(default_factory=list)
+    demand_pattern_signals: List[DemandPatternSignal] = Field(default_factory=list)
+
+    class Config:
+        extra = "allow"
+
+# ============================================================================
+# Candidate Models (for later semantic capabilities)
+# ============================================================================
 
 class SemanticValidity(str, Enum):
     PASS = "pass"

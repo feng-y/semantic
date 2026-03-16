@@ -1,0 +1,14 @@
+name: semantic-signals
+description: >
+  Extract semantic signals from FACT layer inputs.
+  Generates domain, concept, rule, and demand pattern signals.
+entrypoint: semantic.extract_signals
+
+inputs:
+  fact_root: docs/semantic-foundation/fact
+  output: docs/semantic-foundation/semantic/signals.yaml
+  render_md: docs/semantic-foundation/semantic/signals.md
+
+outputs:
+  - docs/semantic-foundation/semantic/signals.yaml
+  - docs/semantic-foundation/semantic/signals.md
