@@ -1,0 +1,519 @@
+# FACT Layer Canonical Output Sample
+# This is a REAL sample for semantic-harness repo, not an empty template
+# Generated: 2026-03-16
+# Source: docs/semantic/discovery/*.v2.md + docs/semantic/baseline/*.md
+
+fact_layer_version: "1.0"
+repo_identity:
+  name: "semantic-harness"
+  type: "claude-code-plugin"
+  primary_language: "python"
+  build_system: "pip"
+
+# ============================================================================
+# 1. REPO FACTS (Observable Structure)
+# ============================================================================
+
+repo_facts:
+  repository:
+    primary_language: "Python"
+    build_system: "pip + pytest"
+    repository_type: "plugin"
+    evidence:
+      - "pyproject.toml: [project] section, dependencies"
+      - "manifest.yaml: target=claude-code"
+      - "skills/*.skill: YAML skill definitions"
+
+  modules:
+    - name: "artifact_writer"
+      path: "src/artifact_writer.py"
+      responsibility: "Versioned artifact I/O with atomic writes and version allocation"
+      evidence: "src/artifact_writer.py:write_versioned_artifact(), get_latest_working_version_path()"
+
+    - name: "context_builder"
+      path: "src/context_builder.py"
+      responsibility: "Bounded prompt context assembly per discovery/refine step"
+      evidence: "src/context_builder.py:build_context(), build_baseline_context()"
+
+    - name: "discovery_executor"
+      path: "src/discovery_executor.py"
+      responsibility: "Discovery pipeline orchestration (sampling → facts → understanding → confidence)"
+      evidence: "src/discovery_executor.py:run_discovery()"
+
+    - name: "refine_executor"
+      path: "src/refine_executor.py"
+      responsibility: "Refinement pipeline (patch → validate → baseline synthesis)"
+      evidence: "src/refine_executor.py:run_refine(), evaluate_acceptance()"
+
+    - name: "dispatcher"
+      path: "src/dispatcher.py"
+      responsibility: "Command routing from skill invocation to executor"
+      evidence: "src/dispatcher.py:dispatch_command()"
+
+    - name: "state_inspector"
+      path: "src/state_inspector.py"
+      responsibility: "Semantic state routing and next-action recommendation"
+      evidence: "src/state_inspector.py:inspect_semantic_state()"
+
+  entrypoints:
+    - name: "semantic-discover"
+      type: "skill"
+      location: "skills/semantic-discover.skill"
+      execution_flow: "skill → dispatcher → discovery_executor → prompts/discover/*.prompt"
+      evidence: "skills/semantic-discover.skill:command=discover"
+
+    - name: "semantic-refine"
+      type: "skill"
+      location: "skills/semantic-refine.skill"
+      execution_flow: "skill → dispatcher → refine_executor → prompts/refine/*.prompt"
+      evidence: "skills/semantic-refine.skill:command=refine"
+
+    - name: "semantic-status"
+      type: "skill"
+      location: "skills/semantic-status.skill"
+      execution_flow: "skill → dispatcher → state_inspector"
+      evidence: "skills/semantic-status.skill:command=status"
+
+  core_entities:
+    - name: "DiscoveryResult"
+      type: "dataclass"
+      defined_in: "src/discovery_executor.py"
+      role: "Aggregate result of discovery pipeline execution"
+      evidence: "src/discovery_executor.py:@dataclass DiscoveryResult"
+
+    - name: "RefineResult"
+      type: "dataclass"
+      defined_in: "src/refine_executor.py"
+      role: "Aggregate result of refine pipeline execution"
+      evidence: "src/refine_executor.py:@dataclass RefineResult"
+
+    - name: "HostExecutor"
+      type: "protocol"
+      defined_in: "src/host_executor.py"
+      role: "Abstraction for LLM execution (real or stub)"
+      evidence: "src/host_executor.py:class HostExecutor(Protocol)"
+
+  configuration:
+    - name: "manifest"
+      type: "yaml"
+      location: "manifest.yaml"
+      loaded_by: "Claude Code plugin system"
+      evidence: "manifest.yaml:skills section maps skill names to .skill files"
+
+    - name: "pyproject"
+      type: "toml"
+      location: "pyproject.toml"
+      loaded_by: "pip install"
+      evidence: "pyproject.toml:[project] section, [tool.pytest.ini_options]"
+
+# ============================================================================
+# 2. REPO UNDERSTANDING (Purpose, Pipelines, Concepts)
+# ============================================================================
+
+repo_understanding:
+  system_purpose:
+    text: |
+      Semantic Harness is a Claude Code plugin that builds versioned semantic models
+      of repositories through evidence-driven discovery, human review, iterative
+      refinement, and accepted baseline generation. It extracts facts, identifies
+      domains and concepts, and synthesizes stable semantic references for downstream
+      consumption.
+    evidence:
+      - "README.md:What It Does section"
+      - "USER_GUIDE.md:Workflow Overview"
+      - "manifest.yaml:name=semantic-harness"
+    confidence: "high"
+
+  pipelines:
+    - pipeline_name: "Discovery Pipeline"
+      purpose: "Extract semantic facts from repository through sampling and evidence extraction"
+      flow: "sampling → repo-facts → evidence-extraction → domain-candidates → repo-understanding → knowledge-confidence → review-summary"
+      inputs:
+        - "Repository tree (git ls-files)"
+        - "Selected source files"
+        - "Existing baseline (if present)"
+      outputs:
+        - "docs/semantic/discovery/sampling-report.md"
+        - "docs/semantic/discovery/repo-facts.vN.md"
+        - "docs/semantic/discovery/repo-understanding.vN.md"
+        - "docs/semantic/discovery/domain-candidates.vN.md"
+        - "docs/semantic/discovery/knowledge-confidence.vN.md"
+        - "docs/semantic/review/review-summary.vN.md"
+      concepts:
+        - "Semantic Artifact"
+        - "Evidence"
+        - "Versioned Output"
+      evidence:
+        - "src/discovery_executor.py:run_discovery()"
+        - "prompts/discover/*.prompt"
+      confidence: "high"
+
+    - pipeline_name: "Refinement Pipeline"
+      purpose: "Patch semantic artifacts using architect feedback and synthesize accepted baseline"
+      flow: "read feedback → patch artifacts → validate → check acceptance → synthesize baseline → generate change-analysis"
+      inputs:
+        - "docs/semantic/review/architect-feedback.md"
+        - "Latest versioned discovery artifacts"
+      outputs:
+        - "Updated discovery artifacts (.vN+1.md)"
+        - "docs/semantic/review/semantic-change-log.md"
+        - "docs/semantic/baseline/{purpose,pipelines,domains,concepts}.md (on acceptance)"
+        - "docs/semantic/baseline/checkpoint.json (on acceptance)"
+        - "docs/semantic/review/change-analysis.vN.md (on acceptance)"
+      concepts:
+        - "Architect Feedback"
+        - "Acceptance Gate"
+        - "Baseline Synthesis"
+        - "Change Analysis"
+      evidence:
+        - "src/refine_executor.py:run_refine(), evaluate_acceptance()"
+        - "prompts/refine/*.prompt"
+      confidence: "high"
+
+    - pipeline_name: "State Inspection"
+      purpose: "Analyze current semantic state and recommend next action"
+      flow: "check workspace → check artifacts → check acceptance → recommend action"
+      inputs:
+        - "docs/semantic/ directory state"
+        - "Artifact version numbers"
+        - "Acceptance status"
+      outputs:
+        - "Status report with next-action recommendation"
+      concepts:
+        - "Semantic State"
+        - "Next Action"
+      evidence:
+        - "src/state_inspector.py:inspect_semantic_state()"
+      confidence: "high"
+
+  concepts:
+    - concept_name: "Semantic Artifact"
+      description: "Versioned, schema-validated markdown file containing semantic understanding"
+      role: "Primary output unit of discovery and refinement pipelines"
+      used_by:
+        - "Discovery Pipeline"
+        - "Refinement Pipeline"
+      evidence:
+        - "src/artifact_writer.py:write_versioned_artifact()"
+        - "docs/semantic/schemas/*.schema.md"
+      confidence: "high"
+
+    - concept_name: "Evidence"
+      description: "File paths, line numbers, or commands that support a semantic claim"
+      role: "Traceability mechanism for all factual assertions"
+      used_by:
+        - "Discovery Pipeline"
+        - "Refinement Pipeline"
+      evidence:
+        - "docs/semantic/schemas/repo-facts.schema.md:Evidence field"
+        - "docs/semantic/templates/*.template.md:Evidence sections"
+      confidence: "high"
+
+    - concept_name: "Acceptance Gate"
+      description: "4-gate structural validation before baseline synthesis (acceptance field + 3 artifact gates)"
+      role: "Quality control mechanism preventing premature baseline generation"
+      used_by:
+        - "Refinement Pipeline"
+      evidence:
+        - "src/refine_executor.py:evaluate_acceptance()"
+        - "USER_GUIDE.md:Acceptance and Baseline section"
+      confidence: "high"
+
+    - concept_name: "Baseline Synthesis"
+      description: "Generation of immutable baseline artifacts from accepted working artifacts"
+      role: "Canonical semantic reference for downstream consumption"
+      used_by:
+        - "Refinement Pipeline"
+      evidence:
+        - "src/refine_executor.py:_execute_baseline_step()"
+        - "prompts/refine/baseline-synthesis.prompt"
+      confidence: "high"
+
+    - concept_name: "Change Analysis"
+      description: "Impact analysis generated from baseline artifacts after acceptance"
+      role: "Downstream semantic layer input for change planning"
+      used_by:
+        - "Refinement Pipeline (Stage 3)"
+      evidence:
+        - "src/change_analysis_generator.py:generate_change_analysis()"
+        - "src/refine_executor.py:_execute_change_analysis_step()"
+      confidence: "high"
+
+  candidate_domains:
+    - domain_name: "Artifact Management"
+      description: "Versioned I/O, validation, and lifecycle management of semantic artifacts"
+      related_pipelines:
+        - "Discovery Pipeline"
+        - "Refinement Pipeline"
+      evidence:
+        - "src/artifact_writer.py"
+        - "src/artifact_validation.py"
+      confidence: "high"
+
+    - domain_name: "Pipeline Orchestration"
+      description: "Multi-step execution flows with context assembly and error handling"
+      related_pipelines:
+        - "Discovery Pipeline"
+        - "Refinement Pipeline"
+      evidence:
+        - "src/discovery_executor.py"
+        - "src/refine_executor.py"
+      confidence: "high"
+
+    - domain_name: "Prompt Engineering"
+      description: "Structured prompt templates with context injection"
+      related_pipelines:
+        - "Discovery Pipeline"
+        - "Refinement Pipeline"
+      evidence:
+        - "prompts/discover/*.prompt"
+        - "prompts/refine/*.prompt"
+        - "src/prompt_loader.py"
+      confidence: "high"
+
+  open_questions:
+    - question: "How should baseline artifacts be consumed by downstream semantic layer?"
+      why_unresolved: "Semantic layer not yet implemented; consumption contract undefined"
+
+    - question: "Should change-analysis be versioned or always regenerated from baseline?"
+      why_unresolved: "Current implementation versions it, but regeneration might be more consistent"
+
+# ============================================================================
+# 3. DOMAIN CANDIDATES (Boundary Identification)
+# ============================================================================
+
+domain_candidates:
+  - domain_name: "Artifact Management"
+    description: "Versioned I/O, validation, schema enforcement, and pruning of semantic artifacts"
+    related_pipelines:
+      - "Discovery Pipeline"
+      - "Refinement Pipeline"
+    evidence:
+      - "src/artifact_writer.py"
+      - "src/artifact_validation.py"
+      - "docs/semantic/schemas/*.schema.md"
+
+  - domain_name: "Pipeline Orchestration"
+    description: "Multi-step execution flows with staged writes, error recovery, and context assembly"
+    related_pipelines:
+      - "Discovery Pipeline"
+      - "Refinement Pipeline"
+    evidence:
+      - "src/discovery_executor.py"
+      - "src/refine_executor.py"
+      - "src/context_builder.py"
+
+  - domain_name: "Skill Interface"
+    description: "Claude Code plugin integration via manifest, skill files, and command dispatch"
+    related_pipelines:
+      - "State Inspection"
+    evidence:
+      - "manifest.yaml"
+      - "skills/*.skill"
+      - "src/dispatcher.py"
+      - "src/skill_loader.py"
+
+  - domain_name: "Prompt Engineering"
+    description: "Structured prompt templates with variable substitution and context injection"
+    related_pipelines:
+      - "Discovery Pipeline"
+      - "Refinement Pipeline"
+    evidence:
+      - "prompts/discover/*.prompt"
+      - "prompts/refine/*.prompt"
+      - "src/prompt_loader.py"
+
+# ============================================================================
+# 4. KNOWLEDGE CONFIDENCE (Claim Assessment)
+# ============================================================================
+
+knowledge_confidence:
+  overall_confidence: "high"
+
+  high_confidence_areas:
+    - area: "Discovery pipeline structure"
+      rationale: "Clear execution flow in discovery_executor.py with explicit step ordering"
+      evidence: "src/discovery_executor.py:run_discovery()"
+
+    - area: "Artifact versioning protocol"
+      rationale: "Atomic writes, version allocation, and pruning logic well-defined"
+      evidence: "src/artifact_writer.py:write_versioned_artifact(), prune_old_versions()"
+
+    - area: "Acceptance gate mechanism"
+      rationale: "4-gate validation explicitly implemented with clear failure modes"
+      evidence: "src/refine_executor.py:evaluate_acceptance()"
+
+  medium_confidence_areas:
+    - area: "Baseline consumption contract"
+      rationale: "Baseline artifacts generated but downstream semantic layer not implemented"
+      evidence: "docs/semantic/baseline/*.md exist but no consumer code"
+
+    - area: "Change analysis versioning strategy"
+      rationale: "Currently versioned but unclear if regeneration would be better"
+      evidence: "src/refine_executor.py:_execute_change_analysis_step() writes .vN.md"
+
+  low_confidence_areas:
+    - area: "Semantic layer integration"
+      rationale: "No implementation or design for semantic abstraction layer"
+      evidence: "No semantic layer code exists; only fact layer implemented"
+
+    - area: "Demand layer integration"
+      rationale: "No implementation or design for demand analysis layer"
+      evidence: "No demand layer code exists; only fact layer implemented"
+
+# ============================================================================
+# 5. REVIEW SUMMARY (Consolidated for Architect)
+# ============================================================================
+
+review_summary:
+  system_summary: |
+    Semantic Harness is a Claude Code plugin that extracts versioned semantic facts
+    from repositories through a 4-phase workflow: init → discover → review → refine → baseline.
+
+    The system samples repository structure, extracts observable facts with evidence,
+    identifies domain boundaries and concepts, and synthesizes immutable baseline
+    artifacts after architect acceptance. All outputs are schema-validated and versioned.
+
+    Current implementation covers the FACT layer (evidence-driven extraction) but does
+    not yet implement semantic abstraction or demand analysis layers.
+
+  main_pipelines:
+    - "Discovery Pipeline: sampling → facts → understanding → confidence → review"
+    - "Refinement Pipeline: feedback → patch → validate → baseline synthesis → change analysis"
+    - "State Inspection: analyze workspace → recommend next action"
+
+  core_concepts:
+    - "Semantic Artifact: versioned, schema-validated markdown output"
+    - "Evidence: file paths/commands supporting factual claims"
+    - "Acceptance Gate: 4-gate validation before baseline synthesis"
+    - "Baseline Synthesis: immutable canonical reference generation"
+    - "Change Analysis: impact analysis from baseline artifacts"
+
+  candidate_domains:
+    - "Artifact Management: versioned I/O, validation, schema enforcement"
+    - "Pipeline Orchestration: multi-step flows with error recovery"
+    - "Skill Interface: Claude Code plugin integration"
+    - "Prompt Engineering: structured templates with context injection"
+
+  assumptions:
+    - "Baseline artifacts are consumed by downstream semantic layer (not yet implemented)"
+    - "Change analysis is versioned rather than regenerated (strategy unclear)"
+    - "Evidence fields are for human audit, not agent consumption"
+    - "Acceptance gate prevents premature baseline generation"
+
+  questions_for_architect:
+    - "Should baseline artifacts be regenerated on every refine, or only on acceptance?"
+    - "Should change-analysis be versioned or always regenerated from baseline?"
+    - "What is the consumption contract for baseline artifacts by semantic layer?"
+    - "Should evidence fields be structured for agent parsing, or remain human-readable?"
+
+# ============================================================================
+# 6. BASELINE REFERENCE (Accepted State Snapshot)
+# ============================================================================
+
+baseline_reference:
+  checkpoint:
+    timestamp: "2026-03-16T10:30:00Z"
+    source_versions:
+      repo_understanding: 2
+      knowledge_confidence: 1
+      domain_candidates: 1
+      review_summary: 1
+    baseline_files:
+      - "purpose.md"
+      - "pipelines.md"
+      - "domains.md"
+      - "concepts.md"
+    feedback_hash: "a3f5c8d2e1b4f7a9"
+
+  purpose:
+    primary_purpose: "Build versioned semantic models through evidence-driven discovery and human-validated refinement"
+    supported_scenarios:
+      - "Extract repository facts with traceable evidence"
+      - "Identify domain boundaries and core concepts"
+      - "Synthesize stable semantic baselines after architect acceptance"
+    non_goals:
+      - "Do not perform semantic abstraction or intent modeling"
+      - "Do not analyze demand or change requirements"
+      - "Do not generate implementation plans or code"
+
+  pipelines:
+    - name: "Discovery Pipeline"
+      purpose: "Extract semantic facts from repository"
+      flow: "sampling → facts → understanding → confidence → review"
+      inputs: ["Repository tree", "Source files"]
+      outputs: ["repo-facts.vN.md", "repo-understanding.vN.md", "domain-candidates.vN.md", "knowledge-confidence.vN.md", "review-summary.vN.md"]
+      concepts: ["Semantic Artifact", "Evidence", "Versioned Output"]
+      evidence: "src/discovery_executor.py"
+      confidence: "high"
+
+    - name: "Refinement Pipeline"
+      purpose: "Patch artifacts and synthesize baseline"
+      flow: "feedback → patch → validate → baseline synthesis → change analysis"
+      inputs: ["architect-feedback.md", "Latest discovery artifacts"]
+      outputs: ["Updated artifacts", "baseline/*.md", "change-analysis.vN.md"]
+      concepts: ["Acceptance Gate", "Baseline Synthesis", "Change Analysis"]
+      evidence: "src/refine_executor.py"
+      confidence: "high"
+
+  domains:
+    - name: "Artifact Management"
+      description: "Versioned I/O, validation, schema enforcement"
+      related_pipelines: ["Discovery Pipeline", "Refinement Pipeline"]
+
+    - name: "Pipeline Orchestration"
+      description: "Multi-step execution flows with error recovery"
+      related_pipelines: ["Discovery Pipeline", "Refinement Pipeline"]
+
+    - name: "Skill Interface"
+      description: "Claude Code plugin integration"
+      related_pipelines: ["State Inspection"]
+
+  concepts:
+    - name: "Semantic Artifact"
+      description: "Versioned, schema-validated markdown output"
+      role: "Primary output unit"
+      used_by: ["Discovery Pipeline", "Refinement Pipeline"]
+      evidence: "src/artifact_writer.py"
+      confidence: "high"
+
+    - name: "Evidence"
+      description: "File paths/commands supporting claims"
+      role: "Traceability mechanism"
+      used_by: ["Discovery Pipeline", "Refinement Pipeline"]
+      evidence: "docs/semantic/schemas/*.schema.md"
+      confidence: "high"
+
+    - name: "Acceptance Gate"
+      description: "4-gate validation before baseline synthesis"
+      role: "Quality control"
+      used_by: ["Refinement Pipeline"]
+      evidence: "src/refine_executor.py:evaluate_acceptance()"
+      confidence: "high"
+
+# ============================================================================
+# 7. METADATA (For Agent Consumption)
+# ============================================================================
+
+metadata:
+  fact_layer_complete: true
+  semantic_layer_ready: false
+  demand_layer_ready: false
+
+  next_layer_requirements:
+    semantic_layer:
+      - "Define semantic abstraction contract (Intent/Behavior/Structure or alternative)"
+      - "Implement semantic synthesis from baseline artifacts"
+      - "Define semantic artifact schemas"
+
+    demand_layer:
+      - "Define demand analysis contract (change requirements, impact assessment)"
+      - "Implement demand extraction from semantic model"
+      - "Define demand artifact schemas"
+
+  agent_consumption_notes:
+    - "All structured fields (pipeline_name, concept_name, domain_name) are agent-parseable"
+    - "Evidence fields are for human audit, not agent consumption"
+    - "Confidence ratings (high/medium/low) guide agent trust in claims"
+    - "Baseline artifacts are immutable; working artifacts are mutable"
+    - "Version numbers track artifact evolution across refine cycles"
