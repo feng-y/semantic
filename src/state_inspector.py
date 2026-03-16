@@ -25,17 +25,17 @@ def inspect(root: str | Path) -> SemanticState:
     """Inspect the repository for current semantic state.
 
     Checks:
-      - docs/semantic/discovery/ for versioned artifacts
-      - docs/semantic/review/ for review-summary, architect-feedback
-      - docs/semantic/baseline/ for accepted baseline files
+      - docs/fact/discovery/ for versioned artifacts
+      - docs/fact/review/ for review-summary, architect-feedback
+      - docs/fact/baseline/ for accepted baseline files
       - architect-feedback.md for acceptance signal
     """
     root = Path(root)
     state = SemanticState()
 
-    discovery_dir = root / "docs" / "semantic" / "discovery"
-    review_dir = root / "docs" / "semantic" / "review"
-    baseline_dir = root / "docs" / "semantic" / "baseline"
+    discovery_dir = root / "docs" / "fact" / "discovery"
+    review_dir = root / "docs" / "fact" / "review"
+    baseline_dir = root / "docs" / "fact" / "baseline"
 
     # Check discovery artifacts
     if discovery_dir.exists():

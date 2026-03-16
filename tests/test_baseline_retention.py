@@ -26,7 +26,7 @@ def test_accepted_baseline_survives_prune(temp_repo):
         )
 
     # Create a checkpoint marking version 2 as accepted
-    checkpoint_dir = temp_repo / "docs" / "semantic" / "baseline"
+    checkpoint_dir = temp_repo / "docs" / "fact" / "baseline"
     checkpoint_dir.mkdir(parents=True, exist_ok=True)
     checkpoint = {
         "timestamp": "2024-01-01T00:00:00Z",
@@ -53,7 +53,7 @@ def test_accepted_baseline_survives_prune(temp_repo):
     assert "v1.md" in str(removed[0])
 
     # Verify versions 2-5 still exist
-    discovery_dir = temp_repo / "docs" / "semantic" / "discovery"
+    discovery_dir = temp_repo / "docs" / "fact" / "discovery"
     for v in [2, 3, 4, 5]:
         assert (discovery_dir / f"repo-understanding.v{v}.md").exists()
 
@@ -78,7 +78,7 @@ def test_multiple_accepted_baselines_preserved(temp_repo):
     # So removed: 1, 2, 4, 5, 6
     assert len(removed) == 5
 
-    discovery_dir = temp_repo / "docs" / "semantic" / "discovery"
+    discovery_dir = temp_repo / "docs" / "fact" / "discovery"
     # Verify accepted versions still exist
     assert (discovery_dir / "knowledge-confidence.v3.md").exists()
     assert (discovery_dir / "knowledge-confidence.v7.md").exists()
@@ -107,7 +107,7 @@ def test_working_artifacts_pruned_safely(temp_repo):
     # Should remove 1, 3, 4, 5 (not 2 because it's accepted)
     assert len(removed) == 4
 
-    discovery_dir = temp_repo / "docs" / "semantic" / "discovery"
+    discovery_dir = temp_repo / "docs" / "fact" / "discovery"
     # Version 2 (accepted) should exist
     assert (discovery_dir / "domain-candidates.v2.md").exists()
     # Latest 3 versions should exist
@@ -118,7 +118,7 @@ def test_working_artifacts_pruned_safely(temp_repo):
 def test_get_accepted_versions_reads_checkpoint(temp_repo):
     """Test that get_accepted_versions correctly reads checkpoint.json."""
     # Create checkpoint with multiple accepted versions
-    checkpoint_dir = temp_repo / "docs" / "semantic" / "baseline"
+    checkpoint_dir = temp_repo / "docs" / "fact" / "baseline"
     checkpoint_dir.mkdir(parents=True, exist_ok=True)
     checkpoint = {
         "timestamp": "2024-01-01T00:00:00Z",
@@ -153,7 +153,7 @@ def test_get_accepted_versions_no_checkpoint(temp_repo):
 
 def test_get_accepted_versions_corrupted_checkpoint(temp_repo):
     """Test that get_accepted_versions handles corrupted checkpoint gracefully."""
-    checkpoint_dir = temp_repo / "docs" / "semantic" / "baseline"
+    checkpoint_dir = temp_repo / "docs" / "fact" / "baseline"
     checkpoint_dir.mkdir(parents=True, exist_ok=True)
     checkpoint_path = checkpoint_dir / "checkpoint.json"
     checkpoint_path.write_text("{ invalid json }")

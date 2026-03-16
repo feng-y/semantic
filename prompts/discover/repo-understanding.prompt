@@ -7,7 +7,7 @@ Inputs:
 - candidate domains
 
 Output must follow:
-docs/semantic/schemas/repo-understanding.schema.md
+docs/fact/schemas/repo-understanding.schema.md
 
 Rules:
 - every semantic statement requires evidence

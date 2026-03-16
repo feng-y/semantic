@@ -15,4 +15,4 @@ Include:
 - questions for architect
 
 Output must follow:
-docs/semantic/schemas/review-summary.schema.md
+docs/fact/schemas/review-summary.schema.md

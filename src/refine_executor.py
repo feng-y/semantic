@@ -79,7 +79,7 @@ def validate_refined_artifact(content: str, name: str) -> list[str]:
 
 def _read_architect_feedback(root: Path) -> str | None:
     """Read architect-feedback.md if it exists and has content."""
-    path = root / "docs" / "semantic" / "review" / "architect-feedback.md"
+    path = root / "docs" / "fact" / "review" / "architect-feedback.md"
     if path.exists():
         text = path.read_text().strip()
         if text:
@@ -368,7 +368,7 @@ def _execute_changelog_step(
 ) -> RefineStepResult:
     """Execute semantic-change-log.prompt: generate change log.
 
-    Writes to docs/semantic/review/semantic-change-log.md (unversioned).
+    Writes to docs/fact/review/semantic-change-log.md (unversioned).
     """
     prompt_path = root / "prompts" / "refine" / "semantic-change-log.prompt"
     try:
@@ -687,7 +687,7 @@ def validate_baseline_artifact(content: str, name: str) -> list[str]:
 
 def _write_baseline_checkpoint(root: Path, result: RefineResult, feedback: str) -> None:
     """Write checkpoint.json metadata after successful baseline synthesis."""
-    checkpoint_dir = root / "docs" / "semantic" / "baseline"
+    checkpoint_dir = root / "docs" / "fact" / "baseline"
     checkpoint_dir.mkdir(parents=True, exist_ok=True)
 
     # Collect source version numbers from latest working artifacts

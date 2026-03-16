@@ -6,7 +6,7 @@ Input:
 - sampled repository working set
 
 Output must follow:
-docs/semantic/schemas/repo-facts.schema.md
+docs/fact/schemas/repo-facts.schema.md
 
 Rules:
 - only observable facts

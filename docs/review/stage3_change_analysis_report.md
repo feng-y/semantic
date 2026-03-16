@@ -28,13 +28,13 @@ Out of scope (deferred to later stages):
 ## Previously Added in Stage 3
 
 - `docs/review/stage3_change_analysis_mapping.md`
-- `docs/semantic-design/012-change-analysis-output-model.md`
-- `docs/semantic/templates/change-analysis.template.md`
+- `docs/fact-design/012-change-analysis-output-model.md`
+- `docs/fact/templates/change-analysis.template.md`
 - `src/change_analysis_generator.py`
 - `src/change_analysis_validation.py`
 - `src/refine_executor.py`
 - `src/context_builder.py`
-- `docs/semantic/templates/README.md`
+- `docs/fact/templates/README.md`
 - `tests/test_stage3_change_analysis.py`
 
 ## Mapping Summary
@@ -59,16 +59,16 @@ Mapping corrections in this revision:
 ## Generation Flow
 
 1. Stage 2 baseline synthesis writes IBS Core artifacts:
-   - `docs/semantic/baseline/purpose.md`
-   - `docs/semantic/baseline/pipelines.md`
-   - `docs/semantic/baseline/domains.md`
-   - `docs/semantic/baseline/concepts.md`
+   - `docs/fact/baseline/purpose.md`
+   - `docs/fact/baseline/pipelines.md`
+   - `docs/fact/baseline/domains.md`
+   - `docs/fact/baseline/concepts.md`
 2. New Stage 3 step (`_execute_change_analysis_step`) runs after successful baseline synthesis.
 3. `context_builder.build_change_analysis_context()` reads IBS Core baseline artifacts.
 4. `generate_change_analysis(...)` creates deterministic sectioned output.
 5. `validate_change_analysis(...)` validates structure.
 6. Artifact is written as versioned review output:
-   - `docs/semantic/review/change-analysis.vN.md`
+   - `docs/fact/review/change-analysis.vN.md`
 
 ## Validation Logic
 

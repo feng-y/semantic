@@ -11,7 +11,7 @@ Builds a versioned semantic model of your repository through evidence-driven dis
 3. **Refine** — patches artifacts using architect feedback, validates results
 4. **Baseline** — on architect acceptance, synthesizes stable semantic reference
 
-All artifacts are versioned, validated, and stored in `docs/semantic/`.
+All artifacts are versioned, validated, and stored in `docs/fact/`.
 
 ## Quickstart
 
@@ -24,7 +24,7 @@ pytest                    # verify tests pass in your current checkout
 Then use via Claude Code skill execution:
 
 ```
-semantic-init      → creates docs/semantic/ workspace
+semantic-init      → creates docs/fact/ workspace
 semantic-discover  → runs full discovery pipeline
 semantic-refine    → patches artifacts with architect feedback
 semantic-baseline  → synthesizes accepted baseline
@@ -40,7 +40,7 @@ See [INSTALL.md](INSTALL.md) for detailed setup instructions.
 
 | Skill | Description |
 |-------|-------------|
-| `semantic-init` | Create `docs/semantic/` workspace directories |
+| `semantic-init` | Create `docs/fact/` workspace directories |
 | `semantic-discover` | Run sampling, fact extraction, domain analysis |
 | `semantic-review` | Present artifacts for architect review |
 | `semantic-refine` | Patch artifacts using `architect-feedback.md` |
@@ -66,25 +66,25 @@ Internal runtime:
     state_inspector.py   → semantic state routing
 
 Semantic state (generated):
-  docs/semantic/           → generated semantic state (not human-written docs)
+  docs/fact/           → generated semantic state (not human-written docs)
     schemas/             → artifact schema contracts
     discovery/           → versioned working artifacts (generated)
     review/              → review-summary, architect-feedback (generated)
     baseline/            → accepted baseline (generated, immutable)
 
 Documentation:
-  docs/semantic-design/  → human-written architecture decision records
+  docs/fact-design/  → human-written architecture decision records
   docs/review/           → development reports and audit artifacts
 ```
 
-> **Note:** `docs/semantic/` contains machine-generated semantic state, not ordinary documentation. The `discovery/`, `review/`, and `baseline/` subdirectories are written by the pipeline at runtime. `docs/semantic/schemas/` defines the structural contracts these artifacts must satisfy. Human-written design docs live in `docs/semantic-design/`.
+> **Note:** `docs/fact/` contains machine-generated semantic state, not ordinary documentation. The `discovery/`, `review/`, and `baseline/` subdirectories are written by the pipeline at runtime. `docs/fact/schemas/` defines the structural contracts these artifacts must satisfy. Human-written design docs live in `docs/fact-design/`.
 
 ## Documentation
 
 - [INSTALL.md](INSTALL.md) — prerequisites, setup, verification
 - [USER_GUIDE.md](USER_GUIDE.md) — workflow, commands, failure handling
 - [CHANGELOG.md](CHANGELOG.md) — version history
-- `docs/semantic-design/` — architecture decision records (001–010)
+- `docs/fact-design/` — architecture decision records (001–010)
 - `docs/review/` — development reports, audits, migration artifacts
 
 ## Release Status

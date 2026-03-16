@@ -253,7 +253,7 @@ Check that:
 all align with:
 
 ```text
-docs/semantic/schemas/
+docs/fact/schemas/
 ```
 
 ## Invariant 2 — Semantic State Invariant

@@ -45,13 +45,13 @@ Audit the repository and classify directories/files into these layers:
 
 ## Semantic state layer
 
-- `docs/semantic/discovery/`
-- `docs/semantic/review/`
-- `docs/semantic/baseline/`
+- `docs/fact/discovery/`
+- `docs/fact/review/`
+- `docs/fact/baseline/`
 
 ## Contract layer
 
-- `docs/semantic/schemas/`
+- `docs/fact/schemas/`
 - `protocols/`
 
 ## Documentation / review layer
@@ -61,7 +61,7 @@ Audit the repository and classify directories/files into these layers:
 - `USER_GUIDE.md`
 - `CHANGELOG.md`
 - `docs/review/`
-- `docs/semantic-design/`
+- `docs/fact-design/`
 
 Output:
 
@@ -176,7 +176,7 @@ deferred_root_items:
 The repository currently stores semantic runtime state under:
 
 ```text
-docs/semantic/
+docs/fact/
 ```
 
 This is acceptable for v1, but it can be confusing because it mixes documentation-style paths with generated state.
@@ -190,14 +190,14 @@ Instead, do the following:
 3. Optionally add a short note file:
 
 ```text
-docs/semantic/README.md
+docs/fact/README.md
 ```
 
 Explain that:
 
-- `docs/semantic/discovery/`, `review/`, and `baseline/` are generated semantic state
-- `docs/semantic/schemas/` are contracts
-- `docs/semantic-design/` contains human-written design docs
+- `docs/fact/discovery/`, `review/`, and `baseline/` are generated semantic state
+- `docs/fact/schemas/` are contracts
+- `docs/fact-design/` contains human-written design docs
 
 Output:
 
@@ -265,10 +265,10 @@ README must clearly explain:
    - `src/`
 
 3. semantic state:
-   - `docs/semantic/`
+   - `docs/fact/`
 
 4. design / review docs:
-   - `docs/semantic-design/`
+   - `docs/fact-design/`
    - `docs/review/`
 
 5. final public skill set
@@ -364,6 +364,6 @@ ADDITIONAL STRUCTURE CLEANUP REQUIRED
 
 - Do NOT redesign the semantic pipeline
 - Do NOT change semantic invariants
-- Do NOT perform a risky `docs/semantic/` → `artifacts/` migration in this step
+- Do NOT perform a risky `docs/fact/` → `artifacts/` migration in this step
 - Do NOT remove legacy skills unless clearly unreferenced and safe
 - Prefer isolation / clarification over destructive cleanup

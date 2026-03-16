@@ -128,6 +128,27 @@ def stub_executor(
             "Purpose: (stub: pending)",
             "Flow: (stub: pending)",
         ]
+    elif artifact_name == "change-analysis":
+        lines.extend([
+            "## Change Intent",
+            "- Intent: (stub: change intent pending real analysis)",
+            "",
+            "## Affected Pipelines",
+            "- Pipeline: (stub: affected pipeline pending real analysis)",
+            "",
+            "## Affected Domains and Concepts",
+            "Domains:",
+            "- Domain: (stub: affected domain pending real analysis)",
+            "",
+            "Concepts:",
+            "- Concept: (stub: affected concept pending real analysis)",
+            "",
+            "## Impact and Risks",
+            "- Impact: (stub: impact pending real analysis)",
+            "",
+            "## Suggested Next Changes",
+            "- Suggestion: (stub: next change pending real analysis)",
+        ])
 
     return "\n".join(lines) + "\n"
 

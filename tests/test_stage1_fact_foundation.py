@@ -56,9 +56,14 @@ def semantic_root(tmp_path: Path) -> Path:
     shutil.copytree(REPO_ROOT / "skills", root / "skills")
     shutil.copytree(REPO_ROOT / "prompts", root / "prompts")
     shutil.copytree(REPO_ROOT / "protocols", root / "protocols")
+    shutil.copytree(
+        REPO_ROOT / "docs" / "fact" / "schemas",
+        root / "docs" / "fact" / "schemas",
+        dirs_exist_ok=True,
+    )
 
-    for d in ("discovery", "review", "baseline", "schemas"):
-        (root / "docs" / "semantic" / d).mkdir(parents=True, exist_ok=True)
+    for d in ("discovery", "review", "baseline"):
+        (root / "docs" / "fact" / d).mkdir(parents=True, exist_ok=True)
 
     # Discovery runtime expects the "discovery" manifest role.
     (root / "manifest.yaml").write_text(
@@ -78,12 +83,12 @@ def semantic_root(tmp_path: Path) -> Path:
     )
 
     # Keep schema files available in the temp root for contract completeness.
-    shutil.copytree(REPO_ROOT / "docs" / "semantic" / "schemas", root / "docs" / "semantic" / "schemas", dirs_exist_ok=True)
+    shutil.copytree(REPO_ROOT / "docs" / "fact" / "schemas", root / "docs" / "fact" / "schemas", dirs_exist_ok=True)
     return root
 
 
 def test_fact_schema_files_exist() -> None:
-    schema_dir = REPO_ROOT / "docs" / "semantic" / "schemas"
+    schema_dir = REPO_ROOT / "docs" / "fact" / "schemas"
     for schema in FACT_SCHEMAS:
         path = schema_dir / schema
         assert path.exists(), f"missing FACT schema: {schema}"
@@ -91,7 +96,7 @@ def test_fact_schema_files_exist() -> None:
 
 
 def test_fact_template_files_exist() -> None:
-    template_dir = REPO_ROOT / "docs" / "semantic" / "templates"
+    template_dir = REPO_ROOT / "docs" / "fact" / "templates"
     for _artifact, template in FACT_TEMPLATES:
         path = template_dir / template
         assert path.exists(), f"missing FACT template: {template}"
@@ -99,7 +104,7 @@ def test_fact_template_files_exist() -> None:
 
 
 def test_fact_templates_pass_validators() -> None:
-    template_dir = REPO_ROOT / "docs" / "semantic" / "templates"
+    template_dir = REPO_ROOT / "docs" / "fact" / "templates"
     for artifact, template in FACT_TEMPLATES:
         content = (template_dir / template).read_text()
         errors = validate_artifact_content(content, artifact)
@@ -108,14 +113,14 @@ def test_fact_templates_pass_validators() -> None:
 
 def test_domain_candidates_prompt_declares_schema_contract() -> None:
     prompt = (REPO_ROOT / "prompts" / "discover" / "domain-candidates.prompt").read_text()
-    assert "docs/semantic/schemas/domain-candidates.schema.md" in prompt
+    assert "docs/fact/schemas/domain-candidates.schema.md" in prompt
 
 
 def test_discovery_generates_all_fact_artifacts(semantic_root: Path) -> None:
     result = run_discovery(semantic_root, executor=stub_executor, sampling_mode="auto")
     assert result.status == "ok", f"discovery failed: {result.status}"
 
-    sampling_report = semantic_root / "docs" / "semantic" / "discovery" / "sampling-report.md"
+    sampling_report = semantic_root / "docs" / "fact" / "discovery" / "sampling-report.md"
     assert sampling_report.exists()
     assert sampling_report.read_text().strip()
 
@@ -141,7 +146,7 @@ def test_discovery_generation_is_repeatable(semantic_root: Path) -> None:
     # All FACT artifacts should have at least 2 versions after two successful runs.
     for category, name in FACT_ARTIFACTS:
         versions = []
-        base = semantic_root / "docs" / "semantic" / category
+        base = semantic_root / "docs" / "fact" / category
         for p in base.glob(f"{name}.v*.md"):
             ver = int(p.stem.split(".v")[-1])
             versions.append(ver)

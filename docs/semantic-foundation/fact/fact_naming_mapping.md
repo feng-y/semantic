@@ -41,11 +41,11 @@ Calling the current pipeline "semantic" is misleading. It's a **fact extraction 
 
 | Old Name | FACT Interpretation | Why |
 |----------|---------------------|-----|
-| `docs/semantic/` | **FACT: Generated State** | Should be `docs/fact/` or `docs/semantic-state/` |
-| `docs/semantic/discovery/` | **FACT: Working Artifacts** | Versioned fact extraction outputs |
-| `docs/semantic/review/` | **FACT: Review Artifacts** | Human-agent interaction on facts |
-| `docs/semantic/baseline/` | **FACT: Accepted Artifacts** | Immutable accepted facts |
-| `docs/semantic/schemas/` | **FACT: Artifact Schemas** | Structural contracts for fact artifacts |
+| `docs/fact/` | **FACT: Generated State** | Should be `docs/fact/` or `docs/fact-state/` |
+| `docs/fact/discovery/` | **FACT: Working Artifacts** | Versioned fact extraction outputs |
+| `docs/fact/review/` | **FACT: Review Artifacts** | Human-agent interaction on facts |
+| `docs/fact/baseline/` | **FACT: Accepted Artifacts** | Immutable accepted facts |
+| `docs/fact/schemas/` | **FACT: Artifact Schemas** | Structural contracts for fact artifacts |
 
 ### 2.3 Phase Names
 
@@ -124,8 +124,8 @@ Calling the current pipeline "semantic" is misleading. It's a **fact extraction 
 - ❌ Model behavioral patterns and interactions
 - ❌ Generate semantic documentation
 
-**Input**: `docs/semantic/baseline/*.md` (FACT)
-**Output**: `docs/semantic-model/*.yaml` (SEMANTIC)
+**Input**: `docs/fact/baseline/*.md` (FACT)
+**Output**: `docs/fact-model/*.yaml` (SEMANTIC)
 
 ### Phase 3: Add Demand Layer (Future)
 
@@ -134,7 +134,7 @@ Calling the current pipeline "semantic" is misleading. It's a **fact extraction 
 - ❌ Generate migration plans
 - ❌ Track demand evolution
 
-**Input**: `docs/semantic-model/*.yaml` (SEMANTIC) + Change request
+**Input**: `docs/fact-model/*.yaml` (SEMANTIC) + Change request
 **Output**: `docs/demand-analysis/*.md` (DEMAND)
 
 ---
@@ -145,7 +145,7 @@ Calling the current pipeline "semantic" is misleading. It's a **fact extraction 
 
 For downstream semantic layer to consume, FACT must provide:
 
-1. **Stable baseline**: Immutable accepted facts in `docs/semantic/baseline/`
+1. **Stable baseline**: Immutable accepted facts in `docs/fact/baseline/`
 2. **Structured format**: YAML or JSON for agent consumption
 3. **Evidence traceability**: Every claim backed by file paths
 4. **Version metadata**: `checkpoint.json` with source version tracking
@@ -169,13 +169,13 @@ See `fact_expected_sample.yaml` for full specification.
 ### 5.3 What Semantic Layer Will Consume
 
 Semantic layer will read:
-- `docs/semantic/baseline/*.md` (human-readable)
-- `docs/semantic/baseline/fact-canonical.yaml` (agent-consumable)
-- `docs/semantic/baseline/checkpoint.json` (version metadata)
+- `docs/fact/baseline/*.md` (human-readable)
+- `docs/fact/baseline/fact-canonical.yaml` (agent-consumable)
+- `docs/fact/baseline/checkpoint.json` (version metadata)
 
 Semantic layer will NOT read:
-- `docs/semantic/discovery/*.md` (working state, not canonical)
-- `docs/semantic/review/*.md` (human interaction, not facts)
+- `docs/fact/discovery/*.md` (working state, not canonical)
+- `docs/fact/review/*.md` (human interaction, not facts)
 
 ---
 

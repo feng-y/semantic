@@ -6,7 +6,7 @@ purpose: >
 
 inputs:
   - latest versioned discovery artifacts
-  - docs/semantic/review/architect-feedback.md
+  - docs/fact/review/architect-feedback.md
 
 steps:
   - run: prompts/refine/semantic-refine.patch.prompt

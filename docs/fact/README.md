@@ -1,4 +1,4 @@
-# docs/semantic/
+# docs/fact/
 
 This directory contains **generated semantic state**, not human-written documentation.
 
@@ -13,6 +13,6 @@ This directory contains **generated semantic state**, not human-written document
 
 ## Key distinction
 
-- `docs/semantic/` = machine-generated state (discovery, review, baseline) + contracts (schemas)
-- `docs/semantic-design/` = human-written architecture decision records
+- `docs/fact/` = machine-generated state (discovery, review, baseline) + contracts (schemas)
+- `docs/fact-design/` = human-written architecture decision records
 - `docs/review/` = development reports, audits, migration artifacts

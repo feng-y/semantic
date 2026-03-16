@@ -50,7 +50,7 @@ semantic-harness/
   prompts/             # prompt templates
   src/                 # runtime modules
   tests/               # test suite
-  docs/semantic/       # created by init, holds all artifacts
+  docs/fact/       # created by init, holds all artifacts
 ```
 
 ## Common Problems
@@ -61,5 +61,5 @@ Run `pip install pyyaml` or `pip install -e ".[test]"`.
 **Tests fail with import errors**
 Ensure you installed with `-e` (editable mode) so `src/` is on the Python path.
 
-**`docs/semantic/` doesn't exist**
+**`docs/fact/` doesn't exist**
 Run the `init` command first. The directory is created during workspace initialization, not at install time.

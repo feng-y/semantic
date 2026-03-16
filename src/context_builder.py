@@ -372,7 +372,7 @@ def build_change_analysis_context(root: Path) -> dict[str, str]:
     - domains.md
     - concepts.md
     """
-    base = root / "docs" / "semantic" / "baseline"
+    base = root / "docs" / "fact" / "baseline"
     ctx: dict[str, str] = {}
     for name in ("purpose", "pipelines", "domains", "concepts"):
         path = base / f"{name}.md"

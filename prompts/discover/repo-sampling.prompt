@@ -15,7 +15,7 @@ Sampling strategy:
 6. exclude obviously irrelevant generated directories
 
 Output:
-docs/semantic/discovery/sampling-report.md
+docs/fact/discovery/sampling-report.md
 
 Required sections:
 - Sampling Mode

@@ -33,7 +33,7 @@ def repo(tmp_path: Path) -> Path:
 
 
 def _write(repo: Path, name: str, content: str, version: int) -> Path:
-    d = repo / "docs" / "semantic" / "discovery"
+    d = repo / "docs" / "fact" / "discovery"
     d.mkdir(parents=True, exist_ok=True)
     p = d / f"{name}.v{version}.md"
     p.write_text(content)

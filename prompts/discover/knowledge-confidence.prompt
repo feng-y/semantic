@@ -5,4 +5,4 @@ Input:
 - latest versioned repo-understanding artifact
 
 Output must follow:
-docs/semantic/schemas/knowledge-confidence.schema.md
+docs/fact/schemas/knowledge-confidence.schema.md

@@ -35,7 +35,7 @@ init → discover → refine → baseline
 
 Verify that runtime artifact formats fully align with schema definitions in:
 
-docs/semantic/schemas/
+docs/fact/schemas/
 
 Artifacts to verify:
 

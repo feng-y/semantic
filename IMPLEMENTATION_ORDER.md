@@ -8,9 +8,9 @@ Read these files first:
 
 - README.md
 - manifest.yaml
-- docs/semantic-design/*.md
+- docs/fact-design/*.md
 - protocols/*.md
-- docs/semantic/schemas/*.md
+- docs/fact/schemas/*.md
 
 Produce a short summary of:
 1. command model
@@ -48,17 +48,17 @@ Requirements:
 
 Required structure:
 
-docs/semantic/
+docs/fact/
   schemas/
   discovery/
   review/
   baseline/
 
-docs/semantic/review/
+docs/fact/review/
   architect-feedback.md
   semantic-change-log.md
 
-docs/semantic/discovery/
+docs/fact/discovery/
   sampling-report.md
 
 ---

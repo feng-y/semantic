@@ -88,7 +88,7 @@ These artifacts represent the **current semantic model**.
 ## Sampling Results
 
 ```
-docs/semantic/discovery/sampling-report.md
+docs/fact/discovery/sampling-report.md
 ```
 
 Contains:
@@ -104,7 +104,7 @@ This ensures discovery does not scan the entire repository.
 ## Architect Feedback
 
 ```
-docs/semantic/review/architect-feedback.md
+docs/fact/review/architect-feedback.md
 ```
 
 Only used in refinement steps.

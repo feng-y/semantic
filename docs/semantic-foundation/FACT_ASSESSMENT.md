@@ -76,7 +76,7 @@ Quick reference for file purposes, key insights, usage patterns, and next steps.
 
 3. **Versioning and validation are robust**
    - All artifacts versioned (`.vN.md`)
-   - Schema validation in `docs/semantic/schemas/`
+   - Schema validation in `docs/fact/schemas/`
    - Atomic writes prevent partial state
    - Acceptance gates before baseline synthesis
 
@@ -88,7 +88,7 @@ Quick reference for file purposes, key insights, usage patterns, and next steps.
 ### ⚠️ What's Confusing
 
 1. **"Semantic" naming is misleading**
-   - Directory: `docs/semantic/` → should be `docs/fact/`
+   - Directory: `docs/fact/` → should be `docs/fact/`
    - Skills: `semantic-*` → should be `fact-*`
    - Current pipeline extracts facts, not semantic models
 
@@ -148,7 +148,7 @@ To move from Semantic → Demand, you need:
 
 1. **Don't rename anything yet**
    - Keep `semantic-*` skill names for backward compatibility
-   - Keep `docs/semantic/` directory structure
+   - Keep `docs/fact/` directory structure
    - Focus on conceptual clarity, not refactoring
 
 2. **Use FACT samples as canonical shape**
@@ -174,8 +174,8 @@ To move from Semantic → Demand, you need:
    - Output: Semantic model
 
 3. **Keep FACT and Semantic separate**
-   - FACT: `docs/semantic/` (current, keep for now)
-   - Semantic: `docs/semantic-model/` (new)
+   - FACT: `docs/fact/` (current, keep for now)
+   - Semantic: `docs/fact-model/` (new)
    - Clear boundary between layers
 
 ### Future Phase (Add Demand Layer)
@@ -250,7 +250,7 @@ Use the generated samples to:
 **Question**: What does semantic layer output look like?
 
 **Answer needed**:
-- File structure (`docs/semantic-model/`)
+- File structure (`docs/fact-model/`)
 - YAML/JSON schema for semantic artifacts
 - Agent-consumable format
 

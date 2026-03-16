@@ -29,12 +29,12 @@ def semantic_root(tmp_path: Path) -> Path:
     shutil.copytree(REPO_ROOT / "prompts", root / "prompts")
     shutil.copytree(REPO_ROOT / "protocols", root / "protocols")
     shutil.copytree(
-        REPO_ROOT / "docs" / "semantic" / "schemas",
-        root / "docs" / "semantic" / "schemas",
+        REPO_ROOT / "docs" / "fact" / "schemas",
+        root / "docs" / "fact" / "schemas",
         dirs_exist_ok=True,
     )
     for d in ("discovery", "review", "baseline"):
-        (root / "docs" / "semantic" / d).mkdir(parents=True, exist_ok=True)
+        (root / "docs" / "fact" / d).mkdir(parents=True, exist_ok=True)
 
     (root / "manifest.yaml").write_text(
         "name: semantic-harness\n"
@@ -80,7 +80,7 @@ def test_stage3_design_doc_exists() -> None:
 
 
 def test_change_analysis_template_passes_validator() -> None:
-    path = REPO_ROOT / "docs" / "semantic" / "templates" / "change-analysis.template.md"
+    path = REPO_ROOT / "docs" / "fact" / "templates" / "change-analysis.template.md"
     assert path.exists(), "missing change-analysis template"
     content = path.read_text()
     errors = validate_change_analysis(content)
@@ -197,19 +197,19 @@ def test_refine_generates_change_analysis_from_baseline(semantic_root: Path) -> 
     d = run_discovery(semantic_root, executor=stub_executor, sampling_mode="auto")
     assert d.status == "ok"
 
-    feedback = semantic_root / "docs" / "semantic" / "review" / "architect-feedback.md"
+    feedback = semantic_root / "docs" / "fact" / "review" / "architect-feedback.md"
     feedback.write_text("acceptance: true\n")
 
     r = run_refine(semantic_root, executor=stub_executor)
     assert r.status == "ok"
     assert r.baseline_generated
 
-    ca = semantic_root / "docs" / "semantic" / "review" / "change-analysis.v1.md"
+    ca = semantic_root / "docs" / "fact" / "review" / "change-analysis.v1.md"
     assert ca.exists(), "expected change-analysis artifact in review/"
     ca_text = ca.read_text()
     assert validate_change_analysis(ca_text) == []
 
-    purpose_text = (semantic_root / "docs" / "semantic" / "baseline" / "purpose.md").read_text()
+    purpose_text = (semantic_root / "docs" / "fact" / "baseline" / "purpose.md").read_text()
     m = re.search(r"Primary Purpose:\s*(.+)$", purpose_text, re.MULTILINE)
     assert m is not None
     assert m.group(1).strip() in ca_text
@@ -222,7 +222,7 @@ def test_refine_stage3_failure_after_baseline_is_explicit(
     d = run_discovery(semantic_root, executor=stub_executor, sampling_mode="auto")
     assert d.status == "ok"
 
-    feedback = semantic_root / "docs" / "semantic" / "review" / "architect-feedback.md"
+    feedback = semantic_root / "docs" / "fact" / "review" / "architect-feedback.md"
     feedback.write_text("acceptance: true\n")
 
     import src.refine_executor as refine_executor_module
@@ -245,11 +245,11 @@ def test_refine_stage3_failure_after_baseline_is_explicit(
     assert stage4 and stage4[0].status == "ok"
     assert stage5 and stage5[0].status == "validation_failed"
 
-    baseline_dir = semantic_root / "docs" / "semantic" / "baseline"
+    baseline_dir = semantic_root / "docs" / "fact" / "baseline"
     for name in ("purpose", "pipelines", "domains", "concepts"):
         assert (baseline_dir / f"{name}.md").exists()
 
-    assert not (semantic_root / "docs" / "semantic" / "review" / "change-analysis.v1.md").exists()
+    assert not (semantic_root / "docs" / "fact" / "review" / "change-analysis.v1.md").exists()
     assert not (baseline_dir / "checkpoint.json").exists()
 
 

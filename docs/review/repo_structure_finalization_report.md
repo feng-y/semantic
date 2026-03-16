@@ -28,7 +28,7 @@ docs_layer_clear:           NO → resolved in Part 3
 ## Part 4 — Semantic State Clarity: PASS
 
 - Added boundary notes to README.md and USER_GUIDE.md
-- Created `docs/semantic/README.md` explaining generated state vs contracts vs human-written docs
+- Created `docs/fact/README.md` explaining generated state vs contracts vs human-written docs
 - Commit: `99de554`
 
 ## Part 5 — Review Index: PASS
@@ -71,7 +71,7 @@ Files modified:
 - `tests/test_system.py` — fixture alignment
 
 Files created:
-- `docs/semantic/README.md` — semantic state boundary explanation
+- `docs/fact/README.md` — semantic state boundary explanation
 - `docs/review/README.md` — review folder index
 
 Files moved:

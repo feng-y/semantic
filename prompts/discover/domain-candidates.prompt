@@ -6,7 +6,7 @@ Input:
 - repo-understanding draft if available
 
 Output must follow:
-docs/semantic/schemas/domain-candidates.schema.md
+docs/fact/schemas/domain-candidates.schema.md
 
 Output purpose:
 Candidate domains to be merged into repo-understanding and review-summary.

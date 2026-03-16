@@ -17,7 +17,7 @@ def temp_repo(tmp_path):
 
 def test_detects_versioned_review_summary(temp_repo):
     """Test that state inspector detects versioned review-summary files."""
-    review_dir = temp_repo / "docs" / "semantic" / "review"
+    review_dir = temp_repo / "docs" / "fact" / "review"
     review_dir.mkdir(parents=True, exist_ok=True)
 
     # Create versioned review-summary files
@@ -31,7 +31,7 @@ def test_detects_versioned_review_summary(temp_repo):
 
 def test_detects_latest_version(temp_repo):
     """Test that state inspector detects the latest review-summary version."""
-    review_dir = temp_repo / "docs" / "semantic" / "review"
+    review_dir = temp_repo / "docs" / "fact" / "review"
     review_dir.mkdir(parents=True, exist_ok=True)
 
     # Create multiple versions
@@ -45,7 +45,7 @@ def test_detects_latest_version(temp_repo):
 
 def test_no_review_summary_returns_false(temp_repo):
     """Test that state inspector returns False when no review-summary exists."""
-    review_dir = temp_repo / "docs" / "semantic" / "review"
+    review_dir = temp_repo / "docs" / "fact" / "review"
     review_dir.mkdir(parents=True, exist_ok=True)
 
     # Create other files but not review-summary
@@ -58,7 +58,7 @@ def test_no_review_summary_returns_false(temp_repo):
 
 def test_empty_review_directory(temp_repo):
     """Test that state inspector handles empty review directory."""
-    review_dir = temp_repo / "docs" / "semantic" / "review"
+    review_dir = temp_repo / "docs" / "fact" / "review"
     review_dir.mkdir(parents=True, exist_ok=True)
 
     state = state_inspector.inspect(temp_repo)
@@ -75,7 +75,7 @@ def test_no_review_directory(temp_repo):
 
 def test_detects_architect_feedback_with_versioned_review(temp_repo):
     """Test that both architect feedback and versioned review-summary are detected."""
-    review_dir = temp_repo / "docs" / "semantic" / "review"
+    review_dir = temp_repo / "docs" / "fact" / "review"
     review_dir.mkdir(parents=True, exist_ok=True)
 
     (review_dir / "review-summary.v1.md").write_text("# Review Summary\n\nContent")
@@ -90,7 +90,7 @@ def test_detects_architect_feedback_with_versioned_review(temp_repo):
 
 def test_scan_versions_finds_review_summary(temp_repo):
     """Test that _scan_versions correctly identifies review-summary versions."""
-    review_dir = temp_repo / "docs" / "semantic" / "review"
+    review_dir = temp_repo / "docs" / "fact" / "review"
     review_dir.mkdir(parents=True, exist_ok=True)
 
     (review_dir / "review-summary.v1.md").write_text("v1")

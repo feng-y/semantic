@@ -1,4 +1,4 @@
-"""Artifact writer — writes artifacts to docs/semantic/ with versioning."""
+"""Artifact writer — writes artifacts to docs/fact/ with versioning."""
 
 from __future__ import annotations
 
@@ -36,7 +36,7 @@ def write_artifact(
     *,
     versioned: bool = True,
 ) -> Path:
-    """Write an artifact file under docs/semantic/{category}/.
+    """Write an artifact file under docs/fact/{category}/.
 
     Args:
         root: Repository root path.
@@ -48,7 +48,7 @@ def write_artifact(
     Returns:
         Path to the written file.
     """
-    base_dir = Path(root) / "docs" / "semantic" / category
+    base_dir = Path(root) / "docs" / "fact" / category
     base_dir.mkdir(parents=True, exist_ok=True)
 
     if versioned and category in VERSIONED_DIRS:
@@ -119,7 +119,7 @@ def get_latest_version_path(root: str | Path, category: str, name: str) -> Path 
 
     Skips empty or truncated files by walking backwards from the highest version.
     """
-    base_dir = Path(root) / "docs" / "semantic" / category
+    base_dir = Path(root) / "docs" / "fact" / category
     versions = _find_versions(base_dir, name)
     if not versions:
         return None
@@ -149,7 +149,7 @@ def get_latest_valid_version_path(
     Args:
         validate_fn: callable(content, name) -> list[str] of errors.
     """
-    base_dir = Path(root) / "docs" / "semantic" / category
+    base_dir = Path(root) / "docs" / "fact" / category
     versions = _find_versions(base_dir, name)
     if not versions:
         return None
@@ -169,7 +169,7 @@ def get_latest_working_version_path(
 ) -> Path | None:
     """Get the latest working (non-baseline) versioned artifact.
 
-    Reads only from docs/semantic/{category}/, never from baseline/.
+    Reads only from docs/fact/{category}/, never from baseline/.
     This ensures refine never accidentally reads accepted checkpoint artifacts.
     """
     if category == BASELINE_DIR:
@@ -192,7 +192,7 @@ def prune_old_versions(
     Returns:
         List of paths that were removed.
     """
-    base_dir = Path(root) / "docs" / "semantic" / category
+    base_dir = Path(root) / "docs" / "fact" / category
     versions = _find_versions(base_dir, name)
     accepted = accepted_versions or set()
 
@@ -217,7 +217,7 @@ def get_accepted_versions(root: str | Path) -> dict[str, set[int]]:
     Returns a dict mapping artifact name to set of accepted version numbers.
     These versions should be protected from pruning.
     """
-    checkpoint_path = Path(root) / "docs" / "semantic" / "baseline" / "checkpoint.json"
+    checkpoint_path = Path(root) / "docs" / "fact" / "baseline" / "checkpoint.json"
     if not checkpoint_path.exists():
         return {}
 
@@ -278,7 +278,7 @@ def stage_artifact(
     Returns (target_path, content, errors). If errors is non-empty, the
     artifact should not be written.
     """
-    base_dir = Path(root) / "docs" / "semantic" / category
+    base_dir = Path(root) / "docs" / "fact" / category
     base_dir.mkdir(parents=True, exist_ok=True)
 
     if category in VERSIONED_DIRS:
@@ -342,7 +342,7 @@ def write_semantic_snapshot(root: str | Path) -> Path:
         else:
             versions[name] = None
 
-    snapshot_path = root / "docs" / "semantic" / "semantic_snapshot.json"
+    snapshot_path = root / "docs" / "fact" / "semantic_snapshot.json"
     snapshot_path.parent.mkdir(parents=True, exist_ok=True)
     _atomic_write(snapshot_path, json.dumps(versions, indent=2) + "\n")
     return snapshot_path
@@ -355,7 +355,7 @@ def check_semantic_snapshot(root: str | Path) -> list[str]:
     An empty list means versions are consistent (or no snapshot exists).
     """
     root = Path(root)
-    snapshot_path = root / "docs" / "semantic" / "semantic_snapshot.json"
+    snapshot_path = root / "docs" / "fact" / "semantic_snapshot.json"
     if not snapshot_path.exists():
         return []
 

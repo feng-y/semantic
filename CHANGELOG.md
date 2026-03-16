@@ -28,4 +28,4 @@ Stable release. 108 tests passing across all safety boundaries.
 - Runtime purity: no stub/fake code in src/, no LLM SDK imports
 - Host executor protocol: all prompt execution delegated to host environment
 - Bounded context: refine/baseline paths read only versioned artifacts
-- Artifact-based state: all semantic state lives in docs/semantic/
+- Artifact-based state: all semantic state lives in docs/fact/

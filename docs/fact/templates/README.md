@@ -4,7 +4,7 @@ These templates define generation-oriented output shapes for FACT-layer artifact
 
 They are human-authored hints for LLM generation quality and consistency.
 They are not schema contracts; structural contracts live in
-`docs/semantic/schemas/`.
+`docs/fact/schemas/`.
 
 Templates:
 - repo-facts.template.md

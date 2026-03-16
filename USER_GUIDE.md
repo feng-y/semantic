@@ -8,21 +8,21 @@ Semantic Harness follows a four-phase workflow:
 init → discover → review → refine → baseline
 ```
 
-Each phase produces versioned artifacts in `docs/semantic/`. The architect (you) controls convergence through feedback and acceptance.
+Each phase produces versioned artifacts in `docs/fact/`. The architect (you) controls convergence through feedback and acceptance.
 
 ## Initialize
 
 Run `init` to create the workspace:
 
 ```
-docs/semantic/
+docs/fact/
   schemas/       — artifact schema definitions
   discovery/     — versioned working artifacts
   review/        — review summary, architect feedback
   baseline/      — accepted baseline (immutable)
 ```
 
-> **Important:** These directories contain generated semantic state, not human-written documentation. The pipeline writes artifacts here at runtime. `schemas/` defines the structural contracts each artifact must satisfy. Human-written design docs are in `docs/semantic-design/`.
+> **Important:** These directories contain generated semantic state, not human-written documentation. The pipeline writes artifacts here at runtime. `schemas/` defines the structural contracts each artifact must satisfy. Human-written design docs are in `docs/fact-design/`.
 
 ## Run Discovery
 
@@ -82,7 +82,7 @@ Baseline artifacts are immutable and never auto-pruned.
 | Baseline | `baseline/{purpose,domains,concepts,pipelines}.md` |
 | Checkpoint | `baseline/checkpoint.json` |
 
-All paths are relative to `docs/semantic/`.
+All paths are relative to `docs/fact/`.
 
 ## Failure Handling
 

@@ -90,7 +90,7 @@ def repo(tmp_path: Path) -> Path:
 
 
 def _write_disc(repo: Path, name: str, content: str, version: int = 1) -> Path:
-    d = repo / "docs" / "semantic" / "discovery"
+    d = repo / "docs" / "fact" / "discovery"
     d.mkdir(parents=True, exist_ok=True)
     p = d / f"{name}.v{version}.md"
     p.write_text(content)
@@ -98,7 +98,7 @@ def _write_disc(repo: Path, name: str, content: str, version: int = 1) -> Path:
 
 
 def _write_review(repo: Path, name: str, content: str) -> Path:
-    d = repo / "docs" / "semantic" / "review"
+    d = repo / "docs" / "fact" / "review"
     d.mkdir(parents=True, exist_ok=True)
     p = d / f"{name}.md"
     p.write_text(content)
@@ -122,10 +122,10 @@ def _make_executor(overrides: dict[str, str] | None = None):
 
 def _clean_semantic(repo: Path) -> None:
     for d in ("discovery", "review", "baseline"):
-        dd = repo / "docs" / "semantic" / d
+        dd = repo / "docs" / "fact" / d
         if dd.exists():
             shutil.rmtree(dd)
-    snap = repo / "docs" / "semantic" / "semantic_snapshot.json"
+    snap = repo / "docs" / "fact" / "semantic_snapshot.json"
     if snap.exists():
         snap.unlink()
 
@@ -144,7 +144,7 @@ class TestCat1Determinism:
             _write_review(repo, "architect-feedback", "acceptance: true\n\nLGTM.\n")
             result = run_refine(repo, executor=_make_executor())
             assert result.status == "ok" and result.baseline_generated
-            bl_dir = repo / "docs" / "semantic" / "baseline"
+            bl_dir = repo / "docs" / "fact" / "baseline"
             baselines.append({n: (bl_dir / f"{n}.md").read_text() for n in BASELINE_SECTIONS})
         for name in BASELINE_SECTIONS:
             assert all(b[name] == baselines[0][name] for b in baselines)
@@ -156,7 +156,7 @@ class TestCat1Determinism:
             _seed_all(repo)
             _write_review(repo, "architect-feedback", "acceptance: true\n")
             run_refine(repo, executor=_make_executor())
-            cp = json.loads((repo / "docs" / "semantic" / "baseline" / "checkpoint.json").read_text())
+            cp = json.loads((repo / "docs" / "fact" / "baseline" / "checkpoint.json").read_text())
             versions.append(cp["source_versions"])
         assert versions[0] == versions[1]
 
@@ -240,7 +240,7 @@ class TestCat4ExecutorFailure:
 
     def test_no_new_artifact_on_failure(self, repo: Path) -> None:
         _seed_all(repo)
-        original_ru = (repo / "docs" / "semantic" / "discovery" / "repo-understanding.v1.md").read_text()
+        original_ru = (repo / "docs" / "fact" / "discovery" / "repo-understanding.v1.md").read_text()
         _write_review(repo, "architect-feedback", "feedback.\n")
 
         def bad_exec(prompt_text, context, *, artifact_name, sampling_mode="auto"):
@@ -250,10 +250,10 @@ class TestCat4ExecutorFailure:
 
         run_refine(repo, executor=bad_exec)
         # No v2 written
-        v2 = repo / "docs" / "semantic" / "discovery" / "repo-understanding.v2.md"
+        v2 = repo / "docs" / "fact" / "discovery" / "repo-understanding.v2.md"
         assert not v2.exists()
         # v1 intact
-        assert (repo / "docs" / "semantic" / "discovery" / "repo-understanding.v1.md").read_text() == original_ru
+        assert (repo / "docs" / "fact" / "discovery" / "repo-understanding.v1.md").read_text() == original_ru
 
 
 # ===========================================================================
@@ -264,7 +264,7 @@ class TestCat4ExecutorFailure:
 class TestCat5VersionIntegrity:
     def test_pruning_preserves_valid_when_newer_invalid(self, repo: Path) -> None:
         """v1 valid, v2 valid, v3 invalid (empty), v4 invalid (empty) — pruning safe."""
-        d = repo / "docs" / "semantic" / "discovery"
+        d = repo / "docs" / "fact" / "discovery"
         d.mkdir(parents=True, exist_ok=True)
         (d / "repo-understanding.v1.md").write_text(stub_executor("", {}, artifact_name="repo-understanding"))
         (d / "repo-understanding.v2.md").write_text(stub_executor("", {}, artifact_name="repo-understanding"))
@@ -280,7 +280,7 @@ class TestCat5VersionIntegrity:
         assert "repo-understanding.v2.md" not in {p.name for p in removed}
 
     def test_latest_version_resolution_skips_empty(self, repo: Path) -> None:
-        d = repo / "docs" / "semantic" / "discovery"
+        d = repo / "docs" / "fact" / "discovery"
         d.mkdir(parents=True, exist_ok=True)
         (d / "repo-understanding.v1.md").write_text("valid v1\n")
         (d / "repo-understanding.v2.md").write_text("valid v2\n")
@@ -292,7 +292,7 @@ class TestCat5VersionIntegrity:
         assert latest.name == "repo-understanding.v2.md"
 
     def test_version_numbers_always_increase(self, repo: Path) -> None:
-        d = repo / "docs" / "semantic" / "discovery"
+        d = repo / "docs" / "fact" / "discovery"
         d.mkdir(parents=True, exist_ok=True)
         (d / "repo-understanding.v1.md").write_text("v1\n")
         (d / "repo-understanding.v3.md").write_text("v3\n")
@@ -363,7 +363,7 @@ class TestCat7Atomicity:
         assert e1 == []
         assert len(e2) > 0
         # Don't commit — verify nothing on disk
-        disc = repo / "docs" / "semantic" / "discovery"
+        disc = repo / "docs" / "fact" / "discovery"
         assert not list(disc.glob("*.md")) if disc.exists() else True
 
 
@@ -543,7 +543,7 @@ class TestCat13FailureRecovery:
 
     def test_prior_artifacts_preserved(self, repo: Path) -> None:
         _seed_all(repo)
-        original = (repo / "docs" / "semantic" / "discovery" / "repo-understanding.v1.md").read_text()
+        original = (repo / "docs" / "fact" / "discovery" / "repo-understanding.v1.md").read_text()
         _write_review(repo, "architect-feedback", "feedback.\n")
 
         def bad_exec(prompt_text, context, *, artifact_name, sampling_mode="auto"):
@@ -552,7 +552,7 @@ class TestCat13FailureRecovery:
             return stub_executor(prompt_text, context, artifact_name=artifact_name, sampling_mode=sampling_mode)
 
         run_refine(repo, executor=bad_exec)
-        assert (repo / "docs" / "semantic" / "discovery" / "repo-understanding.v1.md").read_text() == original
+        assert (repo / "docs" / "fact" / "discovery" / "repo-understanding.v1.md").read_text() == original
 
     def test_baseline_failure_preserves_working_state(self, repo: Path) -> None:
         _seed_all(repo)

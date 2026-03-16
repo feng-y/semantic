@@ -4,7 +4,7 @@ Patch semantic artifacts using architect feedback.
 Inputs:
 - latest versioned repo-understanding artifact
 - latest versioned knowledge-confidence artifact
-- docs/semantic/review/architect-feedback.md
+- docs/fact/review/architect-feedback.md
 
 Rules:
 - patch sections only

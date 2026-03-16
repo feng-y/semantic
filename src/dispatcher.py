@@ -11,17 +11,17 @@ from .refine_executor import run_refine
 
 # Directory structure required by init
 REQUIRED_DIRS = [
-    "docs/semantic/schemas",
-    "docs/semantic/discovery",
-    "docs/semantic/review",
-    "docs/semantic/baseline",
+    "docs/fact/schemas",
+    "docs/fact/discovery",
+    "docs/fact/review",
+    "docs/fact/baseline",
 ]
 
 # Default files created by init (only if missing)
 DEFAULT_FILES: dict[str, str] = {
-    "docs/semantic/review/architect-feedback.md": "",
-    "docs/semantic/review/semantic-change-log.md": "",
-    "docs/semantic/discovery/sampling-report.md": "",
+    "docs/fact/review/architect-feedback.md": "",
+    "docs/fact/review/semantic-change-log.md": "",
+    "docs/fact/discovery/sampling-report.md": "",
 }
 
 

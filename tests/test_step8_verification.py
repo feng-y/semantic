@@ -99,7 +99,7 @@ def repo(tmp_path: Path) -> Path:
 # ---------------------------------------------------------------------------
 
 def _write_disc(repo: Path, name: str, content: str, version: int = 1) -> Path:
-    d = repo / "docs" / "semantic" / "discovery"
+    d = repo / "docs" / "fact" / "discovery"
     d.mkdir(parents=True, exist_ok=True)
     p = d / f"{name}.v{version}.md"
     p.write_text(content)
@@ -107,7 +107,7 @@ def _write_disc(repo: Path, name: str, content: str, version: int = 1) -> Path:
 
 
 def _write_review(repo: Path, name: str, content: str) -> Path:
-    d = repo / "docs" / "semantic" / "review"
+    d = repo / "docs" / "fact" / "review"
     d.mkdir(parents=True, exist_ok=True)
     p = d / f"{name}.md"
     p.write_text(content)
@@ -145,12 +145,12 @@ class TestDeterminism:
         for run_idx in range(3):
             # Clean working state between runs
             for d in ("discovery", "review", "baseline"):
-                dd = repo / "docs" / "semantic" / d
+                dd = repo / "docs" / "fact" / d
                 if dd.exists():
                     import shutil
                     shutil.rmtree(dd)
             # Also remove snapshot
-            snap = repo / "docs" / "semantic" / "semantic_snapshot.json"
+            snap = repo / "docs" / "fact" / "semantic_snapshot.json"
             if snap.exists():
                 snap.unlink()
 
@@ -162,7 +162,7 @@ class TestDeterminism:
             assert result.baseline_generated, f"Run {run_idx}: no baseline"
 
             # Read baseline files
-            bl_dir = repo / "docs" / "semantic" / "baseline"
+            bl_dir = repo / "docs" / "fact" / "baseline"
             run_baselines = {}
             for name in BASELINE_SECTIONS:
                 p = bl_dir / f"{name}.md"
@@ -183,11 +183,11 @@ class TestDeterminism:
 
         for _ in range(2):
             for d in ("discovery", "review", "baseline"):
-                dd = repo / "docs" / "semantic" / d
+                dd = repo / "docs" / "fact" / d
                 if dd.exists():
                     import shutil
                     shutil.rmtree(dd)
-            snap = repo / "docs" / "semantic" / "semantic_snapshot.json"
+            snap = repo / "docs" / "fact" / "semantic_snapshot.json"
             if snap.exists():
                 snap.unlink()
 
@@ -195,7 +195,7 @@ class TestDeterminism:
             _write_review(repo, "architect-feedback", "acceptance: true\n")
             run_refine(repo, executor=_make_executor())
 
-            cp = json.loads((repo / "docs" / "semantic" / "baseline" / "checkpoint.json").read_text())
+            cp = json.loads((repo / "docs" / "fact" / "baseline" / "checkpoint.json").read_text())
             checkpoints.append(cp)
 
         assert checkpoints[0]["source_versions"] == checkpoints[1]["source_versions"]
@@ -277,7 +277,7 @@ class TestFailureInjection:
     def test_previous_valid_artifacts_survive_failure(self, repo: Path) -> None:
         """After a failed refine, prior valid artifacts remain on disk."""
         _seed_all(repo)
-        ru_path = repo / "docs" / "semantic" / "discovery" / "repo-understanding.v1.md"
+        ru_path = repo / "docs" / "fact" / "discovery" / "repo-understanding.v1.md"
         original_content = ru_path.read_text()
 
         _write_review(repo, "architect-feedback", "Some feedback.\n")
@@ -306,7 +306,7 @@ class TestVersionIntegrity:
 
     def test_a_pruning_protects_accepted_versions(self, repo: Path) -> None:
         """Pruning cannot delete accepted/protected versions."""
-        d = repo / "docs" / "semantic" / "discovery"
+        d = repo / "docs" / "fact" / "discovery"
         d.mkdir(parents=True, exist_ok=True)
         for v in range(1, 6):
             (d / f"repo-understanding.v{v}.md").write_text(f"v{v} content\n")
@@ -325,7 +325,7 @@ class TestVersionIntegrity:
 
     def test_a_pruning_keeps_latest(self, repo: Path) -> None:
         """Latest version always survives pruning."""
-        d = repo / "docs" / "semantic" / "discovery"
+        d = repo / "docs" / "fact" / "discovery"
         d.mkdir(parents=True, exist_ok=True)
         for v in range(1, 6):
             (d / f"repo-understanding.v{v}.md").write_text(f"v{v}\n")
@@ -343,7 +343,7 @@ class TestVersionIntegrity:
         _write_disc(repo, "domain-candidates",
                     stub_executor("", {}, artifact_name="domain-candidates"), version=1)
         # review-summary in review dir
-        d = repo / "docs" / "semantic" / "review"
+        d = repo / "docs" / "fact" / "review"
         d.mkdir(parents=True, exist_ok=True)
         write_artifact(repo, "review", "review-summary",
                        stub_executor("", {}, artifact_name="review-summary"))
@@ -509,7 +509,7 @@ class TestGlobalInvariants:
         assert err1 == []
         assert len(err2) > 0
         # Neither committed
-        disc = repo / "docs" / "semantic" / "discovery"
+        disc = repo / "docs" / "fact" / "discovery"
         assert not list(disc.glob("*.md")) if disc.exists() else True
 
     # --- Invariant 3: Baseline boundary ---
@@ -596,7 +596,7 @@ class TestRecoveryBehavior:
     def test_valid_prior_artifacts_usable_after_failure(self, repo: Path) -> None:
         """Prior valid artifacts remain readable after pipeline failure."""
         _seed_all(repo)
-        ru_v1 = repo / "docs" / "semantic" / "discovery" / "repo-understanding.v1.md"
+        ru_v1 = repo / "docs" / "fact" / "discovery" / "repo-understanding.v1.md"
         original = ru_v1.read_text()
 
         _write_review(repo, "architect-feedback", "feedback.\n")

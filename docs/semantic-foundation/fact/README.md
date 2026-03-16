@@ -90,7 +90,7 @@ All samples are based on **real semantic-harness repo structure**:
 - `skills/*.skill`: 7 public skills
 - `prompts/**/*.prompt`: Discovery and refine prompts
 - `src/*.py`: 14 Python runtime modules
-- `docs/semantic/`: Generated fact state directory
+- `docs/fact/`: Generated fact state directory
 
 ## Next Steps
 

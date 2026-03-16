@@ -15,7 +15,7 @@ Goals:
 All semantic state lives inside the repository:
 
 ```
-docs/semantic/
+docs/fact/
 ```
 
 ---
@@ -49,18 +49,18 @@ init
 Creates workspace:
 
 ```
-docs/semantic/schemas/
-docs/semantic/discovery/
-docs/semantic/review/
-docs/semantic/baseline/
+docs/fact/schemas/
+docs/fact/discovery/
+docs/fact/review/
+docs/fact/baseline/
 ```
 
 Default files:
 
 ```
-docs/semantic/discovery/sampling-report.md
-docs/semantic/review/architect-feedback.md
-docs/semantic/review/semantic-change-log.md
+docs/fact/discovery/sampling-report.md
+docs/fact/review/architect-feedback.md
+docs/fact/review/semantic-change-log.md
 ```
 
 Rules:
@@ -109,7 +109,7 @@ Human architect reviews results.
 Feedback location:
 
 ```
-docs/semantic/review/architect-feedback.md
+docs/fact/review/architect-feedback.md
 ```
 
 Architect may:
@@ -165,7 +165,7 @@ Triggered by architect acceptance.
 Output directory:
 
 ```
-docs/semantic/baseline/
+docs/fact/baseline/
 ```
 
 Baseline represents **stable semantic reference**.
@@ -327,7 +327,7 @@ review-summary.prompt
 Location:
 
 ```
-docs/semantic/review/
+docs/fact/review/
 ```
 
 Output:

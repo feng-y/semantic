@@ -2,7 +2,7 @@ Goal:
 Produce a semantic change log for the latest refine step.
 
 Output:
-docs/semantic/review/semantic-change-log.md
+docs/fact/review/semantic-change-log.md
 
 Format:
 - Added

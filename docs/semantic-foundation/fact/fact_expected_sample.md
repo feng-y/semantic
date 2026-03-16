@@ -11,7 +11,7 @@ The FACT layer is the **evidence-driven foundation** of semantic understanding. 
 - **Observable evidence**: Files, code structure, imports, entrypoints, configuration
 - **Traceable claims**: Every assertion backed by file paths, line numbers, or commands
 - **Versioned artifacts**: All outputs are immutable snapshots with version numbers
-- **Schema-validated**: Every artifact must satisfy structural contracts in `docs/semantic/schemas/`
+- **Schema-validated**: Every artifact must satisfy structural contracts in `docs/fact/schemas/`
 
 ### What FACT Is Not
 
@@ -28,7 +28,7 @@ The FACT layer is the **evidence-driven foundation** of semantic understanding. 
 | Repository tree | `git ls-files`, directory structure | Sampling scope |
 | Source files | Selected `.py`, `.yaml`, `.md`, `.skill`, `.prompt` | Evidence extraction |
 | Configuration | `manifest.yaml`, `pyproject.toml`, `.gitignore` | Build/runtime facts |
-| Existing baseline | `docs/semantic/baseline/*.md` (if exists) | Change analysis context |
+| Existing baseline | `docs/fact/baseline/*.md` (if exists) | Change analysis context |
 
 ---
 
@@ -40,19 +40,19 @@ These are **versioned, mutable** artifacts generated during discovery and refine
 
 | Artifact | Location | Purpose | Agent-Consumable |
 |----------|----------|---------|------------------|
-| `sampling-report.md` | `docs/semantic/discovery/` | File selection log | No (human audit) |
-| `repo-facts.vN.md` | `docs/semantic/discovery/` | Observable repository structure | Partial (Evidence sections) |
-| `repo-understanding.vN.md` | `docs/semantic/discovery/` | Purpose, pipelines, concepts with evidence | Yes (structured fields) |
-| `domain-candidates.vN.md` | `docs/semantic/discovery/` | Candidate domain boundaries | Yes (Domain sections) |
-| `knowledge-confidence.vN.md` | `docs/semantic/discovery/` | Confidence assessment per claim | Yes (Confidence ratings) |
+| `sampling-report.md` | `docs/fact/discovery/` | File selection log | No (human audit) |
+| `repo-facts.vN.md` | `docs/fact/discovery/` | Observable repository structure | Partial (Evidence sections) |
+| `repo-understanding.vN.md` | `docs/fact/discovery/` | Purpose, pipelines, concepts with evidence | Yes (structured fields) |
+| `domain-candidates.vN.md` | `docs/fact/discovery/` | Candidate domain boundaries | Yes (Domain sections) |
+| `knowledge-confidence.vN.md` | `docs/fact/discovery/` | Confidence assessment per claim | Yes (Confidence ratings) |
 
 ### 3.2 Review Artifacts (Human-Agent Interaction)
 
 | Artifact | Location | Purpose | Agent-Consumable |
 |----------|----------|---------|------------------|
-| `review-summary.vN.md` | `docs/semantic/review/` | Consolidated summary for architect | Partial (System Summary) |
-| `architect-feedback.md` | `docs/semantic/review/` | Human corrections and acceptance gate | Yes (structured corrections) |
-| `semantic-change-log.md` | `docs/semantic/review/` | Diff log between refine cycles | No (human audit) |
+| `review-summary.vN.md` | `docs/fact/review/` | Consolidated summary for architect | Partial (System Summary) |
+| `architect-feedback.md` | `docs/fact/review/` | Human corrections and acceptance gate | Yes (structured corrections) |
+| `semantic-change-log.md` | `docs/fact/review/` | Diff log between refine cycles | No (human audit) |
 
 ### 3.3 Baseline Artifacts (Accepted State)
 
@@ -60,12 +60,12 @@ These are **immutable** artifacts synthesized only after architect acceptance.
 
 | Artifact | Location | Purpose | Agent-Consumable |
 |----------|----------|---------|------------------|
-| `purpose.md` | `docs/semantic/baseline/` | System purpose and non-goals | Yes (Primary Purpose field) |
-| `pipelines.md` | `docs/semantic/baseline/` | Key execution flows | Yes (Pipeline sections) |
-| `domains.md` | `docs/semantic/baseline/` | Domain boundaries | Yes (Domain sections) |
-| `concepts.md` | `docs/semantic/baseline/` | Core domain concepts | Yes (Concept sections) |
-| `checkpoint.json` | `docs/semantic/baseline/` | Source version traceability | Yes (version metadata) |
-| `change-analysis.vN.md` | `docs/semantic/review/` | Impact analysis from baseline | Yes (structured sections) |
+| `purpose.md` | `docs/fact/baseline/` | System purpose and non-goals | Yes (Primary Purpose field) |
+| `pipelines.md` | `docs/fact/baseline/` | Key execution flows | Yes (Pipeline sections) |
+| `domains.md` | `docs/fact/baseline/` | Domain boundaries | Yes (Domain sections) |
+| `concepts.md` | `docs/fact/baseline/` | Core domain concepts | Yes (Concept sections) |
+| `checkpoint.json` | `docs/fact/baseline/` | Source version traceability | Yes (version metadata) |
+| `change-analysis.vN.md` | `docs/fact/review/` | Impact analysis from baseline | Yes (structured sections) |
 
 ---
 
@@ -81,7 +81,7 @@ init → discover → review → refine → baseline
 
 | Phase | FACT Role | Outputs | Human Role |
 |-------|-----------|---------|------------|
-| **init** | Create workspace structure | `docs/semantic/{discovery,review,baseline,schemas}/` | None |
+| **init** | Create workspace structure | `docs/fact/{discovery,review,baseline,schemas}/` | None |
 | **discover** | Extract observable facts | `repo-facts`, `repo-understanding`, `domain-candidates`, `knowledge-confidence`, `review-summary` (all `.v1.md`) | None |
 | **review** | Present facts for validation | Display `review-summary.vN.md` | Architect reads and writes `architect-feedback.md` |
 | **refine** | Patch facts with corrections | Updated `.vN+1.md` artifacts, `semantic-change-log.md` | Architect reviews changes |
@@ -339,6 +339,6 @@ Would consume Semantic outputs to:
 
 ## Summary
 
-The FACT layer is the **evidence-driven foundation** of the current `semantic-harness` pipeline. It extracts, validates, and versions observable repository facts through `discover → review → refine → baseline` phases. All outputs are Markdown artifacts with structured fields, stored in `docs/semantic/`, and validated against schemas in `docs/semantic/schemas/`.
+The FACT layer is the **evidence-driven foundation** of the current `semantic-harness` pipeline. It extracts, validates, and versions observable repository facts through `discover → review → refine → baseline` phases. All outputs are Markdown artifacts with structured fields, stored in `docs/fact/`, and validated against schemas in `docs/fact/schemas/`.
 
 **Current pipeline = FACT layer only**. Semantic and demand layers are future work.
