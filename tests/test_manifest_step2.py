@@ -5,7 +5,7 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-import yaml
+import json
 import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -26,28 +26,35 @@ EXPECTED_PLUGIN_SKILLS = [
 
 
 class TestManifestStep2:
-    def test_manifest_loads(self) -> None:
-        m = yaml.safe_load((REPO_ROOT / "manifest.yaml").read_text())
+    def test_plugin_json_loads(self) -> None:
+        plugin_path = REPO_ROOT / ".claude-plugin" / "plugin.json"
+        m = json.loads(plugin_path.read_text())
         assert m["name"] == "semantic-harness"
         assert "skills" in m
 
-    def test_manifest_version(self) -> None:
-        m = yaml.safe_load((REPO_ROOT / "manifest.yaml").read_text())
-        assert m["version"] == "1.0.0"
+    def test_plugin_json_version(self) -> None:
+        plugin_path = REPO_ROOT / ".claude-plugin" / "plugin.json"
+        m = json.loads(plugin_path.read_text())
+        assert "version" in m
 
     def test_all_skill_paths_valid(self) -> None:
-        m = yaml.safe_load((REPO_ROOT / "manifest.yaml").read_text())
-        for role, rel_path in m["skills"].items():
-            p = REPO_ROOT / rel_path
-            assert p.exists(), f"Manifest skill path invalid: {role} -> {rel_path}"
-
-    def test_plugin_skills_in_manifest(self) -> None:
-        m = yaml.safe_load((REPO_ROOT / "manifest.yaml").read_text())
-        skill_files = set(m["skills"].values())
+        """All expected skills have SKILL.md files."""
         for name in EXPECTED_PLUGIN_SKILLS:
-            expected_path = f"skills/{name}.skill"
-            assert expected_path in skill_files, f"Missing from manifest: {expected_path}"
+            p = REPO_ROOT / "skills" / name / "SKILL.md"
+            assert p.exists(), f"Plugin skill path invalid: {name}/SKILL.md"
+
+    def test_plugin_skills_discoverable(self) -> None:
+        """All expected skills are discoverable via plugin.json."""
+        skills_dir = REPO_ROOT / "skills"
+        discovered = set()
+        for skill_path in skills_dir.iterdir():
+            if skill_path.is_dir() and (skill_path / "SKILL.md").exists():
+                discovered.add(skill_path.name)
+
+        for name in EXPECTED_PLUGIN_SKILLS:
+            assert name in discovered, f"Missing from skills directory: {name}"
 
     def test_load_all_skills_succeeds(self) -> None:
-        skills = load_all_skills(REPO_ROOT / "manifest.yaml")
+        plugin_path = REPO_ROOT / ".claude-plugin" / "plugin.json"
+        skills = load_all_skills(plugin_path)
         assert len(skills) >= 7

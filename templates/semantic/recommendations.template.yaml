@@ -1,4 +1,95 @@
-domains: []
-concepts: []
-rules: []
-demand_models: []
+# Semantic Recommendations Output Template
+# This template defines the structure of recommendations.yaml output
+
+domains:
+  - id: string                    # Stable ID (e.g., "rec_domain_abc123")
+    name: string                  # Domain name
+    candidate_id: string          # Source candidate ID
+    semantic_validity: string     # "pass" or "fail"
+    validity_reason: string       # Reason for validity decision
+    business_score: float         # 1.0-10.0
+    value_score: float            # 1.0-10.0
+    priority: float               # max(business_score, value_score)
+    recommendation:
+      status: string              # "recommend", "not_recommend", or "defer"
+      action: string              # "keep", "merge", "drop", "backlog", or "verify_first"
+      target_layer: string        # "final_asset" or "candidate_pool"
+      target_asset_type: string   # "domain_map" or "none"
+    recommended_reasons: [string]
+    not_recommended_reasons: [string]
+    needs_evidence_check: boolean
+    evidence_gap: string          # null or description
+    merge_target: string          # null or target ID
+    source_candidate_ids: [string]
+    evidence_refs: [string]
+
+concepts:
+  - id: string
+    name: string
+    candidate_id: string
+    semantic_validity: string
+    validity_reason: string
+    business_score: float
+    value_score: float
+    priority: float
+    recommendation:
+      status: string
+      action: string
+      target_layer: string
+      target_asset_type: string   # "concept_map" or "none"
+    recommended_reasons: [string]
+    not_recommended_reasons: [string]
+    needs_evidence_check: boolean
+    evidence_gap: string
+    merge_target: string
+    source_candidate_ids: [string]
+    evidence_refs: [string]
+
+rules:
+  - id: string
+    name: string
+    candidate_id: string
+    semantic_validity: string
+    validity_reason: string
+    business_score: float
+    value_score: float
+    priority: float
+    recommendation:
+      status: string
+      action: string
+      target_layer: string
+      target_asset_type: string   # "rule_map" or "none"
+    recommended_reasons: [string]
+    not_recommended_reasons: [string]
+    needs_evidence_check: boolean
+    evidence_gap: string
+    merge_target: string
+    source_candidate_ids: [string]
+    evidence_refs: [string]
+
+demand_models:
+  - id: string
+    name: string
+    candidate_id: string
+    semantic_validity: string
+    validity_reason: string
+    business_score: float
+    value_score: float
+    priority: float
+    recommendation:
+      status: string
+      action: string
+      target_layer: string
+      target_asset_type: string   # "demand_model_map" or "none"
+    recommended_reasons: [string]
+    not_recommended_reasons: [string]
+    needs_evidence_check: boolean
+    evidence_gap: string
+    merge_target: string
+    source_candidate_ids: [string]
+    evidence_refs: [string]
+
+metadata:
+  generated_at: string            # ISO 8601 timestamp
+  candidates_source: string       # Source candidates file (e.g., "candidates.yaml")
+  recommendation_count: integer   # Total number of recommendations generated

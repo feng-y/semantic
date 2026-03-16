@@ -151,11 +151,20 @@ def _execute_prompt_step(
     )
 
     # Call host executor
-    content = executor(
-        prompt_data["_raw"], ctx,
-        artifact_name=artifact_name,
-        sampling_mode=sampling_mode,
-    )
+    try:
+        content = executor(
+            prompt_data["_raw"], ctx,
+            artifact_name=artifact_name,
+            sampling_mode=sampling_mode,
+        )
+    except Exception as e:
+        return StepResult(
+            step_index=step_index,
+            action="run",
+            target=target,
+            status="error",
+            errors=[f"Executor failed: {e}"],
+        )
 
     if versioned:
         path, errors = artifact_writer.safe_write_artifact(
@@ -235,11 +244,20 @@ def _execute_augment_step(
     )
 
     # Call host executor
-    augmented = executor(
-        prompt_data["_raw"], ctx,
-        artifact_name=artifact_name,
-        sampling_mode=sampling_mode,
-    )
+    try:
+        augmented = executor(
+            prompt_data["_raw"], ctx,
+            artifact_name=artifact_name,
+            sampling_mode=sampling_mode,
+        )
+    except Exception as e:
+        return StepResult(
+            step_index=step_index,
+            action="run",
+            target=target,
+            status="error",
+            errors=[f"Executor failed: {e}"],
+        )
 
     path, errors = artifact_writer.safe_write_artifact(
         root, category, artifact_name, augmented,
@@ -397,8 +415,19 @@ def run_discovery(
     exec_fn: HostExecutor = executor
 
     # Load the skill to get the canonical step list
-    skills = skill_loader.load_all_skills(root / "manifest.yaml")
-    discovery_skill = skills.get("discovery")
+    # Try plugin.json first, fall back to manifest.yaml for backward compatibility
+    plugin_json = root / ".claude-plugin" / "plugin.json"
+    manifest_yaml = root / "manifest.yaml"
+
+    if plugin_json.exists():
+        skills = skill_loader.load_all_skills(plugin_json)
+    elif manifest_yaml.exists():
+        skills = skill_loader.load_all_skills(manifest_yaml)
+    else:
+        result.status = "error"
+        return result
+
+    discovery_skill = skills.get("discover")
     if discovery_skill is None:
         result.status = "error"
         return result

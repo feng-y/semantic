@@ -28,6 +28,7 @@ def semantic_root(tmp_path: Path) -> Path:
     shutil.copytree(REPO_ROOT / "skills", root / "skills")
     shutil.copytree(REPO_ROOT / "prompts", root / "prompts")
     shutil.copytree(REPO_ROOT / "protocols", root / "protocols")
+    shutil.copytree(REPO_ROOT / ".claude-plugin", root / ".claude-plugin")
     shutil.copytree(
         REPO_ROOT / "docs" / "fact" / "schemas",
         root / "docs" / "fact" / "schemas",
@@ -35,22 +36,6 @@ def semantic_root(tmp_path: Path) -> Path:
     )
     for d in ("discovery", "review", "baseline"):
         (root / "docs" / "fact" / d).mkdir(parents=True, exist_ok=True)
-
-    (root / "manifest.yaml").write_text(
-        "name: semantic-harness\n"
-        "version: 0.0.1\n"
-        "target: claude-code\n\n"
-        "skills:\n"
-        "  discovery: skills/semantic-discover.skill\n"
-        "  refinement: skills/semantic-refine.skill\n"
-        "  init: skills/semantic-init.skill\n"
-        "  discover: skills/semantic-discover.skill\n"
-        "  review: skills/semantic-review.skill\n"
-        "  refine: skills/semantic-refine.skill\n"
-        "  baseline: skills/semantic-baseline.skill\n"
-        "  status: skills/semantic-status.skill\n"
-        "  reset: skills/semantic-reset.skill\n"
-    )
     return root
 
 

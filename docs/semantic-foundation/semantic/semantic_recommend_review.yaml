@@ -1,0 +1,259 @@
+review_target: semantic_recommend
+review_date: 2026-03-17
+reviewer: claude-opus-4.6
+review_type: implementation_review
+
+reviewed_files:
+  - path: skills/semantic-recommend/SKILL.md
+    role: skill_definition
+    lines: 260
+  - path: src/semantic/score_recommend.py
+    role: implementation
+    lines: 429
+  - path: src/semantic/models.py
+    role: models
+    status: updated
+  - path: templates/semantic/recommendations.template.yaml
+    role: template
+    status: updated
+  - path: prompts/semantic/semantic_recommend.prompt.md
+    role: prompt
+    status: created
+  - path: tests/semantic/test_score_recommend.py
+    role: tests
+    lines: 426
+    test_count: 24
+  - path: docs/semantic-foundation/semantic/recommendations.yaml
+    role: generated_output
+    status: verified
+  - path: docs/semantic-foundation/semantic/recommendations.md
+    role: generated_view
+    status: verified
+  - path: docs/semantic-foundation/semantic/02_step3_scoring_design.md
+    role: contract_reference
+  - path: docs/semantic-foundation/semantic/candidates.yaml
+    role: input_dependency
+
+overall_status: pass
+
+assessments:
+  standard_skill_correctness: pass
+  input_contract_alignment: pass
+  real_implementation: pass
+  recommendation_quality: pass
+  scoring_correctness: pass
+  model_quality: pass
+  output_correctness: pass
+  traceability: pass
+  template_alignment: pass
+  test_quality: pass
+  capability_boundary: pass
+
+detailed_assessments:
+  standard_skill_correctness:
+    status: pass
+    findings:
+      - "✅ SKILL.md follows standard omc format with YAML frontmatter"
+      - "✅ Clear decision tree showing execution flow"
+      - "✅ 6 execution steps detailed (validate inputs, generate 4 recommendation types, write outputs)"
+      - "✅ Clearly states when to use (after semantic-candidates, before semantic-review)"
+      - "✅ Clearly states required inputs (candidates.yaml required)"
+      - "✅ Clearly states outputs (recommendations.yaml canonical, recommendations.md view)"
+      - "✅ Skill remains thin - calls Python implementation"
+      - "✅ Explicitly bounded to recommend only (not review/finalize)"
+      - "✅ Usage examples provided"
+    issues: []
+
+  input_contract_alignment:
+    status: pass
+    findings:
+      - "✅ Primary input: candidates.yaml (REQUIRED) - correctly implemented"
+      - "✅ candidates.yaml treated as direct primary input"
+      - "✅ Recommendation generation derived from candidates (not bypassing)"
+      - "✅ No dependence on later-stage artifacts (review/finalize)"
+      - "✅ load_candidates() reads candidates.yaml directly"
+      - "✅ All recommendation generation functions take candidate groups as input"
+    issues: []
+
+  real_implementation:
+    status: pass
+    findings:
+      - "✅ score_recommend.py is 429 lines of real logic, NOT scaffold"
+      - "✅ load_candidates() - real YAML loading"
+      - "✅ evaluate_semantic_validity() - real deterministic validity evaluation"
+      - "✅ compute_scores() - real deterministic scoring logic"
+      - "✅ determine_recommendation() - real status/action decision logic"
+      - "✅ generate_reasons() - real reason generation"
+      - "✅ check_evidence_needs() - real evidence gap detection"
+      - "✅ generate_recommendation_item() - real complete recommendation generation"
+      - "✅ generate_domain_recommendations() - real domain-specific logic"
+      - "✅ generate_concept_recommendations() - real concept-specific logic"
+      - "✅ generate_rule_recommendations() - real rule-specific logic"
+      - "✅ generate_demand_model_recommendations() - real demand model-specific logic"
+      - "✅ generate_stable_id() - hash-based stable ID generation"
+      - "✅ render_recommendations_markdown() - real markdown generation"
+      - "✅ main() - real CLI with argparse"
+      - "✅ Executable and functional (verified by running)"
+    issues: []
+
+  recommendation_quality:
+    status: pass
+    findings:
+      - "✅ Recommendations generated from candidate groups"
+      - "✅ Stable IDs generated (hash-based, deterministic)"
+      - "✅ Meaningful names preserved from candidates"
+      - "✅ semantic_validity evaluated with deterministic rules"
+      - "✅ validity_reason provided for each decision"
+      - "✅ business_score and value_score computed with clear formulas"
+      - "✅ priority computed correctly"
+      - "✅ recommendation.status and recommendation.action determined by rules"
+      - "✅ recommended_reasons and not_recommended_reasons generated"
+      - "✅ needs_evidence_check / evidence_gap handled coherently"
+      - "✅ merge_target field present"
+      - "✅ Functional test: successfully generates 6 recommendations from 6 candidates"
+    issues: []
+
+  scoring_correctness:
+    status: pass
+    findings:
+      - "✅ business_score exists and is computed"
+      - "✅ value_score exists and is computed"
+      - "✅ priority exists and is computed"
+      - "✅ priority = max(business_score, value_score) - VERIFIED"
+      - "✅ Scores are within 1.0-10.0 range"
+      - "✅ status values are valid (recommend, not_recommend, defer)"
+      - "✅ action values are valid (keep, merge, drop, backlog, verify_first)"
+      - "✅ Deterministic scoring formulas based on confidence + evidence + signals"
+      - "✅ Base scores: high=8.0, medium=6.0, low=3.0"
+      - "✅ Evidence bonus: min(len(evidence_refs) * 0.5, 2.0)"
+      - "✅ Signal bonus: min(len(source_signal_ids) * 0.3, 1.0)"
+      - "✅ Decision rules: validity=fail → not_recommend+drop, priority>=7.0 → recommend+keep, priority>=5.0 → recommend+verify_first, priority<5.0 → defer+backlog"
+    issues: []
+
+  model_quality:
+    status: pass
+    findings:
+      - "✅ DomainRecommendation model defined"
+      - "✅ ConceptRecommendation model defined"
+      - "✅ RuleRecommendation model defined"
+      - "✅ DemandModelRecommendation model defined"
+      - "✅ RecommendationsOutput structure defined"
+      - "✅ RecommendationItem base model includes all required fields"
+      - "✅ candidate_id field added for traceability"
+      - "✅ source_candidate_ids and evidence_refs fields added"
+      - "✅ Pydantic validation for priority = max(business_score, value_score)"
+      - "✅ Validation for merge_target when action=merge"
+      - "✅ Validation for evidence_gap when needs_evidence_check=true"
+      - "✅ Type safety via Pydantic"
+      - "✅ Models are usable (not placeholders)"
+    issues: []
+
+  output_correctness:
+    status: pass
+    findings:
+      - "✅ Workspace: docs/semantic-foundation/semantic/ (correct)"
+      - "✅ Canonical output: recommendations.yaml (correct)"
+      - "✅ View output: recommendations.md (correct)"
+      - "✅ All 4 recommendation groups present: domains, concepts, rules, demand_models"
+      - "✅ YAML structure valid"
+      - "✅ Required fields present in all recommendations"
+      - "✅ Metadata present: generated_at, candidates_source, recommendation_count"
+      - "✅ Output suitable for downstream semantic-review"
+      - "✅ Functional test: successfully generates 6 recommendations"
+      - "✅ Markdown view is human-readable and well-formatted"
+    issues: []
+
+  traceability:
+    status: pass
+    findings:
+      - "✅ candidate_id preserved (links to source candidate)"
+      - "✅ source_candidate_ids preserved (array format)"
+      - "✅ evidence_refs preserved from candidates"
+      - "✅ Recommendations can be traced back to candidates"
+      - "✅ Provenance not discarded"
+      - "✅ Test coverage for traceability preservation"
+    issues: []
+
+  template_alignment:
+    status: pass
+    findings:
+      - "✅ templates/semantic/recommendations.template.yaml exists and is aligned"
+      - "✅ Template defines all 4 recommendation groups"
+      - "✅ Template defines all required fields"
+      - "✅ Template matches score_recommend.py output structure"
+      - "✅ No drift between template and implementation"
+      - "✅ Field names consistent across template, implementation, and tests"
+    issues: []
+
+  test_quality:
+    status: pass
+    findings:
+      - "✅ 24 real tests implemented"
+      - "✅ All 24 tests passing"
+      - "✅ test_load_candidates - tests candidates loading"
+      - "✅ test_generate_stable_id - tests ID stability"
+      - "✅ test_evaluate_semantic_validity_* - tests validity evaluation (5 tests)"
+      - "✅ test_compute_scores_* - tests score computation (2 tests)"
+      - "✅ test_determine_recommendation_* - tests recommendation decision (4 tests)"
+      - "✅ test_generate_reasons_* - tests reason generation (2 tests)"
+      - "✅ test_check_evidence_needs_* - tests evidence checking"
+      - "✅ test_generate_recommendation_complete - tests complete generation"
+      - "✅ test_recommendations_yaml_structure - tests YAML structure"
+      - "✅ test_recommendations_markdown_generation - tests markdown generation"
+      - "✅ test_deterministic_recommendation - tests determinism"
+      - "✅ test_priority_computation - tests priority = max(business, value)"
+      - "✅ test_traceability_preservation - tests candidate linkage"
+      - "✅ test_valid_status_values - tests status validation"
+      - "✅ test_valid_action_values - tests action validation"
+      - "✅ Tests cover all key behaviors and contract rules"
+    issues: []
+
+  capability_boundary:
+    status: pass
+    findings:
+      - "✅ Depends on semantic-candidates outputs (candidates.yaml)"
+      - "✅ Does not implement review"
+      - "✅ Does not implement finalize"
+      - "✅ Does not implement demand"
+      - "✅ Remains third semantic capability only"
+      - "✅ No scope creep"
+      - "✅ SKILL.md explicitly states boundary"
+    issues: []
+
+strengths:
+  - "Real implementation with meaningful recommendation generation (not scaffold)"
+  - "Strong test coverage (24 tests, all passing)"
+  - "Clear contract alignment (candidates.yaml as primary input)"
+  - "Correct scoring logic (deterministic, priority = max(business, value))"
+  - "Good traceability (candidate_id, source_candidate_ids, evidence_refs preserved)"
+  - "Proper capability boundary (recommend only, no scope creep)"
+  - "Deterministic behavior with stable IDs"
+  - "Complete model layer with Pydantic validation"
+  - "Template-implementation alignment"
+  - "Executable and verified (functional test successful)"
+
+gaps: []
+
+contradictions: []
+
+blocking_issues: []
+
+recommended_fixes: []
+
+decisions:
+  semantic_recommend_ready: true
+
+verification:
+  functional_test_passed: true
+  test_suite_passed: true
+  test_count: 24
+  test_pass_count: 24
+  test_fail_count: 0
+  output_files_generated: true
+  output_structure_valid: true
+  recommendations_generated: 6
+  recommendation_breakdown:
+    domains: 2
+    concepts: 2
+    rules: 1
+    demand_models: 1

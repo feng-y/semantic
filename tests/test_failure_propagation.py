@@ -15,12 +15,12 @@ from src.main import main
 def semantic_root(tmp_path: Path) -> Path:
     """Set up minimal semantic harness directory for testing."""
     root = tmp_path
-    # Copy manifest and skills
+    # Copy plugin.json and skills
     import shutil
     repo = Path(__file__).resolve().parent.parent
     shutil.copytree(repo / "skills", root / "skills")
     shutil.copytree(repo / "prompts", root / "prompts")
-    shutil.copy(repo / "manifest.yaml", root / "manifest.yaml")
+    shutil.copytree(repo / ".claude-plugin", root / ".claude-plugin")
     shutil.copytree(repo / "protocols", root / "protocols")
     # Create semantic directories
     for d in ("discovery", "review", "baseline", "schemas"):

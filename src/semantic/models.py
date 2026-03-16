@@ -126,7 +126,7 @@ class RecommendationBody(BaseModel):
 class RecommendationItem(BaseModel):
     id: str
     name: str
-    type: CandidateType
+    candidate_id: str
     semantic_validity: SemanticValidity
     validity_reason: str
     business_score: float = Field(ge=1.0, le=10.0)
@@ -138,6 +138,8 @@ class RecommendationItem(BaseModel):
     needs_evidence_check: bool = False
     evidence_gap: Optional[str] = None
     merge_target: Optional[str] = None
+    source_candidate_ids: List[str] = Field(default_factory=list)
+    evidence_refs: List[str] = Field(default_factory=list)
 
     @model_validator(mode="after")
     def check_priority(self):
@@ -149,3 +151,29 @@ class RecommendationItem(BaseModel):
         if self.needs_evidence_check and not self.evidence_gap:
             raise ValueError("evidence_gap required when needs_evidence_check is true")
         return self
+
+class DomainRecommendation(RecommendationItem):
+    """Domain recommendation model"""
+    pass
+
+class ConceptRecommendation(RecommendationItem):
+    """Concept recommendation model"""
+    pass
+
+class RuleRecommendation(RecommendationItem):
+    """Rule recommendation model"""
+    pass
+
+class DemandModelRecommendation(RecommendationItem):
+    """Demand model recommendation model"""
+    pass
+
+class RecommendationsOutput(BaseModel):
+    """Complete recommendations output structure"""
+    domains: List[DomainRecommendation] = Field(default_factory=list)
+    concepts: List[ConceptRecommendation] = Field(default_factory=list)
+    rules: List[RuleRecommendation] = Field(default_factory=list)
+    demand_models: List[DemandModelRecommendation] = Field(default_factory=list)
+
+    class Config:
+        extra = "allow"

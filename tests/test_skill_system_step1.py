@@ -27,32 +27,32 @@ EXPECTED_SKILLS = [
 class TestSkillSystemStep1:
     def test_all_skill_files_exist(self) -> None:
         for name in EXPECTED_SKILLS:
-            p = REPO_ROOT / "skills" / f"{name}.skill"
-            assert p.exists(), f"Missing skill file: {name}.skill"
+            p = REPO_ROOT / "skills" / name / "SKILL.md"
+            assert p.exists(), f"Missing skill file: {name}/SKILL.md"
 
     def test_all_skills_load(self) -> None:
         for name in EXPECTED_SKILLS:
-            p = REPO_ROOT / "skills" / f"{name}.skill"
+            p = REPO_ROOT / "skills" / name / "SKILL.md"
             skill = load_skill(p)
             assert skill["name"] == name, f"Skill name mismatch: expected {name}, got {skill['name']}"
 
     def test_all_skills_have_description(self) -> None:
         for name in EXPECTED_SKILLS:
-            p = REPO_ROOT / "skills" / f"{name}.skill"
+            p = REPO_ROOT / "skills" / name / "SKILL.md"
             skill = load_skill(p)
             desc = skill.get("description") or skill.get("purpose")
             assert desc, f"Skill {name} missing description/purpose"
 
     def test_all_skills_have_entrypoint(self) -> None:
         for name in EXPECTED_SKILLS:
-            p = REPO_ROOT / "skills" / f"{name}.skill"
+            p = REPO_ROOT / "skills" / name / "SKILL.md"
             skill = load_skill(p)
             assert "entrypoint" in skill, f"Skill {name} missing entrypoint"
 
     def test_prompt_paths_exist(self) -> None:
         """Skills with steps must reference existing prompt files."""
         for name in EXPECTED_SKILLS:
-            p = REPO_ROOT / "skills" / f"{name}.skill"
+            p = REPO_ROOT / "skills" / name / "SKILL.md"
             skill = load_skill(p)
             steps = skill.get("steps", [])
             if not isinstance(steps, list):

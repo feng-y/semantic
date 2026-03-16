@@ -1,0 +1,67 @@
+domains:
+- id: domain_2aa02a6c
+  name: Repository Structure
+  summary: Core repository organization and module structure
+  boundary:
+    modules:
+    - all_modules
+  source_signal_ids:
+  - module_grouping
+  evidence_refs:
+  - 14 modules observed
+  confidence: high
+- id: domain_6c73dfe9
+  name: Proposed Domains
+  summary: Working summary proposes 5 domains
+  boundary:
+    modules:
+    - to_be_determined
+  source_signal_ids:
+  - domain_proposal
+  evidence_refs:
+  - 5 domain proposals
+  confidence: medium
+concepts:
+- id: concept_2eebcc40
+  name: Core Entities
+  summary: Repository defines 4 core entities
+  relationships:
+  - domain_models
+  - data_structures
+  source_signal_ids:
+  - entity_definition
+  evidence_refs:
+  - 4 entities observed
+  confidence: high
+- id: concept_6226d237
+  name: Identified Concepts
+  summary: Working summary identifies 5 concepts
+  relationships:
+  - domain_concepts
+  source_signal_ids:
+  - concept_identification
+  evidence_refs:
+  - 5 concepts identified
+  confidence: medium
+rules:
+- id: rule_d51909c6
+  name: Validation Rules
+  summary: Repository contains 2 validation modules
+  source_signal_ids:
+  - validation_logic
+  evidence_refs:
+  - 2 validation modules
+  confidence: high
+demand_models:
+- id: demand_e3ae72cd
+  name: Change Analysis Model
+  summary: Repository contains 2 change analysis modules
+  source_signal_ids:
+  - change_analysis_pattern
+  evidence_refs:
+  - 2 change-related modules
+  confidence: medium
+metadata:
+  generated_at: '2026-03-17T01:06:19.366085+08:00'
+  signal_source: signals.yaml
+  candidate_count: 6

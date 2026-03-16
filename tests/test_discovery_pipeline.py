@@ -19,11 +19,11 @@ def mock_root(tmp_path):
     (root / ".semantic-harness" / "artifacts").mkdir()
     (root / ".semantic-harness" / "skills").mkdir()
 
-    # Create manifest.yaml
+    # Create manifest.yaml with correct key name
     manifest = root / "manifest.yaml"
     manifest.write_text("""
 skills:
-  discovery: .semantic-harness/skills/repo-semantic-discovery.skill
+  discover: .semantic-harness/skills/repo-semantic-discovery.skill
 """)
 
     # Create a minimal skill file

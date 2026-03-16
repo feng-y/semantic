@@ -1,0 +1,161 @@
+domains:
+- id: rec_domain_d921991b
+  name: Repository Structure
+  candidate_id: domain_2aa02a6c
+  semantic_validity: pass
+  validity_reason: High confidence with strong evidence
+  business_score: 8.5
+  value_score: 8.3
+  priority: 8.5
+  recommendation:
+    status: recommend
+    action: keep
+    target_layer: final_asset
+    target_asset_type: domain_map
+  recommended_reasons:
+  - Semantic validity passed
+  - High confidence level
+  - Strong evidence support (1 refs)
+  - 'High business value (score: 8.5)'
+  - 'High technical value (score: 8.3)'
+  not_recommended_reasons: []
+  needs_evidence_check: false
+  evidence_gap: null
+  merge_target: null
+  source_candidate_ids:
+  - domain_2aa02a6c
+  evidence_refs:
+  - 14 modules observed
+- id: rec_domain_b179cd8c
+  name: Proposed Domains
+  candidate_id: domain_6c73dfe9
+  semantic_validity: pass
+  validity_reason: Medium confidence with supporting evidence
+  business_score: 6.5
+  value_score: 6.3
+  priority: 6.5
+  recommendation:
+    status: recommend
+    action: verify_first
+    target_layer: candidate_pool
+    target_asset_type: domain_map
+  recommended_reasons:
+  - Semantic validity passed
+  - Strong evidence support (1 refs)
+  not_recommended_reasons: []
+  needs_evidence_check: true
+  evidence_gap: Medium confidence with limited evidence - needs verification
+  merge_target: null
+  source_candidate_ids:
+  - domain_6c73dfe9
+  evidence_refs:
+  - 5 domain proposals
+concepts:
+- id: rec_concept_9ed2d0d5
+  name: Core Entities
+  candidate_id: concept_2eebcc40
+  semantic_validity: pass
+  validity_reason: High confidence with strong evidence
+  business_score: 8.5
+  value_score: 8.3
+  priority: 8.5
+  recommendation:
+    status: recommend
+    action: keep
+    target_layer: final_asset
+    target_asset_type: concept_map
+  recommended_reasons:
+  - Semantic validity passed
+  - High confidence level
+  - Strong evidence support (1 refs)
+  - 'High business value (score: 8.5)'
+  - 'High technical value (score: 8.3)'
+  not_recommended_reasons: []
+  needs_evidence_check: false
+  evidence_gap: null
+  merge_target: null
+  source_candidate_ids:
+  - concept_2eebcc40
+  evidence_refs:
+  - 4 entities observed
+- id: rec_concept_9ce40bca
+  name: Identified Concepts
+  candidate_id: concept_6226d237
+  semantic_validity: pass
+  validity_reason: Medium confidence with supporting evidence
+  business_score: 6.5
+  value_score: 6.3
+  priority: 6.5
+  recommendation:
+    status: recommend
+    action: verify_first
+    target_layer: candidate_pool
+    target_asset_type: concept_map
+  recommended_reasons:
+  - Semantic validity passed
+  - Strong evidence support (1 refs)
+  not_recommended_reasons: []
+  needs_evidence_check: true
+  evidence_gap: Medium confidence with limited evidence - needs verification
+  merge_target: null
+  source_candidate_ids:
+  - concept_6226d237
+  evidence_refs:
+  - 5 concepts identified
+rules:
+- id: rec_rule_24d1c2ed
+  name: Validation Rules
+  candidate_id: rule_d51909c6
+  semantic_validity: pass
+  validity_reason: High confidence with strong evidence
+  business_score: 8.5
+  value_score: 8.3
+  priority: 8.5
+  recommendation:
+    status: recommend
+    action: keep
+    target_layer: final_asset
+    target_asset_type: rule_map
+  recommended_reasons:
+  - Semantic validity passed
+  - High confidence level
+  - Strong evidence support (1 refs)
+  - 'High business value (score: 8.5)'
+  - 'High technical value (score: 8.3)'
+  not_recommended_reasons: []
+  needs_evidence_check: false
+  evidence_gap: null
+  merge_target: null
+  source_candidate_ids:
+  - rule_d51909c6
+  evidence_refs:
+  - 2 validation modules
+demand_models:
+- id: rec_demand_model_b8505647
+  name: Change Analysis Model
+  candidate_id: demand_e3ae72cd
+  semantic_validity: pass
+  validity_reason: Medium confidence with supporting evidence
+  business_score: 6.5
+  value_score: 6.3
+  priority: 6.5
+  recommendation:
+    status: recommend
+    action: verify_first
+    target_layer: candidate_pool
+    target_asset_type: demand_model_map
+  recommended_reasons:
+  - Semantic validity passed
+  - Strong evidence support (1 refs)
+  not_recommended_reasons: []
+  needs_evidence_check: true
+  evidence_gap: Medium confidence with limited evidence - needs verification
+  merge_target: null
+  source_candidate_ids:
+  - demand_e3ae72cd
+  evidence_refs:
+  - 2 change-related modules
+metadata:
+  generated_at: '2026-03-17T01:15:41.610932+08:00'
+  candidates_source: candidates.yaml
+  recommendation_count: 6
