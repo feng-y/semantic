@@ -47,7 +47,8 @@ semantic-harness/
 │   └── semantic-reset/
 │       └── SKILL.md
 ├── src/                     # UPDATE: Read plugin.json
-│   ├── dispatcher.py        # UPDATE: Load from plugin.json
+│   ├── dispatcher.py        # Command routing
+│   ├── skill_loader.py      # UPDATE: Parse SKILL.md frontmatter
 │   └── ...
 ├── manifest.yaml            # DELETE
 └── pyproject.toml          # KEEP
