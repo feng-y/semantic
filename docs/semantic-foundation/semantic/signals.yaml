@@ -1,0 +1,38 @@
+domain_signals:
+- signal_type: module_grouping
+  source: fact_canonical:modules
+  evidence: 14 modules observed
+  confidence: high
+  summary: Repository contains 14 distinct modules
+- signal_type: domain_proposal
+  source: fact_working_summary:domain_proposals
+  evidence: 5 domain proposals
+  confidence: medium
+  summary: Working summary proposes 5 domains
+concept_signals:
+- signal_type: entity_definition
+  source: fact_canonical:core_entities
+  evidence: 4 entities observed
+  confidence: high
+  summary: Repository defines 4 core entities
+- signal_type: concept_identification
+  source: fact_working_summary:concepts
+  evidence: 5 concepts identified
+  confidence: medium
+  summary: Working summary identifies 5 concepts
+rule_signals:
+- signal_type: validation_logic
+  source: fact_canonical:modules
+  evidence: 2 validation modules
+  confidence: high
+  summary: Repository contains 2 validation modules
+demand_pattern_signals:
+- signal_type: change_analysis_pattern
+  source: fact_canonical:modules
+  evidence: 2 change-related modules
+  confidence: medium
+  summary: Repository contains 2 change analysis modules
+metadata:
+  generated_at: '2026-03-16T16:26:47.820285Z'
+  fact_source: fact_canonical_sample.yaml
+  signal_count: 6
