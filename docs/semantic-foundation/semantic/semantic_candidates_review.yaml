@@ -1,0 +1,191 @@
+review_target: semantic_candidates
+review_date: 2026-03-17
+reviewer: claude-opus-4.6
+review_type: implementation_review
+
+reviewed_files:
+  - path: skills/semantic-candidates/SKILL.md
+    role: skill_definition
+  - path: src/semantic/build_candidates.py
+    role: implementation
+  - path: src/semantic/models.py
+    role: models
+  - path: templates/semantic/candidates.template.yaml
+    role: template
+  - path: tests/semantic/test_build_candidates.py
+    role: tests
+  - path: prompts/semantic/semantic_candidates.prompt.md
+    role: prompt
+  - path: docs/semantic-foundation/semantic/signals.yaml
+    role: input_dependency
+
+overall_status: pass
+
+assessments:
+  standard_skill_correctness: pass
+  input_contract_alignment: pass
+  real_implementation: pass
+  candidate_synthesis_quality: pass
+  model_quality: pass
+  output_correctness: pass
+  traceability: pass
+  template_alignment: pass
+  test_quality: pass
+  capability_boundary: pass
+
+detailed_assessments:
+  standard_skill_correctness:
+    status: pass
+    findings:
+      - "✅ SKILL.md follows standard omc format with frontmatter"
+      - "✅ Clear decision tree showing execution flow"
+      - "✅ 6 execution steps detailed (validate inputs, synthesize 4 candidate types, write outputs)"
+      - "✅ Clearly states when to use (after semantic-signals, before semantic-recommend)"
+      - "✅ Clearly states required inputs (signals.yaml required)"
+      - "✅ Clearly states outputs (candidates.yaml canonical, candidates.md view)"
+      - "✅ Skill remains thin - calls Python implementation"
+      - "✅ Explicitly bounded to candidates only (not recommend/review/finalize)"
+      - "✅ Usage examples provided"
+    issues: []
+
+  input_contract_alignment:
+    status: pass
+    findings:
+      - "✅ Primary input: signals.yaml (REQUIRED) - correctly implemented"
+      - "✅ signals.yaml treated as direct primary input"
+      - "✅ Candidate synthesis derived from signals (not bypassing)"
+      - "✅ No dependence on later-stage artifacts (recommend/review/finalize)"
+      - "✅ load_signals() reads signals.yaml directly"
+      - "✅ All synthesis functions take signal groups as input"
+    issues: []
+
+  real_implementation:
+    status: pass
+    findings:
+      - "✅ build_candidates.py is 200+ lines of real logic, NOT scaffold"
+      - "✅ load_signals() - real YAML loading"
+      - "✅ synthesize_domain_candidates() - real synthesis logic"
+      - "✅ synthesize_concept_candidates() - real synthesis logic"
+      - "✅ synthesize_rule_candidates() - real synthesis logic"
+      - "✅ synthesize_demand_model_candidates() - real synthesis logic"
+      - "✅ generate_stable_id() - hash-based stable ID generation"
+      - "✅ render_candidates_markdown() - real markdown generation"
+      - "✅ main() - real CLI with argparse"
+      - "✅ Executable and functional (verified by running)"
+    issues: []
+
+  candidate_synthesis_quality:
+    status: pass
+    findings:
+      - "✅ Signals grouped by type (module_grouping, domain_proposal, etc.)"
+      - "✅ Synthesis creates stronger candidates (not one-to-one copying)"
+      - "✅ Stable IDs generated (hash-based, deterministic)"
+      - "✅ Meaningful names (Repository Structure, Core Entities, etc.)"
+      - "✅ Summary and boundary present"
+      - "✅ source_signal_ids preserved"
+      - "✅ evidence_refs preserved"
+      - "✅ Confidence inherited from signals"
+      - "✅ Functional test: successfully synthesizes 6 candidates from 6 signals"
+    issues: []
+
+  model_quality:
+    status: pass
+    findings:
+      - "✅ DomainCandidate model defined with Pydantic"
+      - "✅ ConceptCandidate model defined"
+      - "✅ RuleCandidate model defined"
+      - "✅ DemandModelCandidate model defined"
+      - "✅ CandidatesOutput structure defined"
+      - "✅ Fields include: id, name, summary, boundary, source_signal_ids, evidence_refs, confidence"
+      - "✅ Type safety via Pydantic"
+      - "✅ Models are usable (not placeholders)"
+    issues:
+      - "⚠️ Models defined but build_candidates.py uses dicts instead of model instances"
+      - "Impact: Low - output is still correct, models provide structure reference"
+
+  output_correctness:
+    status: pass
+    findings:
+      - "✅ Workspace: docs/semantic-foundation/semantic/ (correct)"
+      - "✅ Canonical output: candidates.yaml (correct)"
+      - "✅ View output: candidates.md (correct)"
+      - "✅ All 4 candidate groups present: domains, concepts, rules, demand_models"
+      - "✅ YAML structure valid"
+      - "✅ Required fields present: id, name, summary, boundary/relationships, source_signal_ids, evidence_refs, confidence"
+      - "✅ Metadata present: generated_at, signal_source, candidate_count"
+      - "✅ Output suitable for downstream semantic-recommend"
+      - "✅ Functional test: successfully synthesizes 6 candidates"
+    issues: []
+
+  traceability:
+    status: pass
+    findings:
+      - "✅ source_signal_ids preserved (module_grouping, domain_proposal, etc.)"
+      - "✅ evidence_refs preserved (14 modules observed, 5 domain proposals, etc.)"
+      - "✅ Candidates can be traced back to signals"
+      - "✅ Provenance not discarded"
+    issues: []
+
+  template_alignment:
+    status: pass
+    findings:
+      - "✅ templates/semantic/candidates.template.yaml exists and is aligned"
+      - "✅ Template defines all 4 candidate groups"
+      - "✅ Template defines required fields"
+      - "✅ Template matches build_candidates.py output structure"
+      - "✅ No drift between template and implementation"
+    issues: []
+
+  test_quality:
+    status: pass
+    findings:
+      - "✅ 11 real tests implemented"
+      - "✅ test_load_signals - tests signals loading"
+      - "✅ test_generate_stable_id - tests ID stability"
+      - "✅ test_synthesize_domain_candidates - tests domain synthesis"
+      - "✅ test_synthesize_concept_candidates - tests concept synthesis"
+      - "✅ test_synthesize_rule_candidates - tests rule synthesis"
+      - "✅ test_synthesize_demand_model_candidates - tests demand model synthesis"
+      - "✅ test_candidates_yaml_structure - tests YAML structure"
+      - "✅ test_candidates_markdown_generation - tests markdown generation"
+      - "✅ test_deterministic_synthesis - tests determinism"
+      - "✅ test_source_signal_preservation - tests traceability"
+      - "✅ test_not_one_to_one_copying - tests synthesis quality"
+      - "✅ All 11 tests passing"
+    issues: []
+
+  capability_boundary:
+    status: pass
+    findings:
+      - "✅ Depends on semantic-signals outputs (signals.yaml)"
+      - "✅ Does not implement recommend"
+      - "✅ Does not implement review/finalize"
+      - "✅ Does not implement demand"
+      - "✅ Remains second semantic capability only"
+      - "✅ No scope creep"
+    issues: []
+
+strengths:
+  - "Real implementation with meaningful candidate synthesis (not scaffold)"
+  - "Strong test coverage (11 tests, all passing)"
+  - "Clear contract alignment (signals.yaml as primary input)"
+  - "Good traceability (source_signal_ids and evidence_refs preserved)"
+  - "Proper capability boundary (candidates only, no scope creep)"
+  - "Deterministic synthesis with stable IDs"
+  - "Synthesis creates stronger candidates (not one-to-one copying)"
+
+gaps:
+  - "Models defined but dicts used in implementation (low impact)"
+
+contradictions: []
+
+blocking_issues: []
+
+recommended_fixes:
+  - priority: low
+    target: src/semantic/build_candidates.py
+    issue: "Models defined but dicts used instead of model instances"
+    recommendation: "Consider using model instances for stronger type safety in future iteration"
+
+decisions:
+  semantic_candidates_ready: true
