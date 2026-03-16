@@ -1,0 +1,170 @@
+review_target: semantic_documentation_recheck
+review_date: 2026-03-16
+reviewer: claude-opus-4.6
+review_type: post_repair_verification
+
+review_inputs:
+  - path: docs/semantic-foundation/semantic/semantic_doc_review.md
+    role: original_review
+  - path: docs/semantic-foundation/semantic/semantic_doc_review.yaml
+    role: original_review
+  - path: docs/semantic-foundation/semantic/semantic_doc_fix_result.md
+    role: repair_result
+  - path: docs/semantic-foundation/semantic/semantic_doc_fix_result.yaml
+    role: repair_result
+  - path: docs/semantic-foundation/semantic/semantic_normalization_rules.md
+    role: normalization_reference
+
+overall_status: pass
+
+assessments:
+  layering_consistency: pass
+  step_coverage_and_order: pass
+  fact_input_alignment: pass
+  workspace_semantics: pass
+  output_contract_consistency: pass
+  field_naming_consistency: pass
+  runner_consistency: pass
+  implementation_readiness: pass
+
+detailed_assessments:
+  layering_consistency:
+    status: pass
+    findings:
+      - "✅ semantic_normalization_rules.md clearly defines FACT → SEMANTIC → DEMAND hierarchy"
+      - "✅ All docs consistently treat old pipeline as FACT only"
+      - "✅ Semantic is clearly a new layer on top of FACT"
+      - "✅ Demand is consistently marked as out of scope"
+      - "✅ No mixing of semantic back into FACT runtime"
+    issues: []
+
+  step_coverage_and_order:
+    status: pass
+    findings:
+      - "✅ Step1 design doc exists (01_step1_signal_inference.md)"
+      - "✅ All 5 stages have design docs (Step1-5)"
+      - "✅ Stage sequence consistently: step1_signals, step2_candidates, step3_recommend, step4_review, step5_finalize"
+      - "✅ semantic_stage_contracts.md covers all 5 stages"
+      - "✅ No Step numbering drift found"
+    issues: []
+
+  fact_input_alignment:
+    status: pass
+    findings:
+      - "✅ semantic_stage_contracts.md: Primary = fact_canonical_sample.yaml (REQUIRED)"
+      - "✅ semantic_stage_contracts.md: Auxiliary = fact_working_summary_sample.yaml (optional)"
+      - "✅ semantic_stage_contracts.md: Reference = baseline/*.md (optional)"
+      - "✅ semantic_input_contract.md: Canonical wins, working summary is guidance only"
+      - "✅ 01_step1_signal_inference.md: Aligned with input contract"
+      - "✅ Conflict resolution rules clearly defined"
+    issues: []
+
+  workspace_semantics:
+    status: pass
+    findings:
+      - "✅ semantic_normalization_rules.md clearly distinguishes two workspaces"
+      - "✅ docs/semantic/ = FACT runtime workspace (transitional naming)"
+      - "✅ docs/semantic-foundation/semantic/ = semantic layer workspace"
+      - "✅ semantic_runner_design.md: workspace = docs/semantic-foundation/semantic/"
+      - "✅ semantic_output_contract.md: outputs go to docs/semantic-foundation/semantic/"
+      - "✅ 01_step1_signal_inference.md: outputs go to docs/semantic-foundation/semantic/"
+      - "✅ No ambiguous mixed usage found in contract docs"
+    issues: []
+
+  output_contract_consistency:
+    status: pass
+    findings:
+      - "✅ semantic_output_contract.md defines all 11 canonical outputs"
+      - "✅ semantic_output_contract.md defines all 8 view outputs (4 intermediate + 4 final)"
+      - "✅ semantic_runner_design.md uses canonical output names"
+      - "✅ semantic_stage_contracts.md uses canonical output names"
+      - "✅ No step-prefixed names found in contract docs (0 occurrences)"
+      - "✅ Canonical names: signals.yaml, candidates.yaml, recommendations.yaml, etc."
+    issues:
+      - "⚠️ 00_overall_design.md still uses step-prefixed names (acceptable - marked as transitional)"
+
+  field_naming_consistency:
+    status: pass
+    findings:
+      - "✅ semantic_normalization_rules.md defines canonical fields: id, name, summary, boundary, evidence, confidence"
+      - "✅ semantic_output_contract.md uses canonical fields in candidates.yaml structure"
+      - "✅ semantic_stage_contracts.md uses canonical fields in Step2 output structure"
+      - "✅ Legacy fields (responsibility, modules, definition, constraint) marked as replaced"
+      - "✅ Only 2 occurrences of 'responsibility:' found (both in legacy context)"
+      - "✅ modules now subfield under boundary"
+    issues: []
+
+  runner_consistency:
+    status: pass
+    findings:
+      - "✅ semantic_runner_design.md defines next/all modes"
+      - "✅ run-state.yaml role clearly defined"
+      - "✅ Stage progression clearly defined (Step1→Step2→Step3→Step4→Step5)"
+      - "✅ Blocking/fatal/warning semantics defined"
+      - "✅ verify_first blocks finalize rule defined"
+      - "✅ Workspace location consistent (docs/semantic-foundation/semantic/)"
+    issues: []
+
+  implementation_readiness:
+    status: pass
+    findings:
+      - "✅ Global normalization reference exists (semantic_normalization_rules.md)"
+      - "✅ All contract documents have canonical role markers"
+      - "✅ All design documents have explanatory role markers"
+      - "✅ No major contradictions remain"
+      - "✅ Step1-5 coverage complete"
+      - "✅ Input/output contracts clear"
+      - "✅ Field naming normalized"
+      - "✅ Workspace semantics clear"
+      - "✅ Runner semantics clear"
+    issues: []
+
+fixed_issues_confirmed:
+  - "✅ Missing Step1 design doc - FIXED (01_step1_signal_inference.md created)"
+  - "✅ Language barrier - FIXED (transitional notices added, README translated)"
+  - "✅ Naming drift (semantic_asset_build vs semantic) - FIXED (marked as legacy)"
+  - "✅ Workspace location inconsistency - FIXED (normalized to docs/semantic-foundation/semantic/)"
+  - "✅ View outputs incomplete - FIXED (8 view outputs defined)"
+  - "✅ Field name drift - FIXED (canonical fields defined, legacy marked)"
+  - "✅ No global normalization reference - FIXED (semantic_normalization_rules.md created)"
+  - "✅ Document roles unclear - FIXED (role markers added)"
+  - "✅ Output file naming inconsistency - FIXED (canonical names used)"
+
+remaining_issues:
+  - severity: low
+    issue: "00_overall_design.md uses step-prefixed output names"
+    impact: "Non-blocking - document marked as transitional"
+
+  - severity: low
+    issue: "Some Chinese language docs remain"
+    impact: "Non-blocking - marked as transitional with English references"
+
+  - severity: low
+    issue: "02_step3_scoring_design.md has minimal header"
+    impact: "Non-blocking - design doc, not contract"
+
+blocking_issues: []
+
+decisions:
+  docs_ready_for_implementation: true
+  overall_quality: high
+  normalization_complete: true
+  contracts_canonical: true
+  design_docs_aligned: true
+
+verification_metrics:
+  contract_docs_checked: 4
+  design_docs_checked: 6
+  normalization_rules_checked: 1
+  step_prefixed_names_in_contracts: 0
+  workspace_ambiguities: 0
+  field_naming_inconsistencies: 0
+  major_contradictions: 0
+  blocking_issues: 0
+
+recommendations:
+  - "Proceed with semantic implementation"
+  - "Use semantic_normalization_rules.md as reference"
+  - "Follow contract documents (semantic_stage_contracts.md, semantic_input_contract.md, semantic_output_contract.md, semantic_runner_design.md)"
+  - "Treat design documents as explanatory guidance"
+  - "Ignore transitional documents (00_overall_design.md, Chinese docs) for implementation"
