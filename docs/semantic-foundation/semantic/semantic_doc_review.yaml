@@ -1,0 +1,152 @@
+review_target: semantic_documentation_set
+review_date: 2026-03-16
+reviewer: claude-opus-4.6
+
+reviewed_documents:
+  - path: "docs/semantic-foundation/semantic/semantic_design.md"
+  - path: "docs/semantic-foundation/semantic/semantic_stage_contracts.md"
+  - path: "docs/semantic-foundation/semantic/semantic_input_contract.md"
+  - path: "docs/semantic-foundation/semantic/semantic_output_contract.md"
+  - path: "docs/semantic-foundation/semantic/semantic_runner_design.md"
+  - path: "docs/semantic-foundation/semantic/semantic_dev_plan.md"
+  - path: "docs/semantic-foundation/semantic/semantic_preflight_check.md"
+  - path: "docs/semantic-foundation/semantic/semantic_preflight_check.yaml"
+  - path: "docs/semantic-foundation/semantic/README.md"
+  - path: "docs/semantic-foundation/semantic/00_overall_design.md"
+  - path: "docs/semantic-foundation/semantic/01_step2_candidate_synthesis.md"
+  - path: "docs/semantic-foundation/semantic/01_step2_candidate_synthesis_prompt.md"
+  - path: "docs/semantic-foundation/semantic/02_step3_scoring_design.md"
+  - path: "docs/semantic-foundation/semantic/03_step4_review_and_evidence_design.md"
+  - path: "docs/semantic-foundation/semantic/04_step5_finalize_design.md"
+  - path: "docs/semantic-foundation/fact/fact_expected_sample.md"
+  - path: "docs/semantic-foundation/fact/fact_expected_sample.yaml"
+  - path: "docs/semantic-foundation/fact/fact_naming_mapping.md"
+  - path: "docs/semantic-foundation/fact/fact_for_semantic_review.md"
+  - path: "docs/semantic-foundation/fact/fact_for_semantic_review.yaml"
+  - path: "docs/semantic-foundation/fact/fact_canonical_sample.yaml"
+  - path: "docs/semantic-foundation/fact/fact_working_summary_sample.yaml"
+  - path: "docs/semantic-foundation/fact/fact_contract_mapping.md"
+  - path: "docs/semantic-foundation/fact/fact_canonical_contract.md"
+
+overall_status: pass_with_gaps
+
+assessments:
+  layering_consistency: partial
+  fact_input_alignment: partial
+  stage_contract_consistency: partial
+  output_contract_consistency: partial
+  runner_consistency: partial
+  implementation_readiness: partial
+  redundancy_and_drift: medium
+
+strengths:
+  - "Strong FACT input foundation: canonical/working split is well-defined"
+  - "Clear stage progression: Step1→Step2→Step3→Step4→Step5 is consistent"
+  - "Frozen canonical contract: fact_canonical_contract.md provides stability"
+  - "Comprehensive output contract: 11 canonical + 4 view outputs defined"
+  - "Runner modes well-defined: next/all modes with clear state management"
+  - "Evidence-first principle: FACT inputs are evidence-backed"
+  - "Conflict resolution rules: canonical wins, evidence wins, baseline wins"
+  - "Finalize guard: verify_first blocks Step5 correctly"
+
+gaps:
+  - "Missing Step1 design doc: semantic_stage_contracts.md defines Step1 (Signal Inference) but no 01_step1_signal_inference.md exists"
+  - "Language barrier: 00_overall_design.md, 01_step2_candidate_synthesis.md, 01_step2_candidate_synthesis_prompt.md are in Chinese"
+  - "Naming drift: 00_overall_design.md uses 'semantic_asset_build' package name, contracts use 'semantic' layer name"
+  - "Workspace location inconsistency: docs/semantic/ vs docs/semantic-foundation/semantic-asset-build/ vs docs/semantic-foundation/semantic/"
+  - "View outputs incomplete: semantic_output_contract.md lists 4 view outputs but step designs mention signals.md, candidates.md, recommendations.md, review-note.md"
+  - "Field name drift: contract says 'name, summary, boundary' but design doc says 'name, responsibility, modules'"
+  - "Output file naming inconsistency: contract says 'candidates.yaml' but design says 'step2_candidates.yaml'"
+
+contradictions:
+  - "Step numbering: 01_step2_candidate_synthesis.md starts at Step2, but semantic_stage_contracts.md defines Step1 first"
+  - "Package naming: 00_overall_design.md uses 'semantic_asset_build' module, but semantic_design.md uses 'semantic' layer"
+  - "Workspace location: semantic_runner_design.md says 'docs/semantic/', 00_overall_design.md says 'docs/semantic-foundation/semantic-asset-build/'"
+  - "Input directory: 00_overall_design.md says 'Input: docs/semantic/* (fact layer)' but should be 'docs/fact/baseline/*'"
+  - "View outputs: semantic_output_contract.md lists 4 view outputs, but step designs mention additional view files"
+
+blocking_issues:
+  - "None: Implementation can start despite gaps"
+
+recommended_fixes:
+  - priority: high
+    target: "Step1 design doc"
+    issue: "semantic_stage_contracts.md defines Step1 (Signal Inference) but no design doc exists"
+    recommendation: "Create 01_step1_signal_inference.md or remove Step1 from contracts if not needed"
+
+  - priority: high
+    target: "Workspace location"
+    issue: "Multiple workspace locations mentioned: docs/semantic/, docs/semantic-foundation/semantic-asset-build/, docs/semantic-foundation/semantic/"
+    recommendation: "Standardize on single location: docs/semantic/ (as per semantic_runner_design.md)"
+
+  - priority: high
+    target: "Package naming"
+    issue: "00_overall_design.md uses 'semantic_asset_build', contracts use 'semantic'"
+    recommendation: "Standardize on 'semantic' package name, update or deprecate 00_overall_design.md"
+
+  - priority: medium
+    target: "Language accessibility"
+    issue: "3 docs in Chinese: 00_overall_design.md, 01_step2_candidate_synthesis.md, 01_step2_candidate_synthesis_prompt.md"
+    recommendation: "Translate to English or mark as deprecated/transitional"
+
+  - priority: medium
+    target: "Field name alignment"
+    issue: "Contract says 'name, summary, boundary' but design says 'name, responsibility, modules'"
+    recommendation: "Align field names between semantic_output_contract.md and step design docs"
+
+  - priority: medium
+    target: "View outputs completeness"
+    issue: "semantic_output_contract.md lists 4 view outputs but step designs mention signals.md, candidates.md, recommendations.md, review-note.md"
+    recommendation: "Add intermediate view outputs to semantic_output_contract.md or clarify which are canonical"
+
+  - priority: low
+    target: "Output file naming"
+    issue: "Contract says 'candidates.yaml' but design says 'step2_candidates.yaml'"
+    recommendation: "Remove step prefix from output files, use canonical names from contract"
+
+  - priority: low
+    target: "Duplicate definitions"
+    issue: "Stage contracts defined in both semantic_stage_contracts.md and individual step design docs"
+    recommendation: "Mark semantic_stage_contracts.md as canonical, step design docs as implementation guides"
+
+decisions:
+  docs_ready_for_implementation: true
+  can_start_now: true
+  blocking_gaps: false
+  recommended_order:
+    - "Fix workspace location (high priority)"
+    - "Resolve package naming (high priority)"
+    - "Create Step1 design or remove from contracts (high priority)"
+    - "Align field names (medium priority)"
+    - "Translate Chinese docs (medium priority)"
+    - "Complete view outputs (medium priority)"
+
+implementation_guidance:
+  primary_contract_docs:
+    - "semantic_stage_contracts.md (canonical stage definitions)"
+    - "semantic_input_contract.md (canonical input rules)"
+    - "semantic_output_contract.md (canonical output specs)"
+    - "semantic_runner_design.md (canonical runner behavior)"
+
+  secondary_design_docs:
+    - "02_step3_scoring_design.md (implementation guide)"
+    - "03_step4_review_and_evidence_design.md (implementation guide)"
+    - "04_step5_finalize_design.md (implementation guide)"
+
+  deprecated_or_transitional:
+    - "00_overall_design.md (uses old naming, Chinese)"
+    - "01_step2_candidate_synthesis.md (Chinese, field name drift)"
+    - "01_step2_candidate_synthesis_prompt.md (Chinese)"
+
+  fact_input_sources:
+    - "fact_canonical_sample.yaml (primary hard input)"
+    - "fact_working_summary_sample.yaml (auxiliary soft input)"
+    - "docs/fact/baseline/*.md (reference input)"
+
+notes:
+  - "Overall documentation is strong enough for implementation to start"
+  - "Gaps are about consistency and accessibility, not fundamental design flaws"
+  - "Contract docs (semantic_stage_contracts.md, semantic_input_contract.md, semantic_output_contract.md) are canonical"
+  - "Step design docs are implementation guides, not contracts"
+  - "FACT input foundation is solid: canonical/working split is well-defined"
+  - "Recommended to fix high-priority gaps before full implementation"
