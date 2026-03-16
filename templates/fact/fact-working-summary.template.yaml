@@ -1,0 +1,171 @@
+# FACT Working Summary Template
+# Use this template to generate working summary outputs
+# Contains interpretation, analysis, and working context
+# Includes: purpose interpretation, domain proposals, concept roles, open questions
+
+fact_layer_version: "1.0"
+fact_type: "working_summary"
+
+# ============================================================================
+# SYSTEM PURPOSE INTERPRETATION
+# ============================================================================
+
+system_purpose:
+  interpreted_purpose: ""     # What the system is designed to do (interpretation)
+  supported_scenarios:        # List of supported use cases (interpretation)
+    - ""
+  non_goals:                  # What the system explicitly does not do
+    - ""
+  confidence: ""              # high | medium | low
+  evidence_refs:              # References to canonical facts supporting interpretation
+    - ""
+
+# ============================================================================
+# PIPELINE INTERPRETATION
+# ============================================================================
+
+pipelines:
+  - name: ""                  # Pipeline name (from canonical execution_flows)
+    interpreted_purpose: ""   # What this pipeline is meant to accomplish
+    flow_interpretation:      # Interpretation of each step's purpose
+      - step: ""              # Step name
+        purpose: ""           # Interpreted purpose of this step
+    inputs_interpretation: "" # What inputs mean in context
+    outputs_interpretation: ""# What outputs mean in context
+    confidence: ""            # high | medium | low
+
+# Add more pipelines as needed
+
+# ============================================================================
+# CONCEPT ROLE INTERPRETATION
+# ============================================================================
+
+concepts:
+  - name: ""                  # Concept name (extracted from canonical)
+    interpreted_role: ""      # What role this concept plays in the system
+    description: ""           # Human-readable description
+    used_by_pipelines:        # Which pipelines use this concept
+      - ""
+    confidence: ""            # high | medium | low
+
+# Add more concepts as needed
+
+# ============================================================================
+# DOMAIN BOUNDARY PROPOSALS
+# ============================================================================
+
+domain_proposals:
+  - name: ""                  # Proposed domain name
+    rationale: ""             # Why these modules form a domain
+    proposed_modules:         # Modules that belong to this domain
+      - ""
+    shared_concerns:          # What these modules have in common
+      - ""
+    confidence: ""            # high | medium | low
+
+# Add more domain proposals as needed
+
+# ============================================================================
+# MODULE RESPONSIBILITY INTERPRETATION
+# ============================================================================
+
+module_responsibilities:
+  - module_name: ""           # Module name (from canonical)
+    interpreted_responsibility: "" # What this module is responsible for
+    key_functions:            # Key functions and their interpreted purposes
+      - function: ""
+        purpose: ""
+    confidence: ""            # high | medium | low
+
+# Add more module interpretations as needed
+
+# ============================================================================
+# RELATIONSHIP ANALYSIS
+# ============================================================================
+
+relationships:
+  module_dependencies:
+    - from_module: ""         # Source module
+      to_module: ""           # Target module
+      relationship_type: ""   # e.g., "uses", "extends", "configures"
+      interpreted_purpose: "" # Why this dependency exists
+      confidence: ""          # high | medium | low
+
+  pipeline_concept_usage:
+    - pipeline: ""            # Pipeline name
+      concept: ""             # Concept name
+      usage_interpretation: ""# How pipeline uses this concept
+      confidence: ""          # high | medium | low
+
+# ============================================================================
+# OPEN QUESTIONS
+# ============================================================================
+
+open_questions:
+  - question: ""              # What is unclear or uncertain
+    context: ""               # Where this question arises
+    why_unresolved: ""        # Why we can't answer this yet
+    related_artifacts:        # Canonical facts related to this question
+      - ""
+
+# Add more open questions as needed
+
+# ============================================================================
+# ASSUMPTIONS
+# ============================================================================
+
+assumptions:
+  - assumption: ""            # What we're assuming to be true
+    rationale: ""             # Why we're making this assumption
+    evidence_refs:            # Canonical facts supporting this assumption
+      - ""
+    confidence: ""            # high | medium | low
+    risk_if_wrong: ""         # What happens if this assumption is incorrect
+
+# Add more assumptions as needed
+
+# ============================================================================
+# ARCHITECT REVIEW SUMMARY
+# ============================================================================
+
+review_summary:
+  system_summary: ""          # High-level summary for architect
+  main_pipelines:             # Key pipelines identified
+    - ""
+  core_concepts:              # Key concepts identified
+    - ""
+  candidate_domains:          # Proposed domain boundaries
+    - ""
+  key_assumptions:            # Critical assumptions to validate
+    - ""
+  questions_for_architect:    # Questions requiring architect input
+    - ""
+
+# ============================================================================
+# CONFIDENCE ASSESSMENT
+# ============================================================================
+
+confidence_assessment:
+  overall_confidence: ""      # high | medium | low
+  high_confidence_areas:      # What we're confident about
+    - area: ""
+      reason: ""
+  low_confidence_areas:       # What we're uncertain about
+    - area: ""
+      reason: ""
+      needs_clarification: "" # What would improve confidence
+
+# ============================================================================
+# METADATA
+# ============================================================================
+
+metadata:
+  generated_at: ""            # ISO 8601 timestamp
+  based_on_canonical: ""      # Path to canonical fact file
+  review_cycle: 0             # Which review cycle this is (1, 2, 3, ...)
+
+  notes:
+    - "All interpretations must reference canonical facts"
+    - "All interpretations must have confidence ratings"
+    - "Working summary is mutable - can evolve as understanding improves"
+    - "Optimized for human review, not agent consumption"

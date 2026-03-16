@@ -6,12 +6,17 @@
 
 The FACT layer is the **evidence-driven foundation** of semantic understanding. It extracts, validates, and versions observable facts about the repository without interpretation, abstraction, or design intent.
 
+**IMPORTANT**: As of 2026-03-16, FACT outputs are split into two contracts:
+1. **Canonical Facts** (`fact_canonical_sample.yaml`) - Observable facts only
+2. **Working Summary** (`fact_working_summary_sample.yaml`) - Interpretation and analysis
+
 ### What FACT Is
 
 - **Observable evidence**: Files, code structure, imports, entrypoints, configuration
 - **Traceable claims**: Every assertion backed by file paths, line numbers, or commands
 - **Versioned artifacts**: All outputs are immutable snapshots with version numbers
 - **Schema-validated**: Every artifact must satisfy structural contracts in `docs/fact/schemas/`
+- **Split contracts**: Canonical facts separated from working summary
 
 ### What FACT Is Not
 
@@ -96,7 +101,64 @@ init → discover → review → refine → baseline
 
 ---
 
-## 5. FACT Canonical Outputs Specification
+## 5. FACT Output Split: Canonical vs Working Summary
+
+**As of 2026-03-16**, FACT outputs are split into two distinct contracts to improve semantic input quality:
+
+### 5.1 Canonical Facts (`fact_canonical_sample.yaml`)
+
+**Purpose**: Observable, evidence-backed facts only
+
+**Contains**:
+- Module names, file paths, function signatures
+- Entrypoint definitions, execution flows
+- Configuration values, build system facts
+- Evidence refs (file:line)
+- Version metadata, checkpoint data
+
+**Does NOT contain**:
+- Purpose interpretation
+- Role assignments
+- Domain proposals
+- Relationship analysis
+- Open questions
+- Assumptions
+
+**Schema**: See `fact_canonical_contract.md` for frozen schema
+
+**Template**: `templates/fact/fact-canonical.template.yaml`
+
+### 5.2 Working Summary (`fact_working_summary_sample.yaml`)
+
+**Purpose**: Interpretation, analysis, and working context
+
+**Contains**:
+- System purpose interpretation
+- Domain boundary proposals
+- Concept role assignments
+- Pipeline relationship analysis
+- Open questions for architect
+- Assumptions and uncertainties
+- Confidence ratings
+
+**Does NOT contain**:
+- Module names, file paths (these are in canonical)
+- Evidence refs (these are in canonical)
+- Version numbers (these are in canonical)
+
+**Schema**: Mutable, optimized for human review
+
+**Template**: `templates/fact/fact-working-summary.template.yaml`
+
+### 5.3 Contract Mapping
+
+See `fact_contract_mapping.md` for detailed rules on what goes where.
+
+**Key principle**: Observable → Canonical, Interpreted → Working Summary
+
+---
+
+## 6. FACT Canonical Outputs Specification
 
 ### 5.1 repo-facts.vN.md
 

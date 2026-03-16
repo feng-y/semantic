@@ -1,0 +1,134 @@
+# FACT Canonical Template
+# Use this template to generate canonical FACT outputs
+# Contains ONLY observable, evidence-backed facts
+# No interpretation, no semantic abstraction, no domain proposals
+
+fact_layer_version: "1.0"
+fact_type: "canonical"
+
+# ============================================================================
+# REPOSITORY IDENTITY (Observable Metadata)
+# ============================================================================
+
+repo_identity:
+  name: ""                    # Repository name from manifest/git
+  type: ""                    # e.g., "claude-code-plugin", "library", "application"
+  primary_language: ""        # e.g., "python", "typescript", "rust"
+  build_system: ""            # e.g., "pip", "npm", "cargo"
+  evidence:
+    - ""                      # file:line refs supporting above claims
+
+# ============================================================================
+# MODULES (Observable Code Structure)
+# ============================================================================
+
+modules:
+  - name: ""                  # Module name (file name without extension)
+    path: ""                  # Relative file path from repo root
+    functions:                # List of function names defined in module
+      - ""
+    evidence: ""              # file:line range, e.g., "src/module.py:1-200"
+
+# Add more modules as needed
+
+# ============================================================================
+# ENTRYPOINTS (Observable Execution Paths)
+# ============================================================================
+
+entrypoints:
+  - name: ""                  # Entrypoint name (skill name, CLI command, etc.)
+    type: ""                  # e.g., "skill", "cli", "api"
+    location: ""              # File path where entrypoint is defined
+    command: ""               # Command name or invocation string
+    evidence: ""              # file:line ref, e.g., "skills/name.skill:command=X"
+
+# Add more entrypoints as needed
+
+# ============================================================================
+# CORE ENTITIES (Observable Data Structures)
+# ============================================================================
+
+core_entities:
+  - name: ""                  # Entity name (class, dataclass, protocol, etc.)
+    type: ""                  # e.g., "dataclass", "protocol", "class", "enum"
+    defined_in: ""            # File path where entity is defined
+    fields:                   # List of field/attribute names
+      - ""
+    evidence: ""              # file:line ref, e.g., "src/module.py:@dataclass Name"
+
+# Add more entities as needed
+
+# ============================================================================
+# CONFIGURATION (Observable Config Values)
+# ============================================================================
+
+configuration:
+  - name: ""                  # Config file name
+    type: ""                  # e.g., "yaml", "toml", "json", "ini"
+    location: ""              # File path
+    loaded_by: ""             # Description of how/when config is loaded
+    evidence: ""              # file:line ref
+
+# Add more config files as needed
+
+# ============================================================================
+# DEPENDENCIES (Observable Imports and Packages)
+# ============================================================================
+
+dependencies:
+  internal_imports:
+    - from_module: ""         # Source module name
+      imports:                # List of imported names
+        - ""
+      evidence: ""            # file:line ref, e.g., "src/module.py:5"
+
+  external_packages:
+    - package: ""             # Package name
+      version: ""             # Version constraint (optional)
+      evidence: ""            # file:line ref from requirements/pyproject.toml
+
+# ============================================================================
+# EXECUTION FLOWS (Observable Call Chains)
+# ============================================================================
+
+execution_flows:
+  - entrypoint: ""            # Entrypoint name (from entrypoints section)
+    steps:                    # Observable call chain
+      - module: ""            # Module name
+        function: ""          # Function name
+        evidence: ""          # file:line ref showing call site
+
+# Add more flows as needed
+
+# ============================================================================
+# BASELINE REFERENCE (Optional - only if baseline exists)
+# ============================================================================
+
+baseline_reference:
+  exists: false               # true if baseline exists, false otherwise
+  checkpoint_metadata:
+    timestamp: ""             # ISO 8601 timestamp
+    source_versions:          # Source artifact versions used for baseline
+      repo-understanding: 0   # Version number or null
+      knowledge-confidence: 0
+      domain-candidates: 0
+      review-summary: 0
+    baseline_files:           # List of baseline file names
+      - ""
+    feedback_hash: ""         # Hash of architect feedback used
+  evidence: ""                # Path to checkpoint.json
+
+# ============================================================================
+# METADATA (Required)
+# ============================================================================
+
+metadata:
+  generated_at: ""            # ISO 8601 timestamp
+  fact_layer_complete: false  # true if all discovery steps completed
+  artifact_count: 0           # Number of artifacts generated
+  evidence_count: 0           # Number of evidence refs collected
+
+  notes:
+    - "All fields must have evidence refs (file:line or command:output)"
+    - "No interpretation, abstraction, or semantic judgment allowed"
+    - "This is canonical fact only - interpretation goes to working summary"

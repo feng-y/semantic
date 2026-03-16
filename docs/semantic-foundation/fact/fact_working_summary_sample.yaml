@@ -1,0 +1,309 @@
+# FACT Working Summary Sample - Interpretation and Analysis
+# This contains interpretation, understanding, and working context
+# Includes: purpose interpretation, domain proposals, concept roles, open questions
+# Generated: 2026-03-16
+# Source: semantic-harness repository analysis
+
+fact_layer_version: "1.0"
+fact_type: "working_summary"
+
+# ============================================================================
+# SYSTEM PURPOSE INTERPRETATION
+# ============================================================================
+
+system_purpose:
+  interpreted_purpose: "Semantic understanding pipeline for Claude Code plugins"
+  supported_scenarios:
+    - "Extract repository structure and purpose from code"
+    - "Generate versioned artifacts with evidence traceability"
+    - "Enable architect review and correction workflow"
+    - "Synthesize accepted baseline for semantic consumption"
+  non_goals:
+    - "Not a semantic modeling system (future layer)"
+    - "Not a demand analysis system (future layer)"
+    - "Not a refactoring automation system"
+  confidence: "high"
+  evidence_refs:
+    - "manifest.yaml:target=claude-code"
+    - "skills/*.skill: discovery and refinement workflows"
+    - "docs/fact/baseline/*.md: baseline synthesis outputs"
+
+# ============================================================================
+# PIPELINE INTERPRETATION
+# ============================================================================
+
+pipelines:
+  - name: "Discovery Pipeline"
+    interpreted_purpose: "Extract observable facts from repository with evidence"
+    flow_interpretation:
+      - step: "Sampling"
+        purpose: "Select representative files for analysis"
+      - step: "Facts Extraction"
+        purpose: "Extract observable structure (modules, entrypoints, config)"
+      - step: "Understanding Extraction"
+        purpose: "Extract purpose, pipelines, concepts with evidence"
+      - step: "Confidence Assessment"
+        purpose: "Rate confidence level for each extracted fact"
+    inputs_interpretation: "Repository tree, source files, configuration"
+    outputs_interpretation: "Versioned discovery artifacts in docs/fact/discovery/"
+    confidence: "high"
+
+  - name: "Review Pipeline"
+    interpreted_purpose: "Present facts to architect for validation and correction"
+    flow_interpretation:
+      - step: "Summary Generation"
+        purpose: "Consolidate facts into human-readable summary"
+      - step: "Architect Feedback"
+        purpose: "Collect corrections and acceptance decision"
+    inputs_interpretation: "Discovery artifacts"
+    outputs_interpretation: "Review summary, architect feedback"
+    confidence: "high"
+
+  - name: "Refinement Pipeline"
+    interpreted_purpose: "Apply corrections and synthesize accepted baseline"
+    flow_interpretation:
+      - step: "Patch Application"
+        purpose: "Apply architect corrections to discovery artifacts"
+      - step: "Validation"
+        purpose: "Validate patched artifacts against schemas"
+      - step: "Baseline Synthesis"
+        purpose: "Generate immutable baseline from accepted facts"
+      - step: "Change Analysis"
+        purpose: "Analyze changes from previous baseline"
+    inputs_interpretation: "Discovery artifacts, architect feedback"
+    outputs_interpretation: "Baseline artifacts, change analysis"
+    confidence: "high"
+
+# ============================================================================
+# CONCEPT ROLE INTERPRETATION
+# ============================================================================
+
+concepts:
+  - name: "Artifact Versioning"
+    interpreted_role: "Version control for generated artifacts"
+    description: "Immutable versioned outputs with .vN.md naming"
+    used_by_pipelines: ["Discovery Pipeline", "Refinement Pipeline"]
+    confidence: "high"
+
+  - name: "Evidence Traceability"
+    interpreted_role: "Traceability mechanism for all claims"
+    description: "File paths/commands supporting claims"
+    used_by_pipelines: ["Discovery Pipeline", "Refinement Pipeline"]
+    confidence: "high"
+
+  - name: "Acceptance Gate"
+    interpreted_role: "Quality control before baseline synthesis"
+    description: "4-gate validation before baseline synthesis"
+    used_by_pipelines: ["Refinement Pipeline"]
+    confidence: "high"
+
+  - name: "Baseline Immutability"
+    interpreted_role: "Stability guarantee for semantic consumption"
+    description: "Accepted baseline cannot be auto-modified"
+    used_by_pipelines: ["Refinement Pipeline"]
+    confidence: "high"
+
+  - name: "Schema Validation"
+    interpreted_role: "Structural contract enforcement"
+    description: "All artifacts must satisfy schema contracts"
+    used_by_pipelines: ["Discovery Pipeline", "Refinement Pipeline"]
+    confidence: "high"
+
+# ============================================================================
+# DOMAIN BOUNDARY PROPOSALS
+# ============================================================================
+
+domain_proposals:
+  - name: "Artifact Management"
+    rationale: "Modules share artifact I/O and versioning responsibility"
+    proposed_modules:
+      - "artifact_writer"
+      - "state_inspector"
+    shared_concerns:
+      - "Versioned artifact I/O"
+      - "State tracking and snapshot"
+      - "Path resolution and version allocation"
+    confidence: "medium"
+
+  - name: "Pipeline Orchestration"
+    rationale: "Modules coordinate multi-step execution flows"
+    proposed_modules:
+      - "discovery_executor"
+      - "refine_executor"
+      - "dispatcher"
+    shared_concerns:
+      - "Step sequencing and error handling"
+      - "Command routing"
+      - "Result aggregation"
+    confidence: "medium"
+
+  - name: "Validation and Quality"
+    rationale: "Modules enforce structural and semantic contracts"
+    proposed_modules:
+      - "artifact_validation"
+      - "change_analysis_validation"
+      - "baseline_synthesis"
+    shared_concerns:
+      - "Schema validation"
+      - "Content validation"
+      - "Acceptance gate enforcement"
+    confidence: "medium"
+
+  - name: "Context Assembly"
+    rationale: "Modules build bounded prompt context for LLM execution"
+    proposed_modules:
+      - "context_builder"
+    shared_concerns:
+      - "Prompt context assembly"
+      - "Token budget management"
+      - "Artifact selection"
+    confidence: "high"
+
+  - name: "Extraction and Analysis"
+    rationale: "Modules extract facts and assess confidence"
+    proposed_modules:
+      - "sampling_strategy"
+      - "confidence_assessment"
+      - "domain_extraction"
+      - "change_analysis_generation"
+    shared_concerns:
+      - "Fact extraction"
+      - "Confidence rating"
+      - "Domain identification"
+    confidence: "medium"
+
+# ============================================================================
+# MODULE RELATIONSHIP ANALYSIS
+# ============================================================================
+
+module_relationships:
+  - source: "dispatcher"
+    target: "discovery_executor"
+    relationship_type: "invokes"
+    interpretation: "Dispatcher routes 'discover' command to discovery executor"
+
+  - source: "dispatcher"
+    target: "refine_executor"
+    relationship_type: "invokes"
+    interpretation: "Dispatcher routes 'refine' command to refine executor"
+
+  - source: "discovery_executor"
+    target: "artifact_writer"
+    relationship_type: "uses"
+    interpretation: "Discovery writes versioned artifacts via artifact_writer"
+
+  - source: "refine_executor"
+    target: "artifact_writer"
+    relationship_type: "uses"
+    interpretation: "Refinement writes baseline artifacts via artifact_writer"
+
+  - source: "discovery_executor"
+    target: "context_builder"
+    relationship_type: "uses"
+    interpretation: "Discovery builds prompt context via context_builder"
+
+  - source: "refine_executor"
+    target: "context_builder"
+    relationship_type: "uses"
+    interpretation: "Refinement builds prompt context via context_builder"
+
+  - source: "refine_executor"
+    target: "artifact_validation"
+    relationship_type: "uses"
+    interpretation: "Refinement validates artifacts before writing"
+
+  - source: "refine_executor"
+    target: "baseline_synthesis"
+    relationship_type: "uses"
+    interpretation: "Refinement synthesizes baseline after acceptance"
+
+# ============================================================================
+# OPEN QUESTIONS
+# ============================================================================
+
+open_questions:
+  - question: "Should confidence be inline metadata or separate artifact?"
+    why_unresolved: "Currently appears in both knowledge_confidence.vN.md and inline in repo_understanding"
+    related_artifacts:
+      - "docs/fact/discovery/knowledge-confidence.vN.md"
+      - "docs/fact/discovery/repo-understanding.vN.md"
+    proposed_resolution: "Use separate artifact only (knowledge_confidence.vN.md)"
+
+  - question: "Should domain candidates be in canonical or working summary?"
+    why_unresolved: "Domain identification is semantic work, but currently in canonical fact output"
+    related_artifacts:
+      - "docs/fact/discovery/domain-candidates.vN.md"
+    proposed_resolution: "Move to working summary as domain proposals"
+
+  - question: "What is the boundary between FACT and SEMANTIC layers?"
+    why_unresolved: "Current pipeline extracts some interpretation (Purpose, Role, Used By)"
+    related_artifacts:
+      - "docs/fact/discovery/repo-understanding.vN.md"
+    proposed_resolution: "FACT = observable structure, SEMANTIC = abstraction and intent"
+
+# ============================================================================
+# ASSUMPTIONS
+# ============================================================================
+
+assumptions:
+  - assumption: "Architect feedback is authoritative"
+    rationale: "Human corrections override agent extractions"
+    confidence: "high"
+
+  - assumption: "Baseline is immutable after acceptance"
+    rationale: "Semantic layer needs stable input"
+    confidence: "high"
+
+  - assumption: "Evidence refs are sufficient for traceability"
+    rationale: "File:line references enable verification"
+    confidence: "high"
+
+  - assumption: "Versioned artifacts enable iterative refinement"
+    rationale: "Multiple versions allow correction cycles"
+    confidence: "high"
+
+  - assumption: "Schema validation prevents structural drift"
+    rationale: "Schemas enforce contracts across pipeline"
+    confidence: "medium"
+
+# ============================================================================
+# CONFIDENCE RATINGS SUMMARY
+# ============================================================================
+
+confidence_summary:
+  high_confidence_facts:
+    - "Repository structure (modules, entrypoints, config)"
+    - "Execution flows (discover → review → refine → baseline)"
+    - "Artifact versioning mechanism"
+    - "Evidence traceability"
+    - "Acceptance gate enforcement"
+
+  medium_confidence_facts:
+    - "Domain boundary proposals"
+    - "Module relationship interpretation"
+    - "Concept role assignments"
+
+  low_confidence_facts:
+    - "Future semantic layer design"
+    - "Future demand layer design"
+
+# ============================================================================
+# NEXT STEPS RECOMMENDATIONS
+# ============================================================================
+
+next_steps:
+  - step: "Stabilize FACT baseline"
+    rationale: "Ensure fact extraction is reliable and complete"
+    priority: "high"
+
+  - step: "Define Semantic layer contract"
+    rationale: "Specify semantic abstraction inputs/outputs"
+    priority: "medium"
+
+  - step: "Separate canonical from working summary"
+    rationale: "Improve FACT purity for semantic consumption"
+    priority: "medium"
+
+  - step: "Freeze canonical schema"
+    rationale: "Prevent breaking changes to semantic input"
+    priority: "medium"

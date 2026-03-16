@@ -1,5 +1,7 @@
 # FACT Naming Mapping
 
+**Updated**: 2026-03-16 - Added canonical/working summary split
+
 ## 1. Why Current Pipeline = FACT Layer Only
 
 ### Current Reality
@@ -11,6 +13,10 @@ The existing `discover → review → refine → baseline` pipeline operates **e
 3. **refine** patches facts based on corrections
 4. **baseline** synthesizes accepted facts into canonical form
 
+**As of 2026-03-16**: FACT outputs are split into:
+- **Canonical facts** (`fact_canonical_sample.yaml`) - Observable facts only
+- **Working summary** (`fact_working_summary_sample.yaml`) - Interpretation and analysis
+
 ### What's Missing
 
 - **No semantic layer**: Current pipeline does not abstract facts into "semantic intent", "behavioral contracts", or "domain models"
@@ -18,7 +24,7 @@ The existing `discover → review → refine → baseline` pipeline operates **e
 
 ### Why This Matters
 
-Calling the current pipeline "semantic" is misleading. It's a **fact extraction and validation system**, not a semantic modeling system.
+Calling the current pipeline "semantic" is misleading. It's a **fact extraction and validation system**, not a semantic modeling system. The split into canonical/working summary improves clarity and semantic input quality.
 
 ---
 
@@ -216,5 +222,105 @@ Semantic layer will NOT read:
 **Current pipeline = FACT only.**
 
 **Next step**: Stabilize FACT baseline, then design Semantic layer.
+
+**Do not**: Mix FACT and Semantic in current pipeline.
+
+---
+
+## 8. FACT Output Split (2026-03-16 Update)
+
+### 8.1 Why Split FACT Outputs
+
+**Problem**: Original `fact_expected_sample.yaml` mixed observable facts with interpretation, making it harder for semantic layer to consume pure facts.
+
+**Solution**: Split into two contracts:
+1. **Canonical facts** - Observable facts only
+2. **Working summary** - Interpretation and analysis
+
+### 8.2 Canonical vs Working Summary Mapping
+
+| Content Type | Goes To | Example |
+|--------------|---------|---------|
+| Module names, file paths | Canonical | `modules: [{name: "artifact_writer", path: "src/artifact_writer.py"}]` |
+| Function signatures | Canonical | `functions: ["write_versioned_artifact"]` |
+| Evidence refs | Canonical | `evidence: "src/artifact_writer.py:1-520"` |
+| Purpose interpretation | Working Summary | `interpreted_purpose: "Semantic understanding pipeline"` |
+| Role assignments | Working Summary | `interpreted_role: "Version control for artifacts"` |
+| Domain proposals | Working Summary | `domain_proposals: [{name: "Artifact Management"}]` |
+| Open questions | Working Summary | `open_questions: [{question: "Is X or Y?"}]` |
+
+### 8.3 New Files
+
+| File | Purpose | Status |
+|------|---------|--------|
+| `fact_canonical_sample.yaml` | Observable facts only | ✅ Created |
+| `fact_working_summary_sample.yaml` | Interpretation and analysis | ✅ Created |
+| `fact_contract_mapping.md` | Canonical/working boundary rules | ✅ Created |
+| `fact_canonical_contract.md` | Frozen canonical schema | ✅ Created |
+| `templates/fact/fact-canonical.template.yaml` | Canonical template | ✅ Created |
+| `templates/fact/fact-working-summary.template.yaml` | Working summary template | ✅ Created |
+
+### 8.4 Migration Path
+
+**Old approach** (single YAML):
+```yaml
+repo_understanding:
+  system_purpose:
+    purpose: "Semantic understanding pipeline"  # ← Mixed interpretation
+    evidence: "manifest.yaml"
+  concepts:
+    - name: "Artifact Versioning"
+      role: "Version control"  # ← Mixed interpretation
+```
+
+**New approach** (split):
+
+**Canonical** (`fact_canonical_sample.yaml`):
+```yaml
+modules:
+  - name: "artifact_writer"
+    path: "src/artifact_writer.py"
+    functions: ["write_versioned_artifact"]
+    evidence: "src/artifact_writer.py:1-520"
+```
+
+**Working Summary** (`fact_working_summary_sample.yaml`):
+```yaml
+system_purpose:
+  interpreted_purpose: "Semantic understanding pipeline"
+  evidence_refs: ["manifest.yaml"]
+
+concepts:
+  - name: "Artifact Versioning"
+    interpreted_role: "Version control for generated artifacts"
+    confidence: "high"
+```
+
+### 8.5 Impact on Current Pipeline
+
+**No runtime changes**: The `discover → review → refine → baseline` pipeline behavior is unchanged.
+
+**Documentation only**: This split affects only:
+- Sample files in `docs/semantic-foundation/fact/`
+- Templates in `templates/fact/`
+- Contract documentation
+
+**Future work**: Runtime pipeline may eventually generate both canonical and working summary outputs, but that's not implemented yet.
+
+---
+
+## 9. Summary (Updated)
+
+| Layer | Current Status | Input | Output | Purpose |
+|-------|---------------|-------|--------|---------|
+| **FACT** | ✅ Implemented | Repository | `baseline/*.md` + canonical/working split | Extract and validate observable facts |
+| **Semantic** | ❌ Not implemented | Canonical facts | `semantic-model/*.yaml` | Abstract facts into meaning and intent |
+| **Demand** | ❌ Not implemented | `semantic-model/*.yaml` + Change request | `demand-analysis/*.md` | Analyze what should change |
+
+**Current pipeline = FACT only.**
+
+**FACT outputs = Split into canonical + working summary (documentation level).**
+
+**Next step**: Semantic layer can now consume canonical facts without filtering interpretation.
 
 **Do not**: Mix FACT and Semantic in current pipeline.

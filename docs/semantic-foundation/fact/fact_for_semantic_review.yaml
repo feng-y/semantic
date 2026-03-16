@@ -1,0 +1,114 @@
+review_target: fact_as_semantic_input
+review_date: 2026-03-16
+reviewer: claude-opus-4.6
+
+reviewed_files:
+  - docs/semantic-foundation/fact/fact_expected_sample.md
+  - docs/semantic-foundation/fact/fact_expected_sample.yaml
+  - docs/semantic-foundation/fact/fact_naming_mapping.md
+
+overall_status: pass_with_gaps
+
+input_readiness:
+  canonical_purity: partial
+  structure_stability: pass
+  need_for_canonical_working_split: medium
+  semantic_minimum_input_completeness: pass
+
+strengths:
+  - "Strong evidence traceability: Every claim backed by file paths, line numbers, or commands"
+  - "Clear versioning model: All discovery artifacts are versioned (vN.md), baseline is immutable"
+  - "Well-defined schemas: 10 schema files define structural contracts for all artifacts"
+  - "Observable-first design: repo_facts focuses on modules, entrypoints, entities, config"
+  - "Confidence metadata: knowledge_confidence provides trust ratings per claim"
+  - "Baseline checkpoint: checkpoint.json tracks source versions and feedback hash"
+  - "Agent-consumable structure: YAML format with clear field hierarchy"
+  - "Complete pipeline coverage: discover → review → refine → baseline fully mapped"
+
+gaps:
+  - "Canonical contains interpretation: repo_understanding includes 'Purpose', 'Role', 'Used By' which are semantic-level abstractions"
+  - "Domain candidates are mixed: domain_candidates in canonical, but domain identification is semantic work"
+  - "Working summary not fully separated: review-summary.v1.md is stub, unclear what goes into working vs canonical"
+  - "Confidence is metadata but mixed with facts: knowledge_confidence is separate artifact, but confidence ratings appear in repo_understanding"
+  - "Open Questions in canonical: repo_understanding.schema.md includes 'Open Questions' which is working summary content"
+  - "No explicit canonical/working split: fact_expected_sample.yaml combines everything, no separate working_summary.yaml"
+
+blocking_issues:
+  - "None: Current FACT output is sufficient for semantic layer to start"
+
+recommended_actions:
+  - action: separate
+    target: repo_understanding
+    reason: "Split 'Purpose/Role/Used By' interpretation into working summary, keep only observable structure in canonical"
+
+  - action: separate
+    target: domain_candidates
+    reason: "Move domain identification to working summary, canonical should only contain module/entrypoint boundaries"
+
+  - action: clarify
+    target: confidence_placement
+    reason: "Decide whether confidence is inline metadata or separate artifact (currently both)"
+
+  - action: separate
+    target: open_questions
+    reason: "Move 'Open Questions' from repo_understanding to review_summary (working summary)"
+
+  - action: freeze_contract
+    target: canonical_schema
+    reason: "Define strict canonical schema with only observable facts (modules, entrypoints, config, evidence)"
+
+  - action: add_mapping
+    target: canonical_to_working
+    reason: "Document which fields go to canonical vs working summary"
+
+decisions:
+  can_enter_semantic: true
+  should_split_fact_yaml: true
+  proposed_future_files:
+    - fact_canonical_sample.yaml
+    - fact_working_summary_sample.yaml
+
+split_rationale:
+  why_split: "Current fact_expected_sample.yaml mixes observable facts with interpretation (Purpose, Role, Used By, domain candidates, open questions)"
+  canonical_should_contain:
+    - "Module names, file paths, function signatures"
+    - "Entrypoint definitions, execution flows"
+    - "Configuration values, build system facts"
+    - "Evidence refs (file:line)"
+    - "Version metadata, checkpoint data"
+  working_summary_should_contain:
+    - "System purpose interpretation"
+    - "Domain boundary proposals"
+    - "Concept role assignments"
+    - "Pipeline relationship analysis"
+    - "Open questions for architect"
+    - "Assumptions and uncertainties"
+  split_benefit: "Clearer separation improves semantic input quality and FACT purity"
+  split_urgency: "Medium - not blocking semantic start, but improves long-term maintainability"
+
+semantic_readiness_details:
+  minimum_input_present:
+    - "Observable repository structure: modules, entrypoints, entities, config"
+    - "Execution flows: pipeline definitions with inputs/outputs"
+    - "Evidence refs: file paths and line numbers for all claims"
+    - "Baseline checkpoint: source version traceability"
+    - "Accepted baseline: purpose, pipelines, domains, concepts (even if mixed with interpretation)"
+    - "Review artifacts: architect-feedback, review-summary"
+
+  sufficient_for_semantic_start:
+    - "Semantic layer can consume current baseline/*.md as-is"
+    - "Semantic layer can extract observable facts and ignore interpretation"
+    - "Semantic layer can build semantic model on top of current FACT output"
+    - "Gaps are about FACT purity, not semantic input completeness"
+
+  non_blocking_gaps:
+    - "Interpretation mixed in canonical: Semantic can filter this out"
+    - "Working summary not separated: Semantic doesn't need working summary"
+    - "Confidence placement unclear: Semantic can use either source"
+
+notes:
+  - "Current FACT output is 'good enough' for semantic to start"
+  - "Recommended actions improve FACT purity, but are not blockers"
+  - "Semantic layer should consume baseline/*.md as primary input"
+  - "Semantic layer should ignore working summary artifacts (review-summary, open questions)"
+  - "Future FACT refinement can tighten canonical purity without breaking semantic"

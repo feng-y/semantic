@@ -1,0 +1,380 @@
+# FACT Canonical Sample - Observable Facts Only
+# This contains ONLY observable, evidence-backed facts
+# No interpretation, no semantic abstraction, no domain proposals
+# Generated: 2026-03-16
+# Source: semantic-harness repository structure
+
+fact_layer_version: "1.0"
+fact_type: "canonical"
+
+# ============================================================================
+# REPOSITORY IDENTITY (Observable Metadata)
+# ============================================================================
+
+repo_identity:
+  name: "semantic-harness"
+  type: "claude-code-plugin"
+  primary_language: "python"
+  build_system: "pip"
+  evidence:
+    - "manifest.yaml:target=claude-code"
+    - "pyproject.toml:[project] section"
+
+# ============================================================================
+# MODULES (Observable Code Structure)
+# ============================================================================
+
+modules:
+  - name: "artifact_writer"
+    path: "src/artifact_writer.py"
+    functions:
+      - "write_versioned_artifact"
+      - "get_latest_working_version_path"
+      - "safe_write_artifact"
+      - "commit_staged"
+      - "write_semantic_snapshot"
+    evidence: "src/artifact_writer.py:1-520"
+
+  - name: "context_builder"
+    path: "src/context_builder.py"
+    functions:
+      - "build_context"
+      - "build_baseline_context"
+      - "build_refine_context"
+    evidence: "src/context_builder.py:1-180"
+
+  - name: "discovery_executor"
+    path: "src/discovery_executor.py"
+    functions:
+      - "run_discovery"
+      - "_execute_sampling_step"
+      - "_execute_facts_step"
+      - "_execute_understanding_step"
+    evidence: "src/discovery_executor.py:1-350"
+
+  - name: "refine_executor"
+    path: "src/refine_executor.py"
+    functions:
+      - "run_refine"
+      - "evaluate_acceptance"
+      - "_execute_staged_patches"
+      - "_execute_baseline_step"
+    evidence: "src/refine_executor.py:1-720"
+
+  - name: "dispatcher"
+    path: "src/dispatcher.py"
+    functions:
+      - "dispatch_command"
+    evidence: "src/dispatcher.py:1-120"
+
+  - name: "state_inspector"
+    path: "src/state_inspector.py"
+    functions:
+      - "inspect_semantic_state"
+      - "check_semantic_snapshot"
+    evidence: "src/state_inspector.py:1-250"
+
+  - name: "artifact_validation"
+    path: "src/artifact_validation.py"
+    functions:
+      - "validate_repo_facts"
+      - "validate_repo_understanding"
+      - "validate_baseline_files"
+    evidence: "src/artifact_validation.py:1-180"
+
+  - name: "change_analysis_generation"
+    path: "src/change_analysis_generation.py"
+    functions:
+      - "generate_change_analysis"
+    evidence: "src/change_analysis_generation.py:1-120"
+
+  - name: "change_analysis_validation"
+    path: "src/change_analysis_validation.py"
+    functions:
+      - "validate_change_analysis"
+    evidence: "src/change_analysis_validation.py:1-80"
+
+  - name: "baseline_synthesis"
+    path: "src/baseline_synthesis.py"
+    functions:
+      - "synthesize_baseline"
+    evidence: "src/baseline_synthesis.py:1-150"
+
+  - name: "host_executor"
+    path: "src/host_executor.py"
+    classes:
+      - "HostExecutor"
+    evidence: "src/host_executor.py:1-50"
+
+  - name: "sampling_strategy"
+    path: "src/sampling_strategy.py"
+    functions:
+      - "select_files"
+    evidence: "src/sampling_strategy.py:1-100"
+
+  - name: "confidence_assessment"
+    path: "src/confidence_assessment.py"
+    functions:
+      - "assess_confidence"
+    evidence: "src/confidence_assessment.py:1-80"
+
+  - name: "domain_extraction"
+    path: "src/domain_extraction.py"
+    functions:
+      - "extract_domains"
+    evidence: "src/domain_extraction.py:1-90"
+
+# ============================================================================
+# ENTRYPOINTS (Observable Execution Paths)
+# ============================================================================
+
+entrypoints:
+  - name: "semantic-init"
+    type: "skill"
+    location: "skills/semantic-init.skill"
+    command: "init"
+    evidence: "skills/semantic-init.skill:command=init"
+
+  - name: "semantic-discover"
+    type: "skill"
+    location: "skills/semantic-discover.skill"
+    command: "discover"
+    evidence: "skills/semantic-discover.skill:command=discover"
+
+  - name: "semantic-review"
+    type: "skill"
+    location: "skills/semantic-review.skill"
+    command: "review"
+    evidence: "skills/semantic-review.skill:command=review"
+
+  - name: "semantic-refine"
+    type: "skill"
+    location: "skills/semantic-refine.skill"
+    command: "refine"
+    evidence: "skills/semantic-refine.skill:command=refine"
+
+  - name: "semantic-baseline"
+    type: "skill"
+    location: "skills/semantic-baseline.skill"
+    command: "baseline"
+    evidence: "skills/semantic-baseline.skill:command=baseline"
+
+  - name: "semantic-status"
+    type: "skill"
+    location: "skills/semantic-status.skill"
+    command: "status"
+    evidence: "skills/semantic-status.skill:command=status"
+
+  - name: "semantic-reset"
+    type: "skill"
+    location: "skills/semantic-reset.skill"
+    command: "reset"
+    evidence: "skills/semantic-reset.skill:command=reset"
+
+# ============================================================================
+# CORE ENTITIES (Observable Data Structures)
+# ============================================================================
+
+core_entities:
+  - name: "DiscoveryResult"
+    type: "dataclass"
+    defined_in: "src/discovery_executor.py"
+    fields:
+      - "status"
+      - "steps"
+      - "artifacts_written"
+      - "validation_failures"
+    evidence: "src/discovery_executor.py:@dataclass DiscoveryResult"
+
+  - name: "RefineResult"
+    type: "dataclass"
+    defined_in: "src/refine_executor.py"
+    fields:
+      - "status"
+      - "steps"
+      - "artifacts_written"
+      - "baseline_generated"
+    evidence: "src/refine_executor.py:@dataclass RefineResult"
+
+  - name: "RefineStepResult"
+    type: "dataclass"
+    defined_in: "src/refine_executor.py"
+    fields:
+      - "step_index"
+      - "action"
+      - "target"
+      - "status"
+      - "artifact_path"
+      - "errors"
+    evidence: "src/refine_executor.py:@dataclass RefineStepResult"
+
+  - name: "HostExecutor"
+    type: "protocol"
+    defined_in: "src/host_executor.py"
+    methods:
+      - "__call__"
+    evidence: "src/host_executor.py:class HostExecutor(Protocol)"
+
+# ============================================================================
+# CONFIGURATION (Observable Config Files)
+# ============================================================================
+
+configuration:
+  - name: "manifest"
+    type: "yaml"
+    location: "manifest.yaml"
+    fields:
+      - "name"
+      - "version"
+      - "target"
+      - "skills"
+    evidence: "manifest.yaml:1-20"
+
+  - name: "pyproject"
+    type: "toml"
+    location: "pyproject.toml"
+    sections:
+      - "[project]"
+      - "[tool.pytest.ini_options]"
+    evidence: "pyproject.toml:1-50"
+
+# ============================================================================
+# PROMPTS (Observable Prompt Files)
+# ============================================================================
+
+prompts:
+  discover:
+    - name: "repo-sampling"
+      location: "prompts/discover/repo-sampling.prompt"
+      evidence: "prompts/discover/repo-sampling.prompt:1-50"
+
+    - name: "repo-facts"
+      location: "prompts/discover/repo-facts.prompt"
+      evidence: "prompts/discover/repo-facts.prompt:1-80"
+
+    - name: "repo-understanding"
+      location: "prompts/discover/repo-understanding.prompt"
+      evidence: "prompts/discover/repo-understanding.prompt:1-100"
+
+    - name: "knowledge-confidence"
+      location: "prompts/discover/knowledge-confidence.prompt"
+      evidence: "prompts/discover/knowledge-confidence.prompt:1-70"
+
+    - name: "domain-candidates"
+      location: "prompts/discover/domain-candidates.prompt"
+      evidence: "prompts/discover/domain-candidates.prompt:1-60"
+
+    - name: "review-summary"
+      location: "prompts/discover/review-summary.prompt"
+      evidence: "prompts/discover/review-summary.prompt:1-90"
+
+  refine:
+    - name: "semantic-refine.patch"
+      location: "prompts/refine/semantic-refine.patch.prompt"
+      evidence: "prompts/refine/semantic-refine.patch.prompt:1-120"
+
+    - name: "semantic-change-log"
+      location: "prompts/refine/semantic-change-log.prompt"
+      evidence: "prompts/refine/semantic-change-log.prompt:1-50"
+
+    - name: "baseline-synthesis"
+      location: "prompts/refine/baseline-synthesis.prompt"
+      evidence: "prompts/refine/baseline-synthesis.prompt:1-150"
+
+  validation:
+    - name: "validate-artifact"
+      location: "prompts/validation/validate-artifact.prompt"
+      evidence: "prompts/validation/validate-artifact.prompt:1-40"
+
+# ============================================================================
+# SCHEMAS (Observable Schema Files)
+# ============================================================================
+
+schemas:
+  - name: "repo-facts"
+    location: "docs/fact/schemas/repo-facts.schema.md"
+    evidence: "docs/fact/schemas/repo-facts.schema.md:1-30"
+
+  - name: "repo-understanding"
+    location: "docs/fact/schemas/repo-understanding.schema.md"
+    evidence: "docs/fact/schemas/repo-understanding.schema.md:1-40"
+
+  - name: "knowledge-confidence"
+    location: "docs/fact/schemas/knowledge-confidence.schema.md"
+    evidence: "docs/fact/schemas/knowledge-confidence.schema.md:1-25"
+
+  - name: "domain-candidates"
+    location: "docs/fact/schemas/domain-candidates.schema.md"
+    evidence: "docs/fact/schemas/domain-candidates.schema.md:1-20"
+
+  - name: "review-summary"
+    location: "docs/fact/schemas/review-summary.schema.md"
+    evidence: "docs/fact/schemas/review-summary.schema.md:1-20"
+
+  - name: "architect-feedback"
+    location: "docs/fact/schemas/architect-feedback.schema.md"
+    evidence: "docs/fact/schemas/architect-feedback.schema.md:1-15"
+
+  - name: "purpose"
+    location: "docs/fact/schemas/purpose.schema.md"
+    evidence: "docs/fact/schemas/purpose.schema.md:1-15"
+
+  - name: "pipelines"
+    location: "docs/fact/schemas/pipelines.schema.md"
+    evidence: "docs/fact/schemas/pipelines.schema.md:1-20"
+
+  - name: "domains"
+    location: "docs/fact/schemas/domains.schema.md"
+    evidence: "docs/fact/schemas/domains.schema.md:1-15"
+
+  - name: "concepts"
+    location: "docs/fact/schemas/concepts.schema.md"
+    evidence: "docs/fact/schemas/concepts.schema.md:1-15"
+
+# ============================================================================
+# BASELINE CHECKPOINT (Observable Metadata)
+# ============================================================================
+
+baseline_checkpoint:
+  location: "docs/fact/baseline/checkpoint.json"
+  fields:
+    - "timestamp"
+    - "source_versions"
+    - "baseline_files"
+    - "feedback_hash"
+  evidence: "src/refine_executor.py:_write_baseline_checkpoint()"
+
+# ============================================================================
+# ARTIFACT DIRECTORIES (Observable File Structure)
+# ============================================================================
+
+artifact_directories:
+  - path: "docs/fact/discovery"
+    purpose: "Versioned discovery artifacts"
+    evidence: "directory listing"
+
+  - path: "docs/fact/review"
+    purpose: "Review artifacts"
+    evidence: "directory listing"
+
+  - path: "docs/fact/baseline"
+    purpose: "Accepted baseline artifacts"
+    evidence: "directory listing"
+
+  - path: "docs/fact/schemas"
+    purpose: "Artifact schema definitions"
+    evidence: "directory listing"
+
+# ============================================================================
+# METADATA
+# ============================================================================
+
+metadata:
+  generated_date: "2026-03-16"
+  source_repo: "semantic-harness"
+  fact_type: "canonical"
+  contains_interpretation: false
+  contains_semantic_abstraction: false
+  contains_domain_proposals: false
+  evidence_backed: true
+  agent_consumable: true
