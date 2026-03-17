@@ -183,6 +183,12 @@ def _handle_reset(root: Path, **kwargs: Any) -> dict[str, Any]:
                     f.unlink()
                     removed.append(str(f.relative_to(root)))
 
+    # Clear current FACT snapshot
+    fact_snap = root / "docs" / "fact" / "semantic_snapshot.json"
+    if fact_snap.exists():
+        fact_snap.unlink()
+        removed.append(str(fact_snap.relative_to(root)))
+
     # Legacy cleanup: also clear old semantic paths if they exist
     for d in ("discovery", "review"):
         dd = root / "docs" / "semantic" / d
