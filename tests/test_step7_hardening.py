@@ -252,10 +252,33 @@ class TestSchemaAlignment:
 
     def test_validate_refined_artifact_schema_sections(self) -> None:
         """validate_refined_artifact checks for schema-defined sections."""
-        good_ru = "# repo-understanding\n\n## System Purpose\nA system.\n"
+        good_ru = """# repo-understanding
+
+## System Purpose
+A system.
+
+## Pipelines
+Pipeline info.
+
+## Concepts
+Concept info.
+
+## Candidate Domains
+Domain info.
+"""
         assert validate_refined_artifact(good_ru, "repo-understanding") == []
 
-        good_kc = "# kc\n\n## Confirmed Knowledge\nSomething confirmed.\n"
+        good_kc = """# kc
+
+## Confirmed Knowledge
+Something confirmed.
+
+## Inferred Knowledge
+Something inferred.
+
+## Uncertain Knowledge
+Something uncertain.
+"""
         assert validate_refined_artifact(good_kc, "knowledge-confidence") == []
 
         bad_ru = "# repo-understanding\n\n## Evidence\nOld style.\n"

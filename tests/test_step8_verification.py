@@ -538,8 +538,16 @@ class TestGlobalInvariants:
 
     def test_inv4_validation_is_structural(self) -> None:
         """Validation checks heading structure, not content semantics."""
-        # Has correct heading but nonsense content → passes
-        content = "## System Purpose\nxyzzy gibberish 12345\n"
+        # Has all required headings but nonsense content → passes
+        content = """## System Purpose
+xyzzy gibberish 12345
+## Pipelines
+nonsense
+## Concepts
+more nonsense
+## Candidate Domains
+gibberish
+"""
         assert validate_refined_artifact(content, "repo-understanding") == []
 
         # Has meaningful content but wrong heading → fails
