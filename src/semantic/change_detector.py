@@ -44,11 +44,14 @@ class ChangeDetector:
 
     def compute_file_hash(self, file_path: Path) -> str:
         """Compute SHA256 hash of file contents"""
-        sha256 = hashlib.sha256()
-        with open(file_path, 'rb') as f:
-            for chunk in iter(lambda: f.read(8192), b''):
-                sha256.update(chunk)
-        return sha256.hexdigest()
+        try:
+            sha256 = hashlib.sha256()
+            with open(file_path, 'rb') as f:
+                for chunk in iter(lambda: f.read(8192), b''):
+                    sha256.update(chunk)
+            return sha256.hexdigest()
+        except (FileNotFoundError, PermissionError):
+            return ""
 
     def load_state(self) -> Dict[str, str]:
         """Load previous file hashes from state file"""
