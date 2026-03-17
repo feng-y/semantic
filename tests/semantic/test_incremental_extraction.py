@@ -246,7 +246,7 @@ def test_cache_clear_forces_full_extraction(tmp_path, fact_files):
 
     # Stats should show zero entries
     stats = cache.get_cache_stats()
-    assert stats['cache_entries'] == 0
+    assert stats['indexed_files'] == 0
 
 
 def test_performance_cache_vs_extraction(tmp_path, fact_files):
@@ -307,6 +307,7 @@ def test_incremental_with_file_removal(tmp_path, fact_files):
 def test_incremental_with_new_file(tmp_path, fact_files):
     """Test incremental extraction when new files are added"""
     state_file = tmp_path / "state.json"
+    cache_dir = tmp_path / "cache"
 
     # First run
     detector1 = ChangeDetector(fact_files, cache_dir)
@@ -333,13 +334,30 @@ def test_cache_invalidation_workflow(tmp_path, fact_files):
 
     canonical_path = fact_files / "fact_canonical_sample.yaml"
 
-    # Cache multiple versions
-    cache.store_signals(canonical_path, "hash1", {'version': 1})
-    cache.store_signals(canonical_path, "hash2", {'version': 2})
+    # Cache first version
+    signals_v1 = {
+        'domain_signals': [{'signal_type': 'v1'}],
+        'concept_signals': [],
+        'rule_signals': [],
+        'demand_pattern_signals': []
+    }
+    cache.store_signals(canonical_path, "hash1", signals_v1)
 
-    # Verify both cached
-    assert cache.get_cached_signals(canonical_path, "hash1") is not None
-    assert cache.get_cached_signals(canonical_path, "hash2") is not None
+    # Verify first version cached
+    assert cache.get_cached_signals(canonical_path, "hash1") == signals_v1
+
+    # Cache second version (should replace first in index)
+    signals_v2 = {
+        'domain_signals': [{'signal_type': 'v2'}],
+        'concept_signals': [],
+        'rule_signals': [],
+        'demand_pattern_signals': []
+    }
+    cache.store_signals(canonical_path, "hash2", signals_v2)
+
+    # Only latest version should be retrievable via index
+    assert cache.get_cached_signals(canonical_path, "hash1") is None
+    assert cache.get_cached_signals(canonical_path, "hash2") == signals_v2
 
     # Invalidate all versions for this file
     cache.invalidate_file(canonical_path)
@@ -380,8 +398,13 @@ def test_merge_signals_empty_cached(tmp_path):
     """Test merging with empty cached signals"""
     cache = SignalCache(tmp_path)
 
-    new_signals = [{'signal_type': 'new1'}]
-    merged = cache.merge_signals([], new_signals)
+    new_signals = {
+        'domain_signals': [{'signal_type': 'new1'}],
+        'concept_signals': [],
+        'rule_signals': [],
+        'demand_pattern_signals': []
+    }
+    merged = cache.merge_signals({}, new_signals)
 
     assert merged == new_signals
 
@@ -390,8 +413,13 @@ def test_merge_signals_empty_new(tmp_path):
     """Test merging with empty new signals"""
     cache = SignalCache(tmp_path)
 
-    cached_signals = [{'signal_type': 'cached1'}]
-    merged = cache.merge_signals(cached_signals, [])
+    cached_signals = {
+        'domain_signals': [{'signal_type': 'cached1'}],
+        'concept_signals': [],
+        'rule_signals': [],
+        'demand_pattern_signals': []
+    }
+    merged = cache.merge_signals(cached_signals, {})
 
     assert merged == cached_signals
 
@@ -399,6 +427,7 @@ def test_merge_signals_empty_new(tmp_path):
 def test_state_persistence_across_runs(tmp_path, fact_files):
     """Test that state persists correctly across multiple runs"""
     state_file = tmp_path / "state.json"
+    cache_dir = tmp_path / "cache"
 
     # Run 1
     detector1 = ChangeDetector(fact_files, cache_dir)
@@ -438,6 +467,7 @@ def test_cache_stats_accuracy(tmp_path, fact_files):
 def test_concurrent_file_changes(tmp_path, fact_files):
     """Test handling multiple file changes in one run"""
     state_file = tmp_path / "state.json"
+    cache_dir = tmp_path / "cache"
 
     # First run
     detector1 = ChangeDetector(fact_files, cache_dir)
@@ -546,7 +576,7 @@ def test_error_handling_corrupted_cache(tmp_path):
 
     # Create corrupted cache file
     cache_key = cache._get_cache_key(Path("/test.yaml"), "hash123")
-    cache_path = cache._get_cache_path(cache_key)
+    cache_path = cache._get_signal_file(cache_key)
 
     cache_path.write_text("{ invalid json")
 
@@ -557,7 +587,9 @@ def test_error_handling_corrupted_cache(tmp_path):
 
 def test_error_handling_corrupted_state(tmp_path, fact_files):
     """Test handling of corrupted state file"""
-    state_file = tmp_path / "state.json"
+    cache_dir = tmp_path / "cache"
+    state_file = cache_dir / "change_state.json"
+    cache_dir.mkdir(parents=True, exist_ok=True)
 
     # Create corrupted state file
     state_file.write_text("{ invalid json")
@@ -568,4 +600,4 @@ def test_error_handling_corrupted_state(tmp_path, fact_files):
 
     # Should treat as first run
     assert len(changes['added']) == 2
-    assert len(detector.previous_state) == 0
+    assert len(detector.load_state()) == 0

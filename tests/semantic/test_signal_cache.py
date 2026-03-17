@@ -121,20 +121,31 @@ def test_cache_entry_structure(tmp_path):
 
     cache.store_signals(file_path, file_hash, signals)
 
-    # Read cache file directly
+    # Read signal file directly
     cache_key = cache._get_cache_key(file_path, file_hash)
-    cache_path = cache._get_cache_path(cache_key)
+    signal_file = cache._get_signal_file(cache_key)
 
-    with open(cache_path, 'r') as f:
-        entry = json.load(f)
+    assert signal_file.exists()
 
-    assert 'file_path' in entry
+    with open(signal_file, 'r') as f:
+        stored_signals = json.load(f)
+
+    # Verify signals are stored correctly
+    assert stored_signals == signals
+
+    # Verify index entry structure
+    index = cache.load_index()
+    file_key = str(file_path)
+    assert file_key in index
+
+    entry = index[file_key]
     assert 'file_hash' in entry
-    assert 'signals' in entry
+    assert 'cache_key' in entry
     assert 'cached_at' in entry
-    assert entry['file_path'] == str(file_path)
+    assert 'signal_file' in entry
+
     assert entry['file_hash'] == file_hash
-    assert entry['signals'] == signals
+    assert entry['cache_key'] == cache_key
 
 
 def test_cache_timestamp(tmp_path):
@@ -149,12 +160,10 @@ def test_cache_timestamp(tmp_path):
     cache.store_signals(file_path, file_hash, signals)
     after = datetime.now(timezone.utc)
 
-    # Read cache file
-    cache_key = cache._get_cache_key(file_path, file_hash)
-    cache_path = cache._get_cache_path(cache_key)
-
-    with open(cache_path, 'r') as f:
-        entry = json.load(f)
+    # Read index to get timestamp
+    index = cache.load_index()
+    file_key = str(file_path)
+    entry = index[file_key]
 
     cached_at = datetime.fromisoformat(entry['cached_at'])
     assert before <= cached_at <= after
@@ -168,19 +177,20 @@ def test_invalidate_cache(tmp_path):
     file_hash1 = "hash1"
     file_hash2 = "hash2"
 
-    # Store multiple versions
+    # Store first version
     cache.store_signals(file_path, file_hash1, {'v': 1})
+
+    # Store second version (overwrites first in index)
     cache.store_signals(file_path, file_hash2, {'v': 2})
 
-    # Verify both exist
-    assert cache.get_cached_signals(file_path, file_hash1) is not None
+    # Only the latest hash should be retrievable (index has one entry per file)
+    assert cache.get_cached_signals(file_path, file_hash1) is None
     assert cache.get_cached_signals(file_path, file_hash2) is not None
 
     # Invalidate
     cache.invalidate_file(file_path)
 
-    # Both should be gone
-    assert cache.get_cached_signals(file_path, file_hash1) is None
+    # Should be gone
     assert cache.get_cached_signals(file_path, file_hash2) is None
 
 
@@ -230,7 +240,8 @@ def test_stats_empty_cache(tmp_path):
 
     stats = cache.get_cache_stats()
 
-    assert stats['cache_entries'] == 0
+    assert stats['indexed_files'] == 0
+    assert stats['cached_signal_files'] == 0
     assert stats['total_size_bytes'] == 0
     assert stats['cache_dir'] == str(tmp_path)
 
@@ -245,7 +256,8 @@ def test_stats_with_entries(tmp_path):
 
     stats = cache.get_cache_stats()
 
-    assert stats['cache_entries'] == 2
+    assert stats['indexed_files'] == 2
+    assert stats['cached_signal_files'] == 2
     assert stats['total_size_bytes'] > 0
     assert stats['cache_dir'] == str(tmp_path)
 
@@ -254,21 +266,27 @@ def test_merge_signals_simple(tmp_path):
     """Test simple signal merging"""
     cache = SignalCache(tmp_path)
 
-    cached = [
-        {'signal_type': 'cached1', 'file': 'file1.yaml'},
-        {'signal_type': 'cached2', 'file': 'file2.yaml'}
-    ]
+    cached = {
+        'domain_signals': [
+            {'signal_type': 'cached1', 'file': 'file1.yaml'},
+            {'signal_type': 'cached2', 'file': 'file2.yaml'}
+        ],
+        'concept_signals': []
+    }
 
-    new = [
-        {'signal_type': 'new1', 'file': 'file3.yaml'}
-    ]
+    new = {
+        'domain_signals': [
+            {'signal_type': 'new1', 'file': 'file3.yaml'}
+        ],
+        'concept_signals': []
+    }
 
     merged = cache.merge_signals(cached, new)
 
-    assert len(merged) == 3
-    assert cached[0] in merged
-    assert cached[1] in merged
-    assert new[0] in merged
+    assert len(merged['domain_signals']) == 3
+    assert cached['domain_signals'][0] in merged['domain_signals']
+    assert cached['domain_signals'][1] in merged['domain_signals']
+    assert new['domain_signals'][0] in merged['domain_signals']
 
 
 def test_merge_signals_empty_cached(tmp_path):

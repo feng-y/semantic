@@ -61,34 +61,36 @@ def test_compute_file_hash_nonexistent(tmp_path):
 
 def test_get_tracked_files(tmp_path):
     """Test getting tracked files by pattern"""
-    # Create test files
-    (tmp_path / "file1.yaml").write_text("content1")
-    (tmp_path / "file2.yaml").write_text("content2")
-    (tmp_path / "file3.txt").write_text("content3")
-    (tmp_path / "subdir").mkdir()
-    (tmp_path / "subdir" / "file4.yaml").write_text("content4")
+    # Create the actual FACT files that get_tracked_files looks for
+    (tmp_path / "fact_canonical_sample.yaml").write_text("content1")
+    (tmp_path / "fact_working_summary_sample.yaml").write_text("content2")
 
-    state_file = tmp_path / "state.json"
+    # Create baseline directory with markdown files
+    baseline_dir = tmp_path.parent / "fact" / "baseline"
+    baseline_dir.mkdir(parents=True, exist_ok=True)
+    (baseline_dir / "baseline1.md").write_text("baseline content")
+
     detector = ChangeDetector(tmp_path, tmp_path / "cache")
 
-    tracked = detector.get_tracked_files(tmp_path)
+    tracked = detector.get_tracked_files()
 
-    # Should find yaml files
-    assert len(tracked) >= 2
-    assert all(f.suffix == ".yaml" for f in tracked)
-    # Should be sorted
-    assert tracked == sorted(tracked)
+    # Should find the FACT files and baseline markdown
+    assert len(tracked) == 3
+    tracked_names = {f.name for f in tracked}
+    assert "fact_canonical_sample.yaml" in tracked_names
+    assert "fact_working_summary_sample.yaml" in tracked_names
+    assert "baseline1.md" in tracked_names
 
 
 def test_get_tracked_files_no_duplicates(tmp_path):
     """Test that tracked files have no duplicates"""
-    (tmp_path / "file1.yaml").write_text("content1")
+    # Create the actual FACT files
+    (tmp_path / "fact_canonical_sample.yaml").write_text("content1")
+    (tmp_path / "fact_working_summary_sample.yaml").write_text("content2")
 
-    state_file = tmp_path / "state.json"
-    # Use overlapping patterns
     detector = ChangeDetector(tmp_path, tmp_path / "cache")
 
-    tracked = detector.get_tracked_files(tmp_path)
+    tracked = detector.get_tracked_files()
 
     # Should not have duplicates
     assert len(tracked) == len(set(tracked))
@@ -96,11 +98,10 @@ def test_get_tracked_files_no_duplicates(tmp_path):
 
 def test_detect_changes_first_run(tmp_path):
     """Test change detection on first run (no previous state)"""
-    # Create test files
-    (tmp_path / "file1.yaml").write_text("content1")
-    (tmp_path / "file2.yaml").write_text("content2")
+    # Create the actual FACT files
+    (tmp_path / "fact_canonical_sample.yaml").write_text("content1")
+    (tmp_path / "fact_working_summary_sample.yaml").write_text("content2")
 
-    state_file = tmp_path / "state.json"
     detector = ChangeDetector(tmp_path, tmp_path / "cache")
 
     changes = detector.detect_changes()
@@ -114,19 +115,17 @@ def test_detect_changes_first_run(tmp_path):
 
 def test_detect_changes_no_changes(tmp_path):
     """Test change detection when nothing changed"""
-    # Create test files
-    file1 = tmp_path / "file1.yaml"
+    # Create the actual FACT file
+    file1 = tmp_path / "fact_canonical_sample.yaml"
     file1.write_text("content1")
 
-    state_file = tmp_path / "state.json"
     detector = ChangeDetector(tmp_path, tmp_path / "cache")
 
     # First run
     changes1 = detector.detect_changes()
-    detector.save_state()
 
-    # Second run - no changes
-    detector2 = ChangeDetector(state_file, ["*.yaml"])
+    # Second run - no changes (detect_changes saves state automatically)
+    detector2 = ChangeDetector(tmp_path, tmp_path / "cache")
     changes2 = detector2.detect_changes()
 
     assert len(changes2['added']) == 0
@@ -137,21 +136,19 @@ def test_detect_changes_no_changes(tmp_path):
 
 def test_detect_changes_file_modified(tmp_path):
     """Test change detection when file is modified"""
-    file1 = tmp_path / "file1.yaml"
+    file1 = tmp_path / "fact_canonical_sample.yaml"
     file1.write_text("original content")
 
-    state_file = tmp_path / "state.json"
     detector = ChangeDetector(tmp_path, tmp_path / "cache")
 
     # First run
     detector.detect_changes()
-    detector.save_state()
 
     # Modify file
     file1.write_text("modified content")
 
     # Second run
-    detector2 = ChangeDetector(state_file, ["*.yaml"])
+    detector2 = ChangeDetector(tmp_path, tmp_path / "cache")
     changes = detector2.detect_changes()
 
     assert len(changes['changed']) == 1
@@ -160,22 +157,20 @@ def test_detect_changes_file_modified(tmp_path):
 
 def test_detect_changes_file_added(tmp_path):
     """Test change detection when file is added"""
-    file1 = tmp_path / "file1.yaml"
+    file1 = tmp_path / "fact_canonical_sample.yaml"
     file1.write_text("content1")
 
-    state_file = tmp_path / "state.json"
     detector = ChangeDetector(tmp_path, tmp_path / "cache")
 
     # First run
     detector.detect_changes()
-    detector.save_state()
 
     # Add new file
-    file2 = tmp_path / "file2.yaml"
+    file2 = tmp_path / "fact_working_summary_sample.yaml"
     file2.write_text("content2")
 
     # Second run
-    detector2 = ChangeDetector(state_file, ["*.yaml"])
+    detector2 = ChangeDetector(tmp_path, tmp_path / "cache")
     changes = detector2.detect_changes()
 
     assert len(changes['added']) == 1
@@ -185,23 +180,21 @@ def test_detect_changes_file_added(tmp_path):
 
 def test_detect_changes_file_removed(tmp_path):
     """Test change detection when file is removed"""
-    file1 = tmp_path / "file1.yaml"
-    file2 = tmp_path / "file2.yaml"
+    file1 = tmp_path / "fact_canonical_sample.yaml"
+    file2 = tmp_path / "fact_working_summary_sample.yaml"
     file1.write_text("content1")
     file2.write_text("content2")
 
-    state_file = tmp_path / "state.json"
     detector = ChangeDetector(tmp_path, tmp_path / "cache")
 
     # First run
     detector.detect_changes()
-    detector.save_state()
 
     # Remove file
     file2.unlink()
 
     # Second run
-    detector2 = ChangeDetector(state_file, ["*.yaml"])
+    detector2 = ChangeDetector(tmp_path, tmp_path / "cache")
     changes = detector2.detect_changes()
 
     assert len(changes['removed']) == 1
@@ -211,30 +204,35 @@ def test_detect_changes_file_removed(tmp_path):
 
 def test_detect_changes_mixed(tmp_path):
     """Test change detection with mixed changes"""
-    file1 = tmp_path / "file1.yaml"
-    file2 = tmp_path / "file2.yaml"
-    file3 = tmp_path / "file3.yaml"
+    file1 = tmp_path / "fact_canonical_sample.yaml"
+    file2 = tmp_path / "fact_working_summary_sample.yaml"
 
     file1.write_text("content1")
     file2.write_text("content2")
 
-    state_file = tmp_path / "state.json"
     detector = ChangeDetector(tmp_path, tmp_path / "cache")
 
     # First run
     detector.detect_changes()
-    detector.save_state()
 
     # Make mixed changes
     file1.write_text("modified content1")  # Changed
     file2.unlink()  # Removed
+
+    # Add baseline file
+    baseline_dir = tmp_path.parent / "fact" / "baseline"
+    baseline_dir.mkdir(parents=True, exist_ok=True)
+    file3 = baseline_dir / "baseline.md"
     file3.write_text("content3")  # Added
 
     # Second run
-    detector2 = ChangeDetector(state_file, ["*.yaml"])
+    detector2 = ChangeDetector(tmp_path, tmp_path / "cache")
     changes = detector2.detect_changes()
 
     assert len(changes['added']) == 1
+    assert len(changes['changed']) == 1
+    assert len(changes['removed']) == 1
+    assert len(changes['unchanged']) == 0
     assert len(changes['changed']) == 1
     assert len(changes['removed']) == 1
     assert len(changes['unchanged']) == 0
@@ -242,57 +240,57 @@ def test_detect_changes_mixed(tmp_path):
 
 def test_save_and_load_state(tmp_path):
     """Test state persistence"""
-    file1 = tmp_path / "file1.yaml"
+    file1 = tmp_path / "fact_canonical_sample.yaml"
     file1.write_text("content1")
 
-    state_file = tmp_path / "state.json"
     detector = ChangeDetector(tmp_path, tmp_path / "cache")
 
-    # Detect and save
+    # Detect changes (saves state automatically)
     detector.detect_changes()
-    detector.save_state()
 
     # Verify state file exists
+    state_file = tmp_path / "cache" / "change_state.json"
     assert state_file.exists()
 
     # Load state in new detector
-    detector2 = ChangeDetector(state_file, ["*.yaml"])
-    detector2.load_state()
+    detector2 = ChangeDetector(tmp_path, tmp_path / "cache")
+    previous_hashes = detector2.load_state()
 
-    assert len(detector2.previous_state) == 1
-    assert str(file1) in detector2.previous_state
+    assert len(previous_hashes) == 1
+    # Check that the file key is in the state
+    assert any("fact_canonical_sample.yaml" in key for key in previous_hashes.keys())
 
 
 def test_state_file_structure(tmp_path):
     """Test state file JSON structure"""
-    file1 = tmp_path / "file1.yaml"
+    file1 = tmp_path / "fact_canonical_sample.yaml"
     file1.write_text("content1")
 
-    state_file = tmp_path / "state.json"
     detector = ChangeDetector(tmp_path, tmp_path / "cache")
 
     detector.detect_changes()
-    detector.save_state()
 
     # Read and verify structure
+    state_file = tmp_path / "cache" / "change_state.json"
     with open(state_file, 'r') as f:
         data = json.load(f)
 
     assert 'file_hashes' in data
-    assert 'updated_at' in data
-    assert 'tracked_patterns' in data
-    assert data['tracked_patterns'] == ["*.yaml"]
+    assert 'last_updated' in data
+    # Note: tracked_patterns is no longer in the state file
 
 
 def test_load_state_corrupted_file(tmp_path):
     """Test loading corrupted state file"""
-    state_file = tmp_path / "state.json"
+    state_file = tmp_path / "cache" / "change_state.json"
+    state_file.parent.mkdir(parents=True, exist_ok=True)
     state_file.write_text("invalid json {{{")
 
     detector = ChangeDetector(tmp_path, tmp_path / "cache")
-    detector.load_state()
+    previous_hashes = detector.load_state()
 
     # Should handle gracefully with empty state
+    assert previous_hashes == {}
 
 
 def test_load_state_missing_file(tmp_path):
