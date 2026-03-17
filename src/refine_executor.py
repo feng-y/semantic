@@ -309,58 +309,6 @@ def _execute_staged_patches(
     return result
 
 
-def _execute_patch_step(
-    root: Path,
-    executor: HostExecutor,
-    feedback: str,
-    *,
-    artifact_name: str = "repo-understanding",
-    step_index: int = 0,
-) -> RefineStepResult:
-    """Execute semantic-refine.patch.prompt for a specific artifact.
-
-    Reads the latest working version of the target artifact, sends it
-    with architect feedback to the host executor, validates the patched
-    output, and writes the next version.
-    """
-    prompt_path = root / "prompts" / "refine" / "semantic-refine.patch.prompt"
-    try:
-        prompt_data = prompt_loader.load_prompt(str(prompt_path))
-    except FileNotFoundError:
-        return RefineStepResult(
-            step_index=step_index, action="run",
-            target="prompts/refine/semantic-refine.patch.prompt",
-            status="error",
-            errors=["Prompt file not found"],
-        )
-
-    ctx = context_builder.build_refine_context(root, "patch", feedback=feedback)
-
-    patched = executor(
-        prompt_data["_raw"], ctx,
-        artifact_name=artifact_name,
-        sampling_mode="auto",
-    )
-
-    path, errors = artifact_writer.safe_write_artifact(
-        root, "discovery", artifact_name, patched,
-        validate_fn=validate_refined_artifact,
-    )
-
-    if errors:
-        return RefineStepResult(
-            step_index=step_index, action="run",
-            target="prompts/refine/semantic-refine.patch.prompt",
-            status="validation_failed", errors=errors,
-        )
-
-    return RefineStepResult(
-        step_index=step_index, action="run",
-        target="prompts/refine/semantic-refine.patch.prompt",
-        status="ok", artifact_path=str(path),
-    )
-
-
 def _execute_changelog_step(
     root: Path,
     executor: HostExecutor,
