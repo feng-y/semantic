@@ -1,0 +1,54 @@
+fix_target: revision_repair
+fix_date: 2026-03-17
+executor: claude-opus-4.6
+
+completed_fixes:
+  p0:
+    - "A1: Added entrypoint to semantic-review skill (src.semantic.apply_review.main)"
+    - "A2: Fixed reset to clear docs/fact paths instead of docs/semantic"
+    - "A3: Fixed context_builder to read sampling-report from docs/fact/discovery"
+    - "A4: Fixed refine changelog to write to docs/fact/review"
+    - "A5: Fixed semantic runner verify_first guard to read grouped decision structure"
+  p1:
+    - "B1: Fixed finalize to exit with code 1 when blocked"
+    - "B2: Fixed finalize to include merge actions in final assets"
+    - "B3: Added reset subcommand to CLI"
+    - "B4: Fixed semantic-review runtime mapping to point to apply_review.main"
+  p2:
+    - "C1: Fixed artifact_writer commit_staged docstring to match implementation"
+    - "C2: Replaced deprecated datetime.utcnow() with datetime.now(timezone.utc)"
+
+updated_files:
+  - path: skills/semantic-review/SKILL.md
+    reason: "Added missing entrypoint field"
+  - path: src/dispatcher.py
+    reason: "Fixed reset to use docs/fact paths, added legacy cleanup"
+  - path: src/context_builder.py
+    reason: "Fixed sampling-report path to docs/fact/discovery"
+  - path: src/refine_executor.py
+    reason: "Fixed changelog output path to docs/fact/review"
+  - path: src/semantic/run.py
+    reason: "Fixed verify_first guard to read grouped decisions and check pending evidence"
+  - path: src/semantic/finalize_assets.py
+    reason: "Added sys.exit(1) for blocked state, included merge in final assets"
+  - path: src/main.py
+    reason: "Added reset subcommand to CLI"
+  - path: tests/test_runtime_mapping_step3.py
+    reason: "Fixed semantic-review mapping to src.semantic.apply_review.main"
+  - path: src/artifact_writer.py
+    reason: "Fixed commit_staged docstring to match actual implementation"
+  - path: src/semantic/extract_signals.py
+    reason: "Replaced deprecated datetime.utcnow() with timezone-aware datetime"
+
+tests_updated:
+  - path: tests/test_skill_system_step1.py
+    reason: "Now passes - semantic-review has entrypoint"
+  - path: tests/test_runtime_mapping_step3.py
+    reason: "Updated mapping and now passes"
+
+remaining_risks:
+  - "Reset legacy cleanup may need adjustment if old paths have different structure"
+  - "Merge semantics in finalize may need refinement based on actual merge target handling"
+
+decisions:
+  revision_resolved: true

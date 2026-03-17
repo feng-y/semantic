@@ -94,27 +94,28 @@ def main():
     parser.add_argument("--checks", required=True)
     parser.add_argument("--output-dir", required=True)
     args = parser.parse_args()
-    
+
     decisions = load_yaml(Path(args.decisions))
     checks = load_yaml(Path(args.checks))
-    
+
     # Check for unresolved verifications
     unresolved = check_unresolved_verifications(checks)
     if unresolved:
         print(f"⚠ Unresolved verify_first items: {', '.join(unresolved)}")
         print("Finalization blocked. Resolve evidence checks first.")
-        return
-    
+        import sys
+        sys.exit(1)  # Exit with error code
+
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
-    
-    # Build final assets
-    domain_map = {'domains': [finalize_domain(d) for d in decisions.get('domains', []) if d['final_action'] == 'keep'], 'metadata': {'generated_at': datetime.now().isoformat()}}
-    concept_map = {'concepts': [finalize_concept(c) for c in decisions.get('concepts', []) if c['final_action'] == 'keep'], 'metadata': {'generated_at': datetime.now().isoformat()}}
-    rule_map = {'rules': [finalize_rule(r) for r in decisions.get('rules', []) if r['final_action'] == 'keep'], 'metadata': {'generated_at': datetime.now().isoformat()}}
-    demand_model_map = {'demand_models': [finalize_demand_model(dm) for dm in decisions.get('demand_models', []) if dm['final_action'] == 'keep'], 'metadata': {'generated_at': datetime.now().isoformat()}}
+
+    # Build final assets - include both 'keep' and 'merge' actions
+    domain_map = {'domains': [finalize_domain(d) for d in decisions.get('domains', []) if d['final_action'] in ('keep', 'merge')], 'metadata': {'generated_at': datetime.now().isoformat()}}
+    concept_map = {'concepts': [finalize_concept(c) for c in decisions.get('concepts', []) if c['final_action'] in ('keep', 'merge')], 'metadata': {'generated_at': datetime.now().isoformat()}}
+    rule_map = {'rules': [finalize_rule(r) for r in decisions.get('rules', []) if r['final_action'] in ('keep', 'merge')], 'metadata': {'generated_at': datetime.now().isoformat()}}
+    demand_model_map = {'demand_models': [finalize_demand_model(dm) for dm in decisions.get('demand_models', []) if dm['final_action'] in ('keep', 'merge')], 'metadata': {'generated_at': datetime.now().isoformat()}}
     change_log = build_change_log(decisions)
-    
+
     # Write outputs
     for name, data in [('domain-map', domain_map), ('concept-map', concept_map), ('rule-map', rule_map), ('demand-model-map', demand_model_map), ('change-log', change_log)]:
         yaml_path = output_dir / f"{name}.yaml"
@@ -123,7 +124,7 @@ def main():
             yaml.safe_dump(data, f, sort_keys=False)
         render_markdown(data, name.replace('-', ' ').title(), md_path)
         print(f"✓ {yaml_path}")
-    
+
     print(f"✓ Finalized {len(domain_map['domains'])} domains, {len(concept_map['concepts'])} concepts, {len(rule_map['rules'])} rules, {len(demand_model_map['demand_models'])} demand models")
 
 if __name__ == "__main__":

@@ -388,7 +388,7 @@ def _execute_changelog_step(
         sampling_mode="auto",
     )
 
-    out_path = root / "docs" / "semantic" / "review" / "semantic-change-log.md"
+    out_path = root / "docs" / "fact" / "review" / "semantic-change-log.md"
     out_path.parent.mkdir(parents=True, exist_ok=True)
     artifact_writer._atomic_write(out_path, content)
 

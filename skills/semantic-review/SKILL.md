@@ -2,6 +2,7 @@
 name: semantic-review
 version: "1.0.0"
 description: "Generate review decisions and evidence checks from recommendations. Fourth stage of semantic layer."
+entrypoint: src.semantic.apply_review.main
 triggers:
   - semantic-review
   - review recommendations

@@ -65,10 +65,29 @@ def main():
             evidence = workspace / "evidence-checks.yaml"
             if review.exists():
                 data = yaml.safe_load(review.read_text(encoding="utf-8")) or {}
-                if any(d.get("final_action") == "verify_first" for d in data.get("decisions", [])) and not evidence.exists():
-                    state["blocked_reason"] = "verify_first exists but evidence-checks.yaml is missing"
-                    save_state(state_path, state)
-                    raise SystemExit("BLOCKED")
+                # Check all decision groups for verify_first
+                has_verify_first = False
+                for group in ["domains", "concepts", "rules", "demand_models"]:
+                    decisions = data.get(group, [])
+                    if any(d.get("final_action") == "verify_first" for d in decisions):
+                        has_verify_first = True
+                        break
+
+                if has_verify_first:
+                    # Check if evidence checks exist and are resolved
+                    if not evidence.exists():
+                        state["blocked_reason"] = "verify_first exists but evidence-checks.yaml is missing"
+                        save_state(state_path, state)
+                        raise SystemExit("BLOCKED")
+
+                    # Check if any evidence checks are still pending
+                    evidence_data = yaml.safe_load(evidence.read_text(encoding="utf-8")) or {}
+                    checks = evidence_data.get("evidence_checks", [])
+                    if any(c.get("status") == "pending" for c in checks):
+                        state["blocked_reason"] = "verify_first items have unresolved evidence checks"
+                        save_state(state_path, state)
+                        raise SystemExit("BLOCKED")
+
         state["completed_stages"].append(stage)
         state["current_stage"] = stage
         save_state(state_path, state)

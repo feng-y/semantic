@@ -173,6 +173,17 @@ def _handle_reset(root: Path, **kwargs: Any) -> dict[str, Any]:
     import shutil
 
     removed: list[str] = []
+
+    # Clear current FACT working directories
+    for d in ("discovery", "review"):
+        dd = root / "docs" / "fact" / d
+        if dd.exists():
+            for f in dd.iterdir():
+                if f.is_file():
+                    f.unlink()
+                    removed.append(str(f.relative_to(root)))
+
+    # Legacy cleanup: also clear old semantic paths if they exist
     for d in ("discovery", "review"):
         dd = root / "docs" / "semantic" / d
         if dd.exists():

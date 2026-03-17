@@ -217,7 +217,8 @@ def _read_discovery_artifact(
     """Read a discovery artifact's content."""
     if versioned:
         return _read_latest_artifact(root, "discovery", name)
-    path = root / "docs" / "semantic" / "discovery" / f"{name}.md"
+    # Use current FACT path
+    path = root / "docs" / "fact" / "discovery" / f"{name}.md"
     if path.exists():
         return path.read_text()
     return None

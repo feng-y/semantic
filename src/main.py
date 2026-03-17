@@ -48,6 +48,9 @@ def main(argv: list[str] | None = None) -> int:
     # status
     sub.add_parser("status", help="Show current semantic state")
 
+    # reset
+    sub.add_parser("reset", help="Reset working state (preserves baseline and schemas)")
+
     args = parser.parse_args(argv)
 
     if args.command is None:

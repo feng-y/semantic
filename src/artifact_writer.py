@@ -301,9 +301,8 @@ def stage_artifact(
 def commit_staged(staged: list[tuple[str, str]]) -> list[Path]:
     """Write all staged artifacts to disk atomically. Called only after all validations pass.
 
-    Uses _next_version() for atomic version allocation to prevent race conditions.
-    The paths returned may differ from the staged paths if concurrent writers
-    claimed versions between staging and commit.
+    Writes directly from staged paths. Version allocation happens during staging
+    via _peek_next_version(). The paths returned match the staged paths.
     """
     written: list[Path] = []
     for target_path, content in staged:

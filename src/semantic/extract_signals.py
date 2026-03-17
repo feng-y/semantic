@@ -9,7 +9,7 @@ from pathlib import Path
 import argparse
 import yaml
 from typing import Dict, List, Any, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 
 def load_fact_canonical(fact_root: Path) -> Optional[Dict[str, Any]]:
     """Load FACT canonical YAML (primary hard input)"""
@@ -184,7 +184,7 @@ def main():
         'rule_signals': rule_signals,
         'demand_pattern_signals': demand_pattern_signals,
         'metadata': {
-            'generated_at': datetime.utcnow().isoformat() + 'Z',
+            'generated_at': datetime.now(timezone.utc).isoformat(),
             'fact_source': 'fact_canonical_sample.yaml',
             'signal_count': len(domain_signals) + len(concept_signals) + len(rule_signals) + len(demand_pattern_signals)
         }
