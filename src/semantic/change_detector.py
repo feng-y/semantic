@@ -9,6 +9,8 @@ from pathlib import Path
 from typing import Set, Optional, Dict, List
 import hashlib
 import json
+import os
+import tempfile
 from datetime import datetime, timezone
 
 
@@ -66,13 +68,16 @@ class ChangeDetector:
             return {}
 
     def save_state(self, file_hashes: Dict[str, str]):
-        """Save current file hashes to state file"""
+        """Save current file hashes to state file (atomic write)"""
         state = {
             'file_hashes': file_hashes,
             'last_updated': datetime.now(timezone.utc).isoformat()
         }
-        with open(self.state_file, 'w') as f:
-            json.dump(state, f, indent=2)
+        with tempfile.NamedTemporaryFile('w', dir=self.cache_dir, delete=False,
+                                         suffix='.tmp', encoding='utf-8') as tmp:
+            json.dump(state, tmp, indent=2)
+            tmp_path = tmp.name
+        os.replace(tmp_path, self.state_file)
 
     def detect_changes(self) -> Dict[str, List[Path]]:
         """
@@ -94,7 +99,10 @@ class ChangeDetector:
 
         # Check current files
         for file_path in tracked_files:
-            file_key = str(file_path.relative_to(self.fact_root.parent))
+            try:
+                file_key = str(file_path.relative_to(self.fact_root.parent))
+            except ValueError:
+                file_key = str(file_path)
             current_hash = self.compute_file_hash(file_path)
             current_hashes[file_key] = current_hash
 

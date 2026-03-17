@@ -9,7 +9,9 @@ from pathlib import Path
 from typing import Dict, List, Any, Optional
 import json
 import hashlib
-from datetime import datetime, timezone
+import os
+import tempfile
+from datetime import datetime, timezone, timedelta
 
 
 class SignalCache:
@@ -50,9 +52,12 @@ class SignalCache:
             return {}
 
     def save_index(self, index: Dict[str, Any]):
-        """Save cache index"""
-        with open(self.index_file, 'w', encoding='utf-8') as f:
-            json.dump(index, f, indent=2)
+        """Save cache index (atomic write)"""
+        with tempfile.NamedTemporaryFile('w', dir=self.cache_dir, delete=False,
+                                         suffix='.tmp', encoding='utf-8') as tmp:
+            json.dump(index, tmp, indent=2)
+            tmp_path = tmp.name
+        os.replace(tmp_path, self.index_file)
 
     def get_cached_signals(self, file_path: Path, file_hash: str) -> Optional[Dict[str, List[Dict[str, Any]]]]:
         """
@@ -90,7 +95,6 @@ class SignalCache:
         if self.ttl_hours > 0:
             cached_at_str = entry.get('cached_at', '')
             if cached_at_str:
-                from datetime import timedelta
                 cached_at = datetime.fromisoformat(cached_at_str)
                 age = datetime.now(timezone.utc) - cached_at
                 if age > timedelta(hours=self.ttl_hours):

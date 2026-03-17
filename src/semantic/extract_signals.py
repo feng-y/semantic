@@ -241,7 +241,7 @@ def run_incremental_extraction(fact_root: Path, cache_dir: Path, max_entries: in
             total = hits + misses
             if total > 0:
                 rate = stats.get('hit_rate', 0.0)
-                logger.info("Cache: %d hits, %d misses (%.0f%% hit rate)", hits, misses, rate * 100)
+                logger.info("Cache: %d hits, %d misses (%.0f%% hit rate)", hits, misses, rate)
             return cache.merge_signals(*cached_signals)
 
     # Report changes
@@ -286,7 +286,7 @@ def run_incremental_extraction(fact_root: Path, cache_dir: Path, max_entries: in
     cache_stats = cache.get_cache_stats()
     if cache_stats['hits'] + cache_stats['misses'] > 0:
         logger.info("Cache: %d hits, %d misses (%.1f%% hit rate)",
-                   cache_stats['hits'], cache_stats['misses'], cache_stats['hit_rate'] * 100)
+                   cache_stats['hits'], cache_stats['misses'], cache_stats['hit_rate'])
 
     return fresh_signals
 
