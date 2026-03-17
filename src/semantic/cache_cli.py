@@ -99,6 +99,28 @@ def run_clear(cache_dir: Path) -> None:
     print(f"Cleared {count} cache entries.")
 
 
+def run_validate(cache_dir: Path, repair: bool = False) -> None:
+    """Validate cache consistency and optionally repair issues."""
+    cache = SignalCache(cache_dir)
+    result = cache.validate_consistency(repair=repair)
+
+    if result['is_consistent']:
+        print("Cache is consistent.")
+        return
+
+    if result['orphaned_files']:
+        print(f"Orphaned files: {len(result['orphaned_files'])}")
+        for f in result['orphaned_files']:
+            print(f"  {f.name}")
+    if result['missing_files']:
+        print(f"Missing files: {len(result['missing_files'])}")
+    if result['corrupt_files']:
+        print(f"Corrupt files: {len(result['corrupt_files'])}")
+
+    if repair:
+        print("Repaired.")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Manage semantic signal cache")
     parser.add_argument('--cache-dir', default='.semantic-cache', help='Cache directory')
@@ -111,6 +133,9 @@ def main() -> int:
     invalidate_parser.add_argument('file', help='File path to invalidate')
 
     subparsers.add_parser('clear', help='Clear all cache entries')
+
+    validate_parser = subparsers.add_parser('validate', help='Validate cache consistency')
+    validate_parser.add_argument('--repair', action='store_true', help='Repair issues found')
 
     args = parser.parse_args()
 
@@ -128,6 +153,8 @@ def main() -> int:
         run_invalidate(cache_dir, args.file)
     elif args.command == 'clear':
         run_clear(cache_dir)
+    elif args.command == 'validate':
+        run_validate(cache_dir, repair=args.repair)
 
     return 0
 

@@ -311,6 +311,10 @@ def main():
                         help='Max cache entries (0 = unlimited)')
     parser.add_argument('--compress', action='store_true',
                         help='Enable gzip compression for cache files')
+    parser.add_argument('--validate-cache', action='store_true',
+                        help='Validate cache consistency before extraction')
+    parser.add_argument('--repair-cache', action='store_true',
+                        help='Repair cache inconsistencies (implies --validate-cache)')
     parser.add_argument('--metrics', action='store_true', help='Show timing metrics')
     parser.add_argument('--verbose', action='store_true', help='Enable debug logging')
     parser.add_argument('--quiet', action='store_true', help='Suppress non-error output')
@@ -323,6 +327,19 @@ def main():
     cache_dir = Path(args.cache_dir)
 
     metrics = MetricsCollector(enabled=args.metrics)
+
+    # Validate/repair cache if requested
+    if args.validate_cache or args.repair_cache:
+        cache = SignalCache(cache_dir, max_entries=args.cache_max_entries, ttl_hours=args.cache_ttl_hours, compress=args.compress)
+        result = cache.validate_consistency(repair=args.repair_cache)
+        if not result['is_consistent']:
+            print(f"Cache issues: {len(result['orphaned_files'])} orphaned, "
+                  f"{len(result['missing_files'])} missing, "
+                  f"{len(result['corrupt_files'])} corrupt")
+            if args.repair_cache:
+                print("Cache repaired.")
+        else:
+            print("Cache is consistent.")
 
     # Clear cache if requested
     if args.clear_cache:

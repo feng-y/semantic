@@ -13,6 +13,11 @@ import os
 import tempfile
 from datetime import datetime, timezone, timedelta
 
+try:
+    from .signal_schema import validate_signals
+except ImportError:
+    from signal_schema import validate_signals
+
 
 class SignalCache:
     """Manages file-level signal caching for incremental extraction"""
@@ -124,6 +129,10 @@ class SignalCache:
             file_hash: Hash of the file contents
             signals: Dict with signal categories
         """
+        is_valid, errors = validate_signals(signals)
+        if not is_valid:
+            raise ValueError(f"Invalid signals schema: {'; '.join(errors)}")
+
         cache_key = self._get_cache_key(file_path, file_hash)
         signal_file = self._get_signal_file(cache_key)
 
@@ -214,6 +223,83 @@ class SignalCache:
         """Reset hit/miss counters."""
         self._hits = 0
         self._misses = 0
+
+    def validate_consistency(self, repair: bool = False) -> Dict[str, Any]:
+        """
+        Validate consistency between cache index and signal files on disk.
+
+        Detects:
+        - Orphaned signal files (file on disk but not in index)
+        - Missing signal files (in index but file missing on disk)
+        - Hash mismatches (index entry exists but signal file is unreadable/corrupt)
+
+        Args:
+            repair: If True, automatically fix issues (remove orphans, remove broken index entries)
+
+        Returns:
+            Dict with keys:
+                'orphaned_files': list of Path (signal files not in index)
+                'missing_files': list of str (index keys with no signal file)
+                'corrupt_files': list of str (index keys with unreadable signal file)
+                'repaired': bool (True if repair=True and changes were made)
+                'is_consistent': bool (True if no issues found)
+        """
+        import gzip as _gzip
+
+        index = self.load_index()
+
+        # Build set of signal file paths referenced by the index
+        indexed_signal_files = set()
+        for entry in index.values():
+            sf = entry.get('signal_file', '')
+            if sf:
+                indexed_signal_files.add(Path(sf))
+
+        # Find orphaned files: on disk but not referenced by index
+        disk_files = list(self.signals_dir.glob("*.json")) + list(self.signals_dir.glob("*.json.gz"))
+        orphaned_files = [f for f in disk_files if f not in indexed_signal_files]
+
+        # Find missing and corrupt files
+        missing_files = []
+        corrupt_files = []
+        for file_key, entry in index.items():
+            sf = entry.get('signal_file', '')
+            if not sf:
+                missing_files.append(file_key)
+                continue
+            signal_path = Path(sf)
+            if not signal_path.exists():
+                missing_files.append(file_key)
+                continue
+            try:
+                if signal_path.suffix == '.gz':
+                    with _gzip.open(signal_path, 'rt', encoding='utf-8') as f:
+                        json.load(f)
+                else:
+                    with open(signal_path, 'r', encoding='utf-8') as f:
+                        json.load(f)
+            except Exception:
+                corrupt_files.append(file_key)
+
+        is_consistent = not orphaned_files and not missing_files and not corrupt_files
+        repaired = False
+
+        if repair and not is_consistent:
+            for f in orphaned_files:
+                f.unlink(missing_ok=True)
+            broken_keys = set(missing_files) | set(corrupt_files)
+            for key in broken_keys:
+                index.pop(key, None)
+            self.save_index(index)
+            repaired = True
+
+        return {
+            'orphaned_files': orphaned_files,
+            'missing_files': missing_files,
+            'corrupt_files': corrupt_files,
+            'repaired': repaired,
+            'is_consistent': is_consistent,
+        }
 
     def merge_signals(self, *signal_dicts: Dict[str, List[Dict[str, Any]]]) -> Dict[str, List[Dict[str, Any]]]:
         """
