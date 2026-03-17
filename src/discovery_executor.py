@@ -439,6 +439,8 @@ def run_discovery(
         target = step["target"]
 
         # Check timeout before each step (sampling policy)
+        # Note: Once switched to 'confirm', subsequent calls won't re-set
+        # sampling_mode_switched since the mode is already 'confirm'
         effective_mode, switched = _check_sampling_timeout(
             start_time, sampling_timeout, result.sampling_mode,
         )
