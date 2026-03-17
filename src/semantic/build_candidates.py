@@ -188,12 +188,19 @@ def main():
     parser.add_argument("--render-md", help="Path to output candidates.md")
     parser.add_argument("--cache-dir", default=".semantic-cache/stages", help="Cache directory")
     parser.add_argument("--no-cache", action="store_true", help="Bypass cache entirely")
+    parser.add_argument("--export-json", help="Path to export candidates as JSON")
+    parser.add_argument("--export-graphql", help="Path to export candidates as GraphQL schema")
     args = parser.parse_args()
 
     try:
         from semantic.stage_cache import StageCache
     except ImportError:
         from stage_cache import StageCache
+
+    try:
+        from semantic.export import export_json, export_graphql
+    except ImportError:
+        from export import export_json, export_graphql
 
     # Load signals
     signals_path = Path(args.signals)
@@ -217,6 +224,12 @@ def main():
                 yaml.safe_dump(cached, f, sort_keys=False, allow_unicode=True)
             if args.render_md:
                 render_candidates_markdown(cached, Path(args.render_md))
+            if args.export_json:
+                export_json(cached, Path(args.export_json))
+                print(f"✓ JSON export: {args.export_json}")
+            if args.export_graphql:
+                export_graphql(cached, Path(args.export_graphql))
+                print(f"✓ GraphQL schema: {args.export_graphql}")
             return 0
 
     # Extract signal groups
@@ -257,6 +270,14 @@ def main():
     # Render view output
     if args.render_md:
         render_candidates_markdown(candidates_data, Path(args.render_md))
+
+    # Export formats
+    if args.export_json:
+        export_json(candidates_data, Path(args.export_json))
+        print(f"✓ JSON export: {args.export_json}")
+    if args.export_graphql:
+        export_graphql(candidates_data, Path(args.export_graphql))
+        print(f"✓ GraphQL schema: {args.export_graphql}")
 
     # Print summary
     print(f"✓ Synthesized {candidates_data['metadata']['candidate_count']} candidates")

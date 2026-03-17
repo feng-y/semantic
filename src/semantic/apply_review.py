@@ -12,6 +12,12 @@ from typing import Dict, List, Any, Optional
 from datetime import datetime
 import hashlib
 
+try:
+    from semantic.feedback import FeedbackCollector
+    _feedback_available = True
+except ImportError:
+    _feedback_available = False
+
 def load_recommendations(recommendations_path: Path) -> Optional[Dict[str, Any]]:
     """Load recommendations.yaml (primary input)"""
     if not recommendations_path.exists():
@@ -183,6 +189,7 @@ def main():
     parser.add_argument("--output-decisions", required=True, help="Path to output review-decisions.yaml")
     parser.add_argument("--output-checks", required=True, help="Path to output evidence-checks.yaml")
     parser.add_argument("--render-md", help="Path to output review-note.md")
+    parser.add_argument("--feedback-log", default="", help="Path to JSONL feedback log (disabled if empty)")
     args = parser.parse_args()
     
     # Load recommendations
@@ -207,6 +214,30 @@ def main():
         }
     }
     
+    # Record feedback if log path is set
+    if args.feedback_log and _feedback_available:
+        _action_to_outcome = {
+            'keep': 'accepted',
+            'merge': 'accepted',
+            'drop': 'rejected',
+            'backlog': 'deferred',
+            'verify_first': 'needs_evidence',
+        }
+        collector = FeedbackCollector(Path(args.feedback_log))
+        for group in ['domains', 'concepts', 'rules', 'demand_models']:
+            item_type = group.rstrip('s')
+            for decision in decisions_data[group]:
+                outcome = _action_to_outcome.get(decision['final_action'], 'deferred')
+                collector.record(
+                    stage='review',
+                    item_type=item_type,
+                    item_id=decision['id'],
+                    item_name=decision['name'],
+                    outcome=outcome,
+                    confidence='',
+                    reason=decision.get('final_reason'),
+                )
+
     # Write decisions output
     output_decisions_path = Path(args.output_decisions)
     output_decisions_path.parent.mkdir(parents=True, exist_ok=True)

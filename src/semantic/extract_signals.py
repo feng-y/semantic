@@ -23,6 +23,16 @@ except ImportError:
     INCREMENTAL_AVAILABLE = False
 
 try:
+    from .lsp_extractor import extract_lsp_signals_from_dir
+    LSP_AVAILABLE = True
+except ImportError:
+    try:
+        from lsp_extractor import extract_lsp_signals_from_dir
+        LSP_AVAILABLE = True
+    except ImportError:
+        LSP_AVAILABLE = False
+
+try:
     from .metrics import MetricsCollector
 except ImportError:
     from metrics import MetricsCollector
@@ -315,6 +325,8 @@ def main():
                         help='Validate cache consistency before extraction')
     parser.add_argument('--repair-cache', action='store_true',
                         help='Repair cache inconsistencies (implies --validate-cache)')
+    parser.add_argument('--lsp-src-dir', type=str, default='',
+                        help='Source directory to extract LSP signals from (optional)')
     parser.add_argument('--metrics', action='store_true', help='Show timing metrics')
     parser.add_argument('--verbose', action='store_true', help='Enable debug logging')
     parser.add_argument('--quiet', action='store_true', help='Suppress non-error output')
@@ -396,6 +408,14 @@ def main():
                 'signal_count': sum(len(signals.get(k, [])) for k in ['domain_signals', 'concept_signals', 'rule_signals', 'demand_pattern_signals'])
             }
         }
+
+    # Append LSP signals if requested
+    if args.lsp_src_dir and LSP_AVAILABLE:
+        src_dir = Path(args.lsp_src_dir)
+        lsp_signals = extract_lsp_signals_from_dir(src_dir)
+        signals_data['domain_signals'].extend(lsp_signals)
+        signals_data['metadata']['signal_count'] += len(lsp_signals)
+        print(f"\u2713 LSP signals: {len(lsp_signals)} additional signals from {src_dir}")
 
     # Write canonical YAML output
     output_path.parent.mkdir(parents=True, exist_ok=True)
