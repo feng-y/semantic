@@ -1,0 +1,46 @@
+review_target: demand_analysis_steps_hardening
+
+reviewed_files:
+  - path: docs/demand/demand_analysis_steps.md
+  - path: docs/demand/demand_analysis_steps_hardening.md
+  - path: docs/demand/demand_analysis_steps_hardening.yaml
+  - path: src/demand/map_semantics.py
+  - path: tests/demand/test_map_semantics.py
+  - path: tests/demand/test_demand_card_e2e.py
+  - path: schemas/demand/demand-card.schema.json
+  - path: src/demand/build_demand_card.py
+  - path: src/demand/validate_demand_card.py
+
+overall_status: pass_with_gaps
+
+assessments:
+  synonym_alias_support: pass
+  non_literal_mapping: partial
+  test_coverage: pass
+  minimality_discipline: pass
+  consistency: pass
+
+strengths:
+  - Controlled synonym/alias support is explicit, bounded, and deterministic.
+  - Non-literal mapping behavior improved across domain/concept/rule/invariant cases.
+  - Tests now include grounded paraphrased scenarios and e2e validation.
+  - Demand Card output remains minimal and free of prohibited fields.
+
+remaining_gaps:
+  - Alias catalog is small and may under-cover unseen paraphrases.
+  - Highly indirect wording can still under-match without alias expansion.
+
+blocking_issues: []
+
+recommended_fixes:
+  - priority: medium
+    target: src/demand/map_semantics.py
+    issue: Alias coverage is limited for broader real-world wording variants.
+    recommendation: Expand alias entries incrementally from observed issue language.
+  - priority: low
+    target: tests/demand/test_map_semantics.py
+    issue: Paraphrase scenarios are improved but still compact.
+    recommendation: Add a few more controlled paraphrase fixtures for each semantic family.
+
+decisions:
+  hardening_review_passed: true

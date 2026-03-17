@@ -1,0 +1,15 @@
+hardening_target: demand_card_v1
+
+updated_files:
+  - path: src/demand/validate_demand_card.py
+    reason: Added runtime unknown-field rejection aligned with schema strictness.
+
+tests_updated:
+  - path: tests/demand/test_validate_demand_card.py
+    reason: Added explicit negative test for non-array open_questions and unknown-field failure cases.
+
+remaining_risks:
+  - Validator allow-lists must be updated together with future shape changes to avoid drift.
+
+decisions:
+  hardening_completed: true
