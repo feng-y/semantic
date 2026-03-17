@@ -370,6 +370,12 @@ def main():
     parser.add_argument("--candidates", required=True, help="Path to candidates.yaml")
     parser.add_argument("--output", required=True, help="Path to output recommendations.yaml")
     parser.add_argument("--render-md", help="Path to output recommendations.md")
+    parser.add_argument("--auto-accept", action="store_true",
+                        help="Auto-accept high-confidence recommendations")
+    parser.add_argument("--auto-accept-threshold", choices=["high", "medium"], default="high",
+                        help="Confidence threshold for auto-accept (default: high)")
+    parser.add_argument("--audit-log", type=str, default=None,
+                        help="Path to write auto-accept audit log")
     args = parser.parse_args()
 
     # Load candidates
@@ -414,6 +420,18 @@ def main():
     # Render view output
     if args.render_md:
         render_recommendations_markdown(recommendations_data, Path(args.render_md))
+
+    # Auto-accept high-confidence recommendations
+    if args.auto_accept:
+        from semantic.auto_accept import process_recommendations
+        all_recommendations = domain_recs + concept_recs + rule_recs + demand_model_recs
+        report = process_recommendations(
+            all_recommendations,
+            threshold=args.auto_accept_threshold,
+            audit_log_path=Path(args.audit_log) if args.audit_log else None,
+        )
+        print(f"Auto-accepted: {len(report.accepted)}/{report.total} ({report.acceptance_rate:.0f}%)")
+        print(f"Pending review: {len(report.pending_review)}")
 
     # Print summary
     print(f"✓ Generated {recommendations_data['metadata']['recommendation_count']} recommendations")

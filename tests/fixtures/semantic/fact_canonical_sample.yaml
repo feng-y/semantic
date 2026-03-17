@@ -1,0 +1,32 @@
+metadata:
+  version: "1.0"
+  source: "golden_fixture"
+modules:
+  - name: "core"
+    path: "src/core"
+  - name: "support"
+    path: "src/support"
+domains:
+  - name: "CoreDomain"
+    description: "Primary business domain for testing"
+    modules: ["src/core"]
+  - name: "SupportDomain"
+    description: "Supporting utilities domain"
+    modules: ["src/support"]
+concepts:
+  - name: "Entity"
+    description: "Core business entity"
+    type: "domain_concept"
+    confidence: "high"
+  - name: "Repository"
+    description: "Data access pattern"
+    type: "architectural_concept"
+    confidence: "medium"
+rules:
+  - name: "EntityValidation"
+    description: "All entities must be validated before persistence"
+    confidence: "high"
+demand_patterns:
+  - name: "CRUD Operations"
+    description: "Standard create/read/update/delete operations"
+    confidence: "medium"

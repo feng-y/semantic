@@ -1,0 +1,5 @@
+summary: "Golden fixture working summary for testing"
+key_points:
+  - "CoreDomain handles primary business logic"
+  - "SupportDomain provides utilities"
+  - "Entity is the central concept"
