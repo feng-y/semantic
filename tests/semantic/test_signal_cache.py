@@ -44,7 +44,7 @@ def test_get_cache_key_deterministic(tmp_path):
     key2 = cache._get_cache_key(file_path, file_hash)
 
     assert key1 == key2
-    assert len(key1) == 32  # MD5 hex length
+    assert len(key1) == 16  # SHA256 truncated to 16
 
 
 def test_get_cache_key_unique(tmp_path):

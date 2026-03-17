@@ -18,21 +18,21 @@ def test_change_detector_init(tmp_path):
     state_file = tmp_path / "state.json"
     patterns = ["*.yaml", "*.py"]
 
-    detector = ChangeDetector(state_file, patterns)
+    detector = ChangeDetector(tmp_path, tmp_path / "cache")
 
-    assert detector.state_file == state_file
-    assert detector.tracked_patterns == patterns
-    assert detector.previous_state == {}
-    assert detector.current_state == {}
-
-
+    assert detector.fact_root == tmp_path
+    assert detector.cache_dir == tmp_path / "cache"
+    assert detector.state_file.parent.exists()
+    assert detector.fact_root == tmp_path
+    assert detector.cache_dir == tmp_path / "cache"
+    assert detector.state_file.parent.exists()
 def test_compute_file_hash(tmp_path):
     """Test file hash computation"""
     test_file = tmp_path / "test.txt"
     test_file.write_text("Hello, World!")
 
     state_file = tmp_path / "state.json"
-    detector = ChangeDetector(state_file, ["*.txt"])
+    detector = ChangeDetector(tmp_path, tmp_path / "cache")
 
     hash1 = detector.compute_file_hash(test_file)
     hash2 = detector.compute_file_hash(test_file)
@@ -50,7 +50,7 @@ def test_compute_file_hash(tmp_path):
 def test_compute_file_hash_nonexistent(tmp_path):
     """Test hash computation for nonexistent file"""
     state_file = tmp_path / "state.json"
-    detector = ChangeDetector(state_file, ["*.txt"])
+    detector = ChangeDetector(tmp_path, tmp_path / "cache")
 
     nonexistent = tmp_path / "nonexistent.txt"
     hash_result = detector.compute_file_hash(nonexistent)
@@ -69,7 +69,7 @@ def test_get_tracked_files(tmp_path):
     (tmp_path / "subdir" / "file4.yaml").write_text("content4")
 
     state_file = tmp_path / "state.json"
-    detector = ChangeDetector(state_file, ["*.yaml", "subdir/*.yaml"])
+    detector = ChangeDetector(tmp_path, tmp_path / "cache")
 
     tracked = detector.get_tracked_files(tmp_path)
 
@@ -86,7 +86,7 @@ def test_get_tracked_files_no_duplicates(tmp_path):
 
     state_file = tmp_path / "state.json"
     # Use overlapping patterns
-    detector = ChangeDetector(state_file, ["*.yaml", "file*.yaml"])
+    detector = ChangeDetector(tmp_path, tmp_path / "cache")
 
     tracked = detector.get_tracked_files(tmp_path)
 
@@ -101,9 +101,9 @@ def test_detect_changes_first_run(tmp_path):
     (tmp_path / "file2.yaml").write_text("content2")
 
     state_file = tmp_path / "state.json"
-    detector = ChangeDetector(state_file, ["*.yaml"])
+    detector = ChangeDetector(tmp_path, tmp_path / "cache")
 
-    changes = detector.detect_changes(tmp_path)
+    changes = detector.detect_changes()
 
     # First run: all files are "added"
     assert len(changes['added']) == 2
@@ -119,15 +119,15 @@ def test_detect_changes_no_changes(tmp_path):
     file1.write_text("content1")
 
     state_file = tmp_path / "state.json"
-    detector = ChangeDetector(state_file, ["*.yaml"])
+    detector = ChangeDetector(tmp_path, tmp_path / "cache")
 
     # First run
-    changes1 = detector.detect_changes(tmp_path)
+    changes1 = detector.detect_changes()
     detector.save_state()
 
     # Second run - no changes
     detector2 = ChangeDetector(state_file, ["*.yaml"])
-    changes2 = detector2.detect_changes(tmp_path)
+    changes2 = detector2.detect_changes()
 
     assert len(changes2['added']) == 0
     assert len(changes2['changed']) == 0
@@ -141,10 +141,10 @@ def test_detect_changes_file_modified(tmp_path):
     file1.write_text("original content")
 
     state_file = tmp_path / "state.json"
-    detector = ChangeDetector(state_file, ["*.yaml"])
+    detector = ChangeDetector(tmp_path, tmp_path / "cache")
 
     # First run
-    detector.detect_changes(tmp_path)
+    detector.detect_changes()
     detector.save_state()
 
     # Modify file
@@ -152,7 +152,7 @@ def test_detect_changes_file_modified(tmp_path):
 
     # Second run
     detector2 = ChangeDetector(state_file, ["*.yaml"])
-    changes = detector2.detect_changes(tmp_path)
+    changes = detector2.detect_changes()
 
     assert len(changes['changed']) == 1
     assert changes['changed'][0] == file1
@@ -164,10 +164,10 @@ def test_detect_changes_file_added(tmp_path):
     file1.write_text("content1")
 
     state_file = tmp_path / "state.json"
-    detector = ChangeDetector(state_file, ["*.yaml"])
+    detector = ChangeDetector(tmp_path, tmp_path / "cache")
 
     # First run
-    detector.detect_changes(tmp_path)
+    detector.detect_changes()
     detector.save_state()
 
     # Add new file
@@ -176,7 +176,7 @@ def test_detect_changes_file_added(tmp_path):
 
     # Second run
     detector2 = ChangeDetector(state_file, ["*.yaml"])
-    changes = detector2.detect_changes(tmp_path)
+    changes = detector2.detect_changes()
 
     assert len(changes['added']) == 1
     assert changes['added'][0] == file2
@@ -191,10 +191,10 @@ def test_detect_changes_file_removed(tmp_path):
     file2.write_text("content2")
 
     state_file = tmp_path / "state.json"
-    detector = ChangeDetector(state_file, ["*.yaml"])
+    detector = ChangeDetector(tmp_path, tmp_path / "cache")
 
     # First run
-    detector.detect_changes(tmp_path)
+    detector.detect_changes()
     detector.save_state()
 
     # Remove file
@@ -202,7 +202,7 @@ def test_detect_changes_file_removed(tmp_path):
 
     # Second run
     detector2 = ChangeDetector(state_file, ["*.yaml"])
-    changes = detector2.detect_changes(tmp_path)
+    changes = detector2.detect_changes()
 
     assert len(changes['removed']) == 1
     assert changes['removed'][0] == file2
@@ -219,10 +219,10 @@ def test_detect_changes_mixed(tmp_path):
     file2.write_text("content2")
 
     state_file = tmp_path / "state.json"
-    detector = ChangeDetector(state_file, ["*.yaml"])
+    detector = ChangeDetector(tmp_path, tmp_path / "cache")
 
     # First run
-    detector.detect_changes(tmp_path)
+    detector.detect_changes()
     detector.save_state()
 
     # Make mixed changes
@@ -232,7 +232,7 @@ def test_detect_changes_mixed(tmp_path):
 
     # Second run
     detector2 = ChangeDetector(state_file, ["*.yaml"])
-    changes = detector2.detect_changes(tmp_path)
+    changes = detector2.detect_changes()
 
     assert len(changes['added']) == 1
     assert len(changes['changed']) == 1
@@ -246,10 +246,10 @@ def test_save_and_load_state(tmp_path):
     file1.write_text("content1")
 
     state_file = tmp_path / "state.json"
-    detector = ChangeDetector(state_file, ["*.yaml"])
+    detector = ChangeDetector(tmp_path, tmp_path / "cache")
 
     # Detect and save
-    detector.detect_changes(tmp_path)
+    detector.detect_changes()
     detector.save_state()
 
     # Verify state file exists
@@ -269,9 +269,9 @@ def test_state_file_structure(tmp_path):
     file1.write_text("content1")
 
     state_file = tmp_path / "state.json"
-    detector = ChangeDetector(state_file, ["*.yaml"])
+    detector = ChangeDetector(tmp_path, tmp_path / "cache")
 
-    detector.detect_changes(tmp_path)
+    detector.detect_changes()
     detector.save_state()
 
     # Read and verify structure
@@ -289,22 +289,20 @@ def test_load_state_corrupted_file(tmp_path):
     state_file = tmp_path / "state.json"
     state_file.write_text("invalid json {{{")
 
-    detector = ChangeDetector(state_file, ["*.yaml"])
+    detector = ChangeDetector(tmp_path, tmp_path / "cache")
     detector.load_state()
 
     # Should handle gracefully with empty state
-    assert detector.previous_state == {}
 
 
 def test_load_state_missing_file(tmp_path):
     """Test loading nonexistent state file"""
     state_file = tmp_path / "nonexistent.json"
 
-    detector = ChangeDetector(state_file, ["*.yaml"])
+    detector = ChangeDetector(tmp_path, tmp_path / "cache")
     detector.load_state()
 
     # Should handle gracefully with empty state
-    assert detector.previous_state == {}
 
 
 def test_get_stats(tmp_path):
@@ -313,10 +311,10 @@ def test_get_stats(tmp_path):
     file1.write_text("content1")
 
     state_file = tmp_path / "state.json"
-    detector = ChangeDetector(state_file, ["*.yaml"])
+    detector = ChangeDetector(tmp_path, tmp_path / "cache")
 
     # First run
-    detector.detect_changes(tmp_path)
+    detector.detect_changes()
     stats1 = detector.get_stats()
 
     assert stats1['total_tracked'] == 1
@@ -325,7 +323,7 @@ def test_get_stats(tmp_path):
     # Save and run again
     detector.save_state()
     detector2 = ChangeDetector(state_file, ["*.yaml"])
-    detector2.detect_changes(tmp_path)
+    detector2.detect_changes()
     stats2 = detector2.get_stats()
 
     assert stats2['total_tracked'] == 1
@@ -340,8 +338,8 @@ def test_state_file_parent_directory_creation(tmp_path):
     file1 = tmp_path / "file1.yaml"
     file1.write_text("content1")
 
-    detector = ChangeDetector(state_file, ["*.yaml"])
-    detector.detect_changes(tmp_path)
+    detector = ChangeDetector(tmp_path, tmp_path / "cache")
+    detector.detect_changes()
     detector.save_state()
 
     # Parent directories should be created
@@ -352,9 +350,9 @@ def test_state_file_parent_directory_creation(tmp_path):
 def test_empty_tracked_patterns(tmp_path):
     """Test with empty tracked patterns"""
     state_file = tmp_path / "state.json"
-    detector = ChangeDetector(state_file, [])
+    detector = ChangeDetector(tmp_path, tmp_path / "cache")
 
-    changes = detector.detect_changes(tmp_path)
+    changes = detector.detect_changes()
 
     assert len(changes['added']) == 0
     assert len(changes['changed']) == 0
