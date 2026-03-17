@@ -26,11 +26,13 @@ import re
 
 
 # Schema-defined sections for each artifact type
-# Required sections (ALL must be present)
+# Required sections (ALL must be present) - Use _has_required_sections with AND logic
 REPO_FACTS_REQUIRED = ("Repository", "Modules", "Entrypoints", "Core Entities", "Configuration")
 REPO_UNDERSTANDING_REQUIRED = ("System Purpose", "Pipelines", "Concepts", "Candidate Domains")
 KNOWLEDGE_CONFIDENCE_REQUIRED = ("Confirmed Knowledge", "Inferred Knowledge", "Uncertain Knowledge")
+# Optional sections (ANY must be present) - Use _has_any_optional_section with OR logic
 DOMAIN_CANDIDATES_SECTIONS = ("Candidate Domains",)
+# Required sections (ALL must be present) - Use _has_required_sections with AND logic
 REVIEW_SUMMARY_REQUIRED = ("System Summary", "Pipelines", "Concepts", "Candidate Domains", "Assumptions", "Questions for Architect")
 
 # Baseline section headings and their required schema keywords
@@ -72,12 +74,22 @@ def _has_required_sections(content: str, required: tuple[str, ...]) -> bool:
 def _has_any_optional_section(content: str, optional: tuple[str, ...]) -> bool:
     """Check if content has ANY of the optional section headings (OR logic).
 
+    Use this for flexible artifacts where alternative structures are acceptable.
+    At least one section must be present for validation to pass.
+
     Args:
         content: The artifact content to check
         optional: Tuple of optional section heading names
 
     Returns:
         True if at least one optional section is present, False otherwise
+
+    Example:
+        >>> content = "## Candidate Domains\\n..."
+        >>> _has_any_optional_section(content, ("Candidate Domains", "Domain Analysis"))
+        True
+        >>> _has_any_optional_section(content, ("Missing1", "Missing2"))
+        False
     """
     for heading in optional:
         pattern = re.compile(rf"^##\s+{re.escape(heading)}\b", re.MULTILINE | re.IGNORECASE)
