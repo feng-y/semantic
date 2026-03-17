@@ -74,10 +74,10 @@ def test_put_and_get_signals(tmp_path):
     }
 
     # Store signals
-    cache.put(file_path, file_hash, signals)
+    cache.store_signals(file_path, file_hash, signals)
 
     # Retrieve signals
-    retrieved = cache.get(file_path, file_hash)
+    retrieved = cache.get_cached_signals(file_path, file_hash)
 
     assert retrieved == signals
 
@@ -89,7 +89,7 @@ def test_get_nonexistent_cache(tmp_path):
     file_path = Path("/test/file.yaml")
     file_hash = "abc123"
 
-    result = cache.get(file_path, file_hash)
+    result = cache.get_cached_signals(file_path, file_hash)
 
     assert result is None
 
@@ -103,10 +103,10 @@ def test_get_with_wrong_hash(tmp_path):
     signals = {'domain_signals': []}
 
     # Store with one hash
-    cache.put(file_path, file_hash, signals)
+    cache.store_signals(file_path, file_hash, signals)
 
     # Try to retrieve with different hash
-    result = cache.get(file_path, "different_hash")
+    result = cache.get_cached_signals(file_path, "different_hash")
 
     assert result is None
 
@@ -119,7 +119,7 @@ def test_cache_entry_structure(tmp_path):
     file_hash = "abc123"
     signals = {'domain_signals': []}
 
-    cache.put(file_path, file_hash, signals)
+    cache.store_signals(file_path, file_hash, signals)
 
     # Read cache file directly
     cache_key = cache._get_cache_key(file_path, file_hash)
@@ -146,7 +146,7 @@ def test_cache_timestamp(tmp_path):
     signals = {}
 
     before = datetime.now(timezone.utc)
-    cache.put(file_path, file_hash, signals)
+    cache.store_signals(file_path, file_hash, signals)
     after = datetime.now(timezone.utc)
 
     # Read cache file
@@ -169,19 +169,19 @@ def test_invalidate_cache(tmp_path):
     file_hash2 = "hash2"
 
     # Store multiple versions
-    cache.put(file_path, file_hash1, {'v': 1})
-    cache.put(file_path, file_hash2, {'v': 2})
+    cache.store_signals(file_path, file_hash1, {'v': 1})
+    cache.store_signals(file_path, file_hash2, {'v': 2})
 
     # Verify both exist
-    assert cache.get(file_path, file_hash1) is not None
-    assert cache.get(file_path, file_hash2) is not None
+    assert cache.get_cached_signals(file_path, file_hash1) is not None
+    assert cache.get_cached_signals(file_path, file_hash2) is not None
 
     # Invalidate
-    cache.invalidate(file_path)
+    cache.invalidate_file(file_path)
 
     # Both should be gone
-    assert cache.get(file_path, file_hash1) is None
-    assert cache.get(file_path, file_hash2) is None
+    assert cache.get_cached_signals(file_path, file_hash1) is None
+    assert cache.get_cached_signals(file_path, file_hash2) is None
 
 
 def test_invalidate_only_target_file(tmp_path):
@@ -191,15 +191,15 @@ def test_invalidate_only_target_file(tmp_path):
     file1 = Path("/test/file1.yaml")
     file2 = Path("/test/file2.yaml")
 
-    cache.put(file1, "hash1", {'file': 1})
-    cache.put(file2, "hash2", {'file': 2})
+    cache.store_signals(file1, "hash1", {'file': 1})
+    cache.store_signals(file2, "hash2", {'file': 2})
 
     # Invalidate file1
-    cache.invalidate(file1)
+    cache.invalidate_file(file1)
 
     # file1 should be gone, file2 should remain
-    assert cache.get(file1, "hash1") is None
-    assert cache.get(file2, "hash2") == {'file': 2}
+    assert cache.get_cached_signals(file1, "hash1") is None
+    assert cache.get_cached_signals(file2, "hash2") == {'file': 2}
 
 
 def test_clear_cache(tmp_path):
@@ -207,28 +207,28 @@ def test_clear_cache(tmp_path):
     cache = SignalCache(tmp_path)
 
     # Store multiple entries
-    cache.put(Path("/file1.yaml"), "hash1", {'f': 1})
-    cache.put(Path("/file2.yaml"), "hash2", {'f': 2})
-    cache.put(Path("/file3.yaml"), "hash3", {'f': 3})
+    cache.store_signals(Path("/file1.yaml"), "hash1", {'f': 1})
+    cache.store_signals(Path("/file2.yaml"), "hash2", {'f': 2})
+    cache.store_signals(Path("/file3.yaml"), "hash3", {'f': 3})
 
     # Verify they exist
-    assert cache.get(Path("/file1.yaml"), "hash1") is not None
-    assert cache.get(Path("/file2.yaml"), "hash2") is not None
+    assert cache.get_cached_signals(Path("/file1.yaml"), "hash1") is not None
+    assert cache.get_cached_signals(Path("/file2.yaml"), "hash2") is not None
 
     # Clear all
-    cache.clear()
+    cache.clear_all()
 
     # All should be gone
-    assert cache.get(Path("/file1.yaml"), "hash1") is None
-    assert cache.get(Path("/file2.yaml"), "hash2") is None
-    assert cache.get(Path("/file3.yaml"), "hash3") is None
+    assert cache.get_cached_signals(Path("/file1.yaml"), "hash1") is None
+    assert cache.get_cached_signals(Path("/file2.yaml"), "hash2") is None
+    assert cache.get_cached_signals(Path("/file3.yaml"), "hash3") is None
 
 
 def test_stats_empty_cache(tmp_path):
     """Test stats for empty cache"""
     cache = SignalCache(tmp_path)
 
-    stats = cache.stats()
+    stats = cache.get_cache_stats()
 
     assert stats['cache_entries'] == 0
     assert stats['total_size_bytes'] == 0
@@ -240,10 +240,10 @@ def test_stats_with_entries(tmp_path):
     cache = SignalCache(tmp_path)
 
     # Add some entries
-    cache.put(Path("/file1.yaml"), "hash1", {'data': 'x' * 100})
-    cache.put(Path("/file2.yaml"), "hash2", {'data': 'y' * 200})
+    cache.store_signals(Path("/file1.yaml"), "hash1", {'data': 'x' * 100})
+    cache.store_signals(Path("/file2.yaml"), "hash2", {'data': 'y' * 200})
 
-    stats = cache.stats()
+    stats = cache.get_cache_stats()
 
     assert stats['cache_entries'] == 2
     assert stats['total_size_bytes'] > 0
@@ -329,7 +329,7 @@ def test_cache_handles_corrupted_file(tmp_path):
     cache_path.write_text("invalid json {{{")
 
     # Should return None for corrupted cache
-    result = cache.get(file_path, file_hash)
+    result = cache.get_cached_signals(file_path, file_hash)
     assert result is None
 
 
@@ -348,7 +348,7 @@ def test_cache_handles_missing_fields(tmp_path):
         json.dump({'file_hash': file_hash}, f)
 
     # Should return None for incomplete entry
-    result = cache.get(file_path, file_hash)
+    result = cache.get_cached_signals(file_path, file_hash)
     assert result is None
 
 
@@ -361,18 +361,18 @@ def test_invalidate_handles_corrupted_files(tmp_path):
     corrupted_file.write_text("invalid json")
 
     # Should not raise exception
-    cache.invalidate(Path("/some/file.yaml"))
+    cache.invalidate_file(Path("/some/file.yaml"))
 
 
 def test_clear_handles_permission_errors(tmp_path):
     """Test that clear handles files that can't be deleted"""
     cache = SignalCache(tmp_path)
 
-    cache.put(Path("/file.yaml"), "hash", {})
+    cache.store_signals(Path("/file.yaml"), "hash", {})
 
     # Clear should not raise even if files can't be deleted
     # (In practice, this is hard to test without mocking)
-    cache.clear()
+    cache.clear_all()
 
 
 def test_multiple_cache_instances_same_dir(tmp_path):
@@ -425,7 +425,7 @@ def test_cache_with_complex_signals(tmp_path):
         ]
     }
 
-    cache.put(file_path, file_hash, complex_signals)
-    retrieved = cache.get(file_path, file_hash)
+    cache.store_signals(file_path, file_hash, complex_signals)
+    retrieved = cache.get_cached_signals(file_path, file_hash)
 
     assert retrieved == complex_signals

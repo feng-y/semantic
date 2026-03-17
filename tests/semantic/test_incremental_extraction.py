@@ -86,11 +86,11 @@ def test_first_run_full_extraction(tmp_path, fact_files):
     state_file = tmp_path / "state.json"
     cache_dir = tmp_path / "cache"
 
-    detector = ChangeDetector(state_file, ["*.yaml"])
+    detector = ChangeDetector(fact_files, cache_dir)
     cache = SignalCache(cache_dir)
 
     # Detect changes (first run)
-    changes = detector.detect_changes(fact_files)
+    changes = detector.detect_changes()
 
     # First run: all files are new
     assert len(changes['added']) == 2
@@ -113,13 +113,12 @@ def test_first_run_full_extraction(tmp_path, fact_files):
 
     # Cache the signals
     file_hash = detector.compute_file_hash(canonical_path)
-    cache.put(canonical_path, file_hash, signals)
+    cache.store_signals(canonical_path, file_hash, signals)
 
     # Save state
-    detector.save_state()
 
     # Verify cache
-    cached = cache.get(canonical_path, file_hash)
+    cached = cache.get_cached_signals(canonical_path, file_hash)
     assert cached == signals
 
 
@@ -129,11 +128,10 @@ def test_second_run_no_changes_all_cached(tmp_path, fact_files):
     cache_dir = tmp_path / "cache"
 
     # First run
-    detector1 = ChangeDetector(state_file, ["*.yaml"])
+    detector1 = ChangeDetector(fact_files, cache_dir)
     cache = SignalCache(cache_dir)
 
-    changes1 = detector1.detect_changes(fact_files)
-    detector1.save_state()
+    changes1 = detector1.detect_changes()
 
     canonical_path = fact_files / "fact_canonical_sample.yaml"
     with open(canonical_path, 'r') as f:
@@ -141,11 +139,11 @@ def test_second_run_no_changes_all_cached(tmp_path, fact_files):
 
     signals = extract_all_signals(canonical, None)
     file_hash = detector1.compute_file_hash(canonical_path)
-    cache.put(canonical_path, file_hash, signals)
+    cache.store_signals(canonical_path, file_hash, signals)
 
     # Second run - no changes
-    detector2 = ChangeDetector(state_file, ["*.yaml"])
-    changes2 = detector2.detect_changes(fact_files)
+    detector2 = ChangeDetector(fact_files, cache_dir)
+    changes2 = detector2.detect_changes()
 
     # All files should be unchanged
     assert len(changes2['added']) == 0
@@ -154,7 +152,7 @@ def test_second_run_no_changes_all_cached(tmp_path, fact_files):
     assert len(changes2['unchanged']) == 2
 
     # Should be able to retrieve from cache
-    cached_signals = cache.get(canonical_path, file_hash)
+    cached_signals = cache.get_cached_signals(canonical_path, file_hash)
     assert cached_signals == signals
 
 
@@ -164,11 +162,10 @@ def test_partial_file_change_incremental(tmp_path, fact_files):
     cache_dir = tmp_path / "cache"
 
     # First run
-    detector1 = ChangeDetector(state_file, ["*.yaml"])
+    detector1 = ChangeDetector(fact_files, cache_dir)
     cache = SignalCache(cache_dir)
 
-    changes1 = detector1.detect_changes(fact_files)
-    detector1.save_state()
+    changes1 = detector1.detect_changes()
 
     # Cache signals for both files
     canonical_path = fact_files / "fact_canonical_sample.yaml"
@@ -185,8 +182,8 @@ def test_partial_file_change_incremental(tmp_path, fact_files):
     canonical_hash = detector1.compute_file_hash(canonical_path)
     working_hash = detector1.compute_file_hash(working_path)
 
-    cache.put(canonical_path, canonical_hash, canonical_signals)
-    cache.put(working_path, working_hash, working_signals)
+    cache.store_signals(canonical_path, canonical_hash, canonical_signals)
+    cache.store_signals(working_path, working_hash, working_signals)
 
     # Modify only canonical file
     canonical['modules'].append({'name': 'module3', 'path': 'src/module3.py'})
@@ -194,8 +191,8 @@ def test_partial_file_change_incremental(tmp_path, fact_files):
         yaml.safe_dump(canonical, f)
 
     # Second run
-    detector2 = ChangeDetector(state_file, ["*.yaml"])
-    changes2 = detector2.detect_changes(fact_files)
+    detector2 = ChangeDetector(fact_files, cache_dir)
+    changes2 = detector2.detect_changes()
 
     # One file changed, one unchanged
     assert len(changes2['changed']) == 1
@@ -203,7 +200,7 @@ def test_partial_file_change_incremental(tmp_path, fact_files):
     assert changes2['changed'][0] == canonical_path
 
     # Can still use cache for unchanged file
-    cached_working = cache.get(working_path, working_hash)
+    cached_working = cache.get_cached_signals(working_path, working_hash)
     assert cached_working == working_signals
 
     # Need to re-extract for changed file
@@ -211,11 +208,11 @@ def test_partial_file_change_incremental(tmp_path, fact_files):
     assert new_canonical_hash != canonical_hash
 
     # Old cache should not match
-    old_cached = cache.get(canonical_path, canonical_hash)
+    old_cached = cache.get_cached_signals(canonical_path, canonical_hash)
     assert old_cached == canonical_signals  # Old cache still exists
 
     # New hash should not be cached yet
-    new_cached = cache.get(canonical_path, new_canonical_hash)
+    new_cached = cache.get_cached_signals(canonical_path, new_canonical_hash)
     assert new_cached is None
 
 
@@ -225,11 +222,10 @@ def test_cache_clear_forces_full_extraction(tmp_path, fact_files):
     cache_dir = tmp_path / "cache"
 
     # First run with caching
-    detector = ChangeDetector(state_file, ["*.yaml"])
+    detector = ChangeDetector(fact_files, cache_dir)
     cache = SignalCache(cache_dir)
 
-    changes = detector.detect_changes(fact_files)
-    detector.save_state()
+    changes = detector.detect_changes()
 
     canonical_path = fact_files / "fact_canonical_sample.yaml"
     with open(canonical_path, 'r') as f:
@@ -237,19 +233,19 @@ def test_cache_clear_forces_full_extraction(tmp_path, fact_files):
 
     signals = extract_all_signals(canonical, None)
     file_hash = detector.compute_file_hash(canonical_path)
-    cache.put(canonical_path, file_hash, signals)
+    cache.store_signals(canonical_path, file_hash, signals)
 
     # Verify cache exists
-    assert cache.get(canonical_path, file_hash) is not None
+    assert cache.get_cached_signals(canonical_path, file_hash) is not None
 
     # Clear cache
-    cache.clear()
+    cache.clear_all()
 
     # Cache should be empty
-    assert cache.get(canonical_path, file_hash) is None
+    assert cache.get_cached_signals(canonical_path, file_hash) is None
 
     # Stats should show zero entries
-    stats = cache.stats()
+    stats = cache.get_cache_stats()
     assert stats['cache_entries'] == 0
 
 
@@ -269,11 +265,11 @@ def test_performance_cache_vs_extraction(tmp_path, fact_files):
 
     # Cache the signals
     file_hash = "test_hash_123"
-    cache.put(canonical_path, file_hash, signals)
+    cache.store_signals(canonical_path, file_hash, signals)
 
     # Measure cache retrieval time
     start_cache = time.time()
-    cached_signals = cache.get(canonical_path, file_hash)
+    cached_signals = cache.get_cached_signals(canonical_path, file_hash)
     cache_time = time.time() - start_cache
 
     # Cache should be faster (though for small data, difference may be minimal)
@@ -288,20 +284,19 @@ def test_incremental_with_file_removal(tmp_path, fact_files):
     cache_dir = tmp_path / "cache"
 
     # First run
-    detector1 = ChangeDetector(state_file, ["*.yaml"])
+    detector1 = ChangeDetector(fact_files, cache_dir)
     cache = SignalCache(cache_dir)
 
-    changes1 = detector1.detect_changes(fact_files)
+    changes1 = detector1.detect_changes()
     assert len(changes1['added']) == 2
-    detector1.save_state()
 
     # Remove one file
     working_path = fact_files / "fact_working_summary_sample.yaml"
     working_path.unlink()
 
     # Second run
-    detector2 = ChangeDetector(state_file, ["*.yaml"])
-    changes2 = detector2.detect_changes(fact_files)
+    detector2 = ChangeDetector(fact_files, cache_dir)
+    changes2 = detector2.detect_changes()
 
     # One file removed, one unchanged
     assert len(changes2['removed']) == 1
@@ -314,17 +309,16 @@ def test_incremental_with_new_file(tmp_path, fact_files):
     state_file = tmp_path / "state.json"
 
     # First run
-    detector1 = ChangeDetector(state_file, ["*.yaml"])
-    changes1 = detector1.detect_changes(fact_files)
-    detector1.save_state()
+    detector1 = ChangeDetector(fact_files, cache_dir)
+    changes1 = detector1.detect_changes()
 
     # Add new file
     new_file = fact_files / "new_fact_file.yaml"
     new_file.write_text("new_data: value")
 
     # Second run
-    detector2 = ChangeDetector(state_file, ["*.yaml"])
-    changes2 = detector2.detect_changes(fact_files)
+    detector2 = ChangeDetector(fact_files, cache_dir)
+    changes2 = detector2.detect_changes()
 
     # One file added, others unchanged
     assert len(changes2['added']) == 1
@@ -340,40 +334,46 @@ def test_cache_invalidation_workflow(tmp_path, fact_files):
     canonical_path = fact_files / "fact_canonical_sample.yaml"
 
     # Cache multiple versions
-    cache.put(canonical_path, "hash1", {'version': 1})
-    cache.put(canonical_path, "hash2", {'version': 2})
+    cache.store_signals(canonical_path, "hash1", {'version': 1})
+    cache.store_signals(canonical_path, "hash2", {'version': 2})
 
     # Verify both cached
-    assert cache.get(canonical_path, "hash1") is not None
-    assert cache.get(canonical_path, "hash2") is not None
+    assert cache.get_cached_signals(canonical_path, "hash1") is not None
+    assert cache.get_cached_signals(canonical_path, "hash2") is not None
 
     # Invalidate all versions for this file
-    cache.invalidate(canonical_path)
+    cache.invalidate_file(canonical_path)
 
     # All versions should be gone
-    assert cache.get(canonical_path, "hash1") is None
-    assert cache.get(canonical_path, "hash2") is None
+    assert cache.get_cached_signals(canonical_path, "hash1") is None
+    assert cache.get_cached_signals(canonical_path, "hash2") is None
 
 
 def test_merge_signals_simple(tmp_path):
     """Test merging cached and new signals"""
     cache = SignalCache(tmp_path)
 
-    cached_signals = [
-        {'signal_type': 'cached1', 'source': 'file1'},
-        {'signal_type': 'cached2', 'source': 'file2'}
-    ]
+    cached_signals = {
+        'domain_signals': [{'signal_type': 'cached1', 'source': 'file1'}],
+        'concept_signals': [{'signal_type': 'cached2', 'source': 'file2'}],
+        'rule_signals': [],
+        'demand_pattern_signals': []
+    }
 
-    new_signals = [
-        {'signal_type': 'new1', 'source': 'file3'},
-        {'signal_type': 'new2', 'source': 'file4'}
-    ]
+    new_signals = {
+        'domain_signals': [{'signal_type': 'new1', 'source': 'file3'}],
+        'concept_signals': [],
+        'rule_signals': [{'signal_type': 'new2', 'source': 'file4'}],
+        'demand_pattern_signals': []
+    }
 
     merged = cache.merge_signals(cached_signals, new_signals)
 
-    assert len(merged) == 4
-    assert cached_signals[0] in merged
-    assert new_signals[0] in merged
+    assert len(merged['domain_signals']) == 2
+    assert len(merged['concept_signals']) == 1
+    assert len(merged['rule_signals']) == 1
+    assert cached_signals['domain_signals'][0] in merged['domain_signals']
+    assert new_signals['domain_signals'][0] in merged['domain_signals']
 
 
 def test_merge_signals_empty_cached(tmp_path):
@@ -401,16 +401,15 @@ def test_state_persistence_across_runs(tmp_path, fact_files):
     state_file = tmp_path / "state.json"
 
     # Run 1
-    detector1 = ChangeDetector(state_file, ["*.yaml"])
-    changes1 = detector1.detect_changes(fact_files)
-    detector1.save_state()
+    detector1 = ChangeDetector(fact_files, cache_dir)
+    changes1 = detector1.detect_changes()
 
     # Verify state file exists
     assert state_file.exists()
 
     # Run 2
-    detector2 = ChangeDetector(state_file, ["*.yaml"])
-    changes2 = detector2.detect_changes(fact_files)
+    detector2 = ChangeDetector(fact_files, cache_dir)
+    changes2 = detector2.detect_changes()
 
     # Should load previous state
     assert len(detector2.previous_state) > 0
@@ -423,15 +422,15 @@ def test_cache_stats_accuracy(tmp_path, fact_files):
     cache = SignalCache(cache_dir)
 
     # Initially empty
-    stats = cache.stats()
+    stats = cache.get_cache_stats()
     assert stats['cache_entries'] == 0
     assert stats['total_size_bytes'] == 0
 
     # Add some entries
-    cache.put(Path("/file1.yaml"), "hash1", {'data': 'test1'})
-    cache.put(Path("/file2.yaml"), "hash2", {'data': 'test2'})
+    cache.store_signals(Path("/file1.yaml"), "hash1", {'data': 'test1'})
+    cache.store_signals(Path("/file2.yaml"), "hash2", {'data': 'test2'})
 
-    stats = cache.stats()
+    stats = cache.get_cache_stats()
     assert stats['cache_entries'] == 2
     assert stats['total_size_bytes'] > 0
 
@@ -441,9 +440,8 @@ def test_concurrent_file_changes(tmp_path, fact_files):
     state_file = tmp_path / "state.json"
 
     # First run
-    detector1 = ChangeDetector(state_file, ["*.yaml"])
-    changes1 = detector1.detect_changes(fact_files)
-    detector1.save_state()
+    detector1 = ChangeDetector(fact_files, cache_dir)
+    changes1 = detector1.detect_changes()
 
     # Modify both files
     canonical_path = fact_files / "fact_canonical_sample.yaml"
@@ -453,8 +451,8 @@ def test_concurrent_file_changes(tmp_path, fact_files):
     working_path.write_text("modified: working")
 
     # Second run
-    detector2 = ChangeDetector(state_file, ["*.yaml"])
-    changes2 = detector2.detect_changes(fact_files)
+    detector2 = ChangeDetector(fact_files, cache_dir)
+    changes2 = detector2.detect_changes()
 
     # Both files should be detected as changed
     assert len(changes2['changed']) == 2
@@ -495,7 +493,7 @@ def test_incremental_extraction_complete_workflow(tmp_path, fact_data):
     with open(working_path, 'w') as f:
         yaml.safe_dump(fact_data['working'], f)
 
-    detector = ChangeDetector(state_file, ["*.yaml"])
+    detector = ChangeDetector(fact_files, cache_dir)
     cache = SignalCache(cache_dir)
 
     # === Run 1: Full extraction ===
@@ -508,16 +506,15 @@ def test_incremental_extraction_complete_workflow(tmp_path, fact_data):
     signals1 = extract_all_signals(canonical, None)
 
     hash1 = detector.compute_file_hash(canonical_path)
-    cache.put(canonical_path, hash1, signals1)
-    detector.save_state()
+    cache.store_signals(canonical_path, hash1, signals1)
 
     # === Run 2: No changes ===
-    detector2 = ChangeDetector(state_file, ["*.yaml"])
+    detector2 = ChangeDetector(fact_files, cache_dir)
     changes2 = detector2.detect_changes(fact_root)
     assert len(changes2['unchanged']) == 2
 
     # Use cache
-    cached = cache.get(canonical_path, hash1)
+    cached = cache.get_cached_signals(canonical_path, hash1)
     assert cached == signals1
 
     # === Run 3: Modify one file ===
@@ -525,7 +522,7 @@ def test_incremental_extraction_complete_workflow(tmp_path, fact_data):
     with open(canonical_path, 'w') as f:
         yaml.safe_dump(fact_data['canonical'], f)
 
-    detector3 = ChangeDetector(state_file, ["*.yaml"])
+    detector3 = ChangeDetector(fact_files, cache_dir)
     changes3 = detector3.detect_changes(fact_root)
     assert len(changes3['changed']) == 1
     assert len(changes3['unchanged']) == 1
@@ -554,7 +551,7 @@ def test_error_handling_corrupted_cache(tmp_path):
     cache_path.write_text("{ invalid json")
 
     # Should return None for corrupted cache
-    result = cache.get(Path("/test.yaml"), "hash123")
+    result = cache.get_cached_signals(Path("/test.yaml"), "hash123")
     assert result is None
 
 
@@ -566,8 +563,8 @@ def test_error_handling_corrupted_state(tmp_path, fact_files):
     state_file.write_text("{ invalid json")
 
     # Should handle gracefully
-    detector = ChangeDetector(state_file, ["*.yaml"])
-    changes = detector.detect_changes(fact_files)
+    detector = ChangeDetector(fact_files, cache_dir)
+    changes = detector.detect_changes()
 
     # Should treat as first run
     assert len(changes['added']) == 2
