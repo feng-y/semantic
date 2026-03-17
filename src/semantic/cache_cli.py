@@ -32,6 +32,8 @@ def run_stats(cache_dir: Path) -> None:
     print(f"Cache directory: {cache_dir}")
     print(f"Indexed files:   {stats['indexed_files']}")
     print(f"Cache size:      {size_str}")
+    compressed = stats.get('compressed', False)
+    print(f"Compression:     {'enabled (gzip)' if compressed else 'disabled'}")
     if stats['hits'] + stats['misses'] > 0:
         print(f"Hit rate:        {stats['hit_rate']:.1f}%")
 

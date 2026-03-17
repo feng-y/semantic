@@ -15,10 +15,11 @@ from datetime import datetime, timezone
 class SignalCache:
     """Manages file-level signal caching for incremental extraction"""
 
-    def __init__(self, cache_dir: Path, max_entries: int = 100, ttl_hours: float = 24.0):
+    def __init__(self, cache_dir: Path, max_entries: int = 100, ttl_hours: float = 24.0, compress: bool = False):
         self.cache_dir = cache_dir
         self.max_entries = max_entries
         self.ttl_hours = ttl_hours
+        self.compress = compress
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         self.index_file = cache_dir / "cache_index.json"
         self.signals_dir = cache_dir / "signals"
@@ -34,7 +35,8 @@ class SignalCache:
 
     def _get_signal_file(self, cache_key: str) -> Path:
         """Get path to cached signal file"""
-        return self.signals_dir / f"{cache_key}.json"
+        ext = ".json.gz" if self.compress else ".json"
+        return self.signals_dir / f"{cache_key}{ext}"
 
     def load_index(self) -> Dict[str, Any]:
         """Load cache index"""
@@ -96,10 +98,15 @@ class SignalCache:
                     return None  # expired
 
         try:
-            with open(signal_file, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-                self._hits += 1
-                return data
+            if self.compress:
+                import gzip
+                with gzip.open(signal_file, 'rt', encoding='utf-8') as f:
+                    data = json.load(f)
+            else:
+                with open(signal_file, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+            self._hits += 1
+            return data
         except (json.JSONDecodeError, IOError):
             self._misses += 1
             return None
@@ -117,8 +124,13 @@ class SignalCache:
         signal_file = self._get_signal_file(cache_key)
 
         # Write signals to cache file
-        with open(signal_file, 'w', encoding='utf-8') as f:
-            json.dump(signals, f, indent=2)
+        if self.compress:
+            import gzip
+            with gzip.open(signal_file, 'wt', encoding='utf-8') as f:
+                json.dump(signals, f)
+        else:
+            with open(signal_file, 'w', encoding='utf-8') as f:
+                json.dump(signals, f, indent=2)
 
         # Update index
         index = self.load_index()
@@ -168,6 +180,8 @@ class SignalCache:
         # Remove all signal files
         for signal_file in self.signals_dir.glob("*.json"):
             signal_file.unlink()
+        for signal_file in self.signals_dir.glob("*.json.gz"):
+            signal_file.unlink()
 
         # Clear index
         if self.index_file.exists():
@@ -176,7 +190,7 @@ class SignalCache:
     def get_cache_stats(self) -> Dict[str, Any]:
         """Get cache statistics"""
         index = self.load_index()
-        signal_files = list(self.signals_dir.glob("*.json"))
+        signal_files = list(self.signals_dir.glob("*.json")) + list(self.signals_dir.glob("*.json.gz"))
         total = self._hits + self._misses
 
         return {
@@ -188,7 +202,8 @@ class SignalCache:
             'misses': self._misses,
             'hit_rate': (self._hits / total * 100) if total > 0 else 0.0,
             'max_entries': self.max_entries,
-            'ttl_hours': self.ttl_hours
+            'ttl_hours': self.ttl_hours,
+            'compressed': self.compress
         }
 
     def reset_stats(self) -> None:

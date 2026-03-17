@@ -204,7 +204,7 @@ def extract_signals_from_files(canonical: Dict[str, Any], working: Optional[Dict
     }
 
 
-def run_incremental_extraction(fact_root: Path, cache_dir: Path, max_entries: int = 100, ttl_hours: float = 24.0) -> Dict[str, List[Dict[str, Any]]]:
+def run_incremental_extraction(fact_root: Path, cache_dir: Path, max_entries: int = 100, ttl_hours: float = 24.0, compress: bool = False) -> Dict[str, List[Dict[str, Any]]]:
     """
     Run incremental extraction using change detection and caching.
 
@@ -212,7 +212,7 @@ def run_incremental_extraction(fact_root: Path, cache_dir: Path, max_entries: in
         Merged signals from cached and newly extracted data
     """
     detector = ChangeDetector(fact_root, cache_dir)
-    cache = SignalCache(cache_dir, max_entries=max_entries, ttl_hours=ttl_hours)
+    cache = SignalCache(cache_dir, max_entries=max_entries, ttl_hours=ttl_hours, compress=compress)
 
     # Detect changes
     changes = detector.detect_changes()
@@ -309,6 +309,8 @@ def main():
                         help='Cache TTL in hours (0 = no expiry)')
     parser.add_argument('--cache-max-entries', type=int, default=100,
                         help='Max cache entries (0 = unlimited)')
+    parser.add_argument('--compress', action='store_true',
+                        help='Enable gzip compression for cache files')
     parser.add_argument('--metrics', action='store_true', help='Show timing metrics')
     parser.add_argument('--verbose', action='store_true', help='Enable debug logging')
     parser.add_argument('--quiet', action='store_true', help='Suppress non-error output')
@@ -324,7 +326,7 @@ def main():
 
     # Clear cache if requested
     if args.clear_cache:
-        cache = SignalCache(cache_dir, max_entries=args.cache_max_entries, ttl_hours=args.cache_ttl_hours)
+        cache = SignalCache(cache_dir, max_entries=args.cache_max_entries, ttl_hours=args.cache_ttl_hours, compress=args.compress)
         cache.clear_all()
         logger.info("✓ Cache cleared")
         if not args.incremental:
@@ -334,7 +336,7 @@ def main():
     if args.incremental:
         logger.info("Running incremental extraction...")
         with metrics.time("incremental_extraction"):
-            signals = run_incremental_extraction(fact_root, cache_dir, max_entries=args.cache_max_entries, ttl_hours=args.cache_ttl_hours)
+            signals = run_incremental_extraction(fact_root, cache_dir, max_entries=args.cache_max_entries, ttl_hours=args.cache_ttl_hours, compress=args.compress)
 
         # Build output structure
         signals_data = {
