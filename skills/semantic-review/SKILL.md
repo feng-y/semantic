@@ -39,7 +39,7 @@ START
 ### Step 1: Validate Inputs
 
 **Check for:**
-- [ ] `docs/semantic-foundation/semantic/recommendations.yaml` exists (REQUIRED)
+- [ ] `docs/fact/recommendations.yaml` exists (REQUIRED)
 - [ ] recommendations.yaml has valid structure (4 recommendation groups)
 
 **Blocking conditions:**
@@ -77,8 +77,8 @@ This skill is thin and delegates to Python implementation:
 
 ```bash
 python -m semantic.apply_review \
-  --recommendations docs/semantic-foundation/semantic/recommendations.yaml \
-  --output-decisions docs/semantic-foundation/semantic/review-decisions.yaml \
-  --output-checks docs/semantic-foundation/semantic/evidence-checks.yaml \
-  --render-md docs/semantic-foundation/semantic/review-note.md
+  --recommendations docs/fact/recommendations.yaml \
+  --output-decisions docs/fact/review-decisions.yaml \
+  --output-checks docs/fact/evidence-checks.yaml \
+  --render-md docs/fact/review-note.md
 ```

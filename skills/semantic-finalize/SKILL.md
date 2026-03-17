@@ -27,9 +27,9 @@ Use semantic-finalize when:
 
 ```bash
 python -m semantic.finalize_assets \
-  --decisions docs/semantic-foundation/semantic/review-decisions.yaml \
-  --checks docs/semantic-foundation/semantic/evidence-checks.yaml \
-  --output-dir docs/semantic-foundation/semantic/
+  --decisions docs/fact/review-decisions.yaml \
+  --checks docs/fact/evidence-checks.yaml \
+  --output-dir docs/fact/
 ```
 
 ## Outputs

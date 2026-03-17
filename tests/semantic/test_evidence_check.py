@@ -120,7 +120,7 @@ def test_evidence_checks_yaml_structure(tmp_path):
     """Test evidence-checks.yaml structure validity"""
     from semantic.apply_review import load_recommendations, main
     
-    recs_path = Path("docs/semantic-foundation/semantic/recommendations.yaml")
+    recs_path = Path("docs/fact/recommendations.yaml")
     if not recs_path.exists():
         pytest.skip("recommendations.yaml not found")
     

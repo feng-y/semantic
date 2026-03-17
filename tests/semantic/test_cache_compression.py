@@ -4,7 +4,7 @@ from pathlib import Path
 from semantic.signal_cache import SignalCache
 
 SAMPLE_SIGNALS = {
-    'domain_signals': [{'signal_type': 'test', 'summary': 'x' * 100}],
+    'domain_signals': [{'signal_type': 'test', 'source': 'test', 'evidence': 'test evidence', 'confidence': 'high', 'summary': 'x' * 100}],
     'concept_signals': [],
     'rule_signals': [],
     'demand_pattern_signals': [],
@@ -40,7 +40,7 @@ def test_no_compress_writes_json_file(tmp_path):
 def test_compress_reduces_size(tmp_path):
     """Compressed file should be smaller than uncompressed for repetitive data."""
     large_signals = {
-        'domain_signals': [{'signal_type': 'test', 'summary': 'x' * 1000}] * 10,
+        'domain_signals': [{'signal_type': 'test', 'source': 'test', 'evidence': 'test evidence', 'confidence': 'high', 'summary': 'x' * 1000}] * 10,
         'concept_signals': [],
         'rule_signals': [],
         'demand_pattern_signals': [],

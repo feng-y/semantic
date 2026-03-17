@@ -5,10 +5,10 @@ description: >
 entrypoint: semantic.extract_signals
 
 inputs:
-  fact_root: docs/semantic-foundation/fact
-  output: docs/semantic-foundation/semantic/signals.yaml
-  render_md: docs/semantic-foundation/semantic/signals.md
+  fact_root: docs/fact
+  output: docs/fact/signals.yaml
+  render_md: docs/fact/signals.md
 
 outputs:
-  - docs/semantic-foundation/semantic/signals.yaml
-  - docs/semantic-foundation/semantic/signals.md
+  - docs/fact/signals.yaml
+  - docs/fact/signals.md

@@ -147,6 +147,7 @@ def test_has_changes(temp_fact_dir, temp_cache_dir):
 
     # First run - has changes (new files)
     assert detector.has_changes() is True
+    detector.detect_changes()  # Save baseline
 
     # Second run - no changes
     assert detector.has_changes() is False

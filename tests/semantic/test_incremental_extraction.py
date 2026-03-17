@@ -341,7 +341,7 @@ def test_cache_invalidation_workflow(tmp_path, fact_files):
 
     # Cache first version
     signals_v1 = {
-        'domain_signals': [{'signal_type': 'v1'}],
+        'domain_signals': [{'signal_type': 'v1', 'source': 'test', 'evidence': 'test evidence', 'confidence': 'high'}],
         'concept_signals': [],
         'rule_signals': [],
         'demand_pattern_signals': []
@@ -353,7 +353,7 @@ def test_cache_invalidation_workflow(tmp_path, fact_files):
 
     # Cache second version (should replace first in index)
     signals_v2 = {
-        'domain_signals': [{'signal_type': 'v2'}],
+        'domain_signals': [{'signal_type': 'v2', 'source': 'test', 'evidence': 'test evidence', 'confidence': 'high'}],
         'concept_signals': [],
         'rule_signals': [],
         'demand_pattern_signals': []
@@ -462,13 +462,13 @@ def test_cache_stats_accuracy(tmp_path, fact_files):
 
     # Add some entries
     signals1 = {
-        'domain_signals': [{'signal_type': 'test1'}],
+        'domain_signals': [{'signal_type': 'test1', 'source': 'test', 'evidence': 'test evidence', 'confidence': 'high'}],
         'concept_signals': [],
         'rule_signals': [],
         'demand_pattern_signals': []
     }
     signals2 = {
-        'domain_signals': [{'signal_type': 'test2'}],
+        'domain_signals': [{'signal_type': 'test2', 'source': 'test', 'evidence': 'test evidence', 'confidence': 'high'}],
         'concept_signals': [],
         'rule_signals': [],
         'demand_pattern_signals': []

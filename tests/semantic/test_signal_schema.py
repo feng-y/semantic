@@ -12,9 +12,9 @@ def test_valid_empty_dict():
 
 def test_valid_full_signals():
     signals = {
-        'domain_signals': [{'signal_type': 'x', 'summary': 'y'}],
+        'domain_signals': [{'signal_type': 'x', 'source': 'test', 'evidence': 'test evidence', 'confidence': 'high', 'summary': 'y'}],
         'concept_signals': [],
-        'rule_signals': [{'signal_type': 'z'}],
+        'rule_signals': [{'signal_type': 'z', 'source': 'test', 'evidence': 'test evidence', 'confidence': 'medium'}],
         'demand_pattern_signals': [],
     }
     ok, errors = validate_signals(signals)
@@ -69,7 +69,7 @@ def test_store_rejects_bad_category_type(tmp_path):
 
 def test_store_accepts_valid_signals(tmp_path):
     cache = SignalCache(tmp_path)
-    signals = {'domain_signals': [{'signal_type': 'x'}], 'concept_signals': []}
+    signals = {'domain_signals': [{'signal_type': 'x', 'source': 'test', 'evidence': 'test evidence', 'confidence': 'high'}], 'concept_signals': []}
     # Should not raise
     cache.store_signals(Path("test.py"), "hash123", signals)
     result = cache.get_cached_signals(Path("test.py"), "hash123")

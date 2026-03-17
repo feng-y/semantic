@@ -5,10 +5,10 @@ description: >
 entrypoint: semantic.build_candidates
 
 inputs:
-  signals: docs/semantic-foundation/semantic/signals.yaml
-  output: docs/semantic-foundation/semantic/candidates.yaml
-  render_md: docs/semantic-foundation/semantic/candidates.md
+  signals: docs/fact/signals.yaml
+  output: docs/fact/candidates.yaml
+  render_md: docs/fact/candidates.md
 
 outputs:
-  - docs/semantic-foundation/semantic/candidates.yaml
-  - docs/semantic-foundation/semantic/candidates.md
+  - docs/fact/candidates.yaml
+  - docs/fact/candidates.md

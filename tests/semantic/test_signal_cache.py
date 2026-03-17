@@ -68,7 +68,7 @@ def test_put_and_get_signals(tmp_path):
     file_hash = "abc123def456"
     signals = {
         'domain_signals': [
-            {'signal_type': 'test', 'confidence': 'high'}
+            {'signal_type': 'test', 'source': 'test', 'evidence': 'test evidence', 'confidence': 'high'}
         ],
         'concept_signals': []
     }
@@ -486,6 +486,9 @@ def test_cache_with_complex_signals(tmp_path):
         'concept_signals': [
             {
                 'signal_type': 'entity_definition',
+                'source': 'test',
+                'evidence': 'test evidence',
+                'confidence': 'high',
                 'nested': {
                     'deep': {
                         'structure': [1, 2, 3]

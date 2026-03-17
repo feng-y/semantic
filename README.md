@@ -39,24 +39,14 @@ semantic-reset             → resets working state
 
 ## Installation
 
-### From Claude Code Marketplace (Recommended)
-
-```bash
-# Search for the plugin
-claude-code plugin search semantic
-
-# Install from marketplace
-claude-code plugin install semantic-harness
-```
-
-### From Repository (Development)
+### From Repository
 
 ```bash
 # Install directly from local path
-claude-code plugin install /path/to/semantic-harness
+claude code plugin install /path/to/semantic-harness
 
 # Or install from git URL
-claude-code plugin install git+https://github.com/your-org/semantic-harness.git
+claude code plugin install git+https://github.com/feng-y/semantic-harness.git
 ```
 
 The plugin will be available in Claude Code with skills prefixed by the plugin name:
@@ -175,7 +165,7 @@ Documentation:
 - [INSTALL.md](INSTALL.md) — prerequisites, setup, verification
 - [USER_GUIDE.md](USER_GUIDE.md) — workflow, commands, failure handling
 - [CHANGELOG.md](CHANGELOG.md) — version history
-- `docs/fact-design/` — architecture decision records (001–010)
+- `docs/fact/design/` — architecture decision records (001–010)
 - `docs/review/` — development reports, audits, migration artifacts
 
 ## Release Status

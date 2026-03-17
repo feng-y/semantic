@@ -298,9 +298,9 @@ def run_incremental_extraction(fact_root: Path, cache_dir: Path, max_entries: in
 
 def main():
     parser = argparse.ArgumentParser(description="Extract semantic signals from FACT layer")
-    parser.add_argument('--fact-root', type=str, default='docs/semantic-foundation/fact',
+    parser.add_argument('--fact-root', type=str, default='docs/fact',
                         help='Path to FACT layer root directory')
-    parser.add_argument('--output', type=str, default='docs/semantic-foundation/semantic/signals.yaml',
+    parser.add_argument('--output', type=str, default='docs/fact/signals.yaml',
                         help='Output path for signals YAML')
     parser.add_argument('--render-md', type=str,
                         help='Optional: render markdown view to this path')

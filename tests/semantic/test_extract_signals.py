@@ -22,7 +22,7 @@ from semantic.extract_signals import (
 
 def test_load_fact_canonical():
     """Test loading FACT canonical YAML"""
-    fact_root = Path("docs/semantic-foundation/fact")
+    fact_root = Path("docs/fact")
     if not fact_root.exists():
         pytest.skip("FACT root not found")
 
@@ -33,7 +33,7 @@ def test_load_fact_canonical():
 
 def test_load_fact_working_summary():
     """Test loading FACT working summary YAML"""
-    fact_root = Path("docs/semantic-foundation/fact")
+    fact_root = Path("docs/fact")
     if not fact_root.exists():
         pytest.skip("FACT root not found")
 

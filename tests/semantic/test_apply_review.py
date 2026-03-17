@@ -19,7 +19,7 @@ from semantic.apply_review import (
 
 def test_load_recommendations():
     """Test loading recommendations.yaml"""
-    recs_path = Path("docs/semantic-foundation/semantic/recommendations.yaml")
+    recs_path = Path("docs/fact/recommendations.yaml")
     if not recs_path.exists():
         pytest.skip("recommendations.yaml not found")
 
@@ -128,7 +128,7 @@ def test_generate_review_decisions():
 
 def test_review_decisions_yaml_structure(tmp_path):
     """Test review-decisions.yaml structure validity"""
-    recs_path = Path("docs/semantic-foundation/semantic/recommendations.yaml")
+    recs_path = Path("docs/fact/recommendations.yaml")
     if not recs_path.exists():
         pytest.skip("recommendations.yaml not found")
     
@@ -166,7 +166,7 @@ def test_allowed_final_actions():
     """Test that only allowed final actions are used"""
     allowed_actions = {'keep', 'merge', 'drop', 'backlog', 'verify_first'}
     
-    recs_path = Path("docs/semantic-foundation/semantic/recommendations.yaml")
+    recs_path = Path("docs/fact/recommendations.yaml")
     if not recs_path.exists():
         pytest.skip("recommendations.yaml not found")
     

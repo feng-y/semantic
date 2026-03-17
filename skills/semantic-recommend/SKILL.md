@@ -40,7 +40,7 @@ START
 ### Step 1: Validate Inputs
 
 **Check for:**
-- [ ] `docs/semantic-foundation/semantic/candidates.yaml` exists (REQUIRED)
+- [ ] `docs/fact/candidates.yaml` exists (REQUIRED)
 - [ ] candidates.yaml has valid structure (4 candidate groups)
 
 **Blocking conditions:**
@@ -118,10 +118,10 @@ domains:
 ### Step 6: Write Outputs
 
 **Canonical output:**
-- `docs/semantic-foundation/semantic/recommendations.yaml`
+- `docs/fact/recommendations.yaml`
 
 **View output:**
-- `docs/semantic-foundation/semantic/recommendations.md`
+- `docs/fact/recommendations.md`
 
 **Metadata:**
 ```yaml
@@ -147,16 +147,16 @@ metadata:
 ## Required Inputs
 
 **Primary input (REQUIRED):**
-- `docs/semantic-foundation/semantic/candidates.yaml`
+- `docs/fact/candidates.yaml`
 
 **Optional auxiliary context:**
-- `docs/semantic-foundation/semantic/signals.yaml` (for traceability)
-- `docs/semantic-foundation/fact/fact_canonical_sample.yaml` (for context)
+- `docs/fact/signals.yaml` (for traceability)
+- `docs/fact/fact_canonical_sample.yaml` (for context)
 
 ## Expected Outputs
 
 **Workspace:**
-- `docs/semantic-foundation/semantic/`
+- `docs/fact/`
 
 **Canonical output:**
 - `recommendations.yaml` (structured recommendation data)
@@ -190,9 +190,9 @@ This skill is thin and delegates to Python implementation:
 
 ```bash
 python -m semantic.score_recommend \
-  --candidates docs/semantic-foundation/semantic/candidates.yaml \
-  --output docs/semantic-foundation/semantic/recommendations.yaml \
-  --render-md docs/semantic-foundation/semantic/recommendations.md
+  --candidates docs/fact/candidates.yaml \
+  --output docs/fact/recommendations.yaml \
+  --render-md docs/fact/recommendations.md
 ```
 
 ## Usage Examples

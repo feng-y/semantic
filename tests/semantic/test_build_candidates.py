@@ -22,7 +22,7 @@ from semantic.build_candidates import (
 
 def test_load_signals():
     """Test loading signals.yaml"""
-    signals_path = Path("docs/semantic-foundation/semantic/signals.yaml")
+    signals_path = Path("docs/fact/signals.yaml")
     if not signals_path.exists():
         pytest.skip("signals.yaml not found")
 
@@ -138,7 +138,7 @@ def test_synthesize_demand_model_candidates():
 
 def test_candidates_yaml_structure(tmp_path):
     """Test candidates.yaml structure validity"""
-    signals_path = Path("docs/semantic-foundation/semantic/signals.yaml")
+    signals_path = Path("docs/fact/signals.yaml")
     if not signals_path.exists():
         pytest.skip("signals.yaml not found")
 
@@ -185,7 +185,7 @@ def test_candidates_yaml_structure(tmp_path):
 
 def test_candidates_markdown_generation(tmp_path):
     """Test candidates.md generation"""
-    signals_path = Path("docs/semantic-foundation/semantic/signals.yaml")
+    signals_path = Path("docs/fact/signals.yaml")
     if not signals_path.exists():
         pytest.skip("signals.yaml not found")
 

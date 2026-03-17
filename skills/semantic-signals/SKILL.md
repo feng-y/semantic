@@ -172,8 +172,8 @@ python -m semantic.extract_signals \
 
 ```bash
 python -m semantic.extract_signals \
-  --fact-root docs/semantic-foundation/fact \
-  --output docs/semantic-foundation/semantic/signals.yaml \
+  --fact-root docs/fact \
+  --output docs/fact/signals.yaml \
   --incremental
 ```
 
@@ -203,14 +203,14 @@ python -m semantic.extract_signals \
 **View Cache Statistics**:
 ```bash
 # Cache info is logged during extraction
-python -m semantic.extract_signals --incremental --fact-root docs/semantic-foundation/fact
+python -m semantic.extract_signals --incremental --fact-root docs/fact
 # Output includes: cache hits, misses, total entries
 ```
 
 **Clear Cache**:
 ```bash
 # Option 1: Use --clear-cache flag
-python -m semantic.extract_signals --incremental --clear-cache --fact-root docs/semantic-foundation/fact
+python -m semantic.extract_signals --incremental --clear-cache --fact-root docs/fact
 
 # Option 2: Delete cache directory manually
 rm -rf .semantic-cache/

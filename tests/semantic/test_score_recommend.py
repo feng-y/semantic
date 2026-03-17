@@ -24,7 +24,7 @@ from semantic.score_recommend import (
 
 def test_load_candidates():
     """Test loading candidates.yaml"""
-    candidates_path = Path("docs/semantic-foundation/semantic/candidates.yaml")
+    candidates_path = Path("docs/fact/candidates.yaml")
     if not candidates_path.exists():
         pytest.skip("candidates.yaml not found")
 
@@ -259,7 +259,7 @@ def test_generate_recommendation_complete():
 
 def test_recommendations_yaml_structure(tmp_path):
     """Test recommendations.yaml structure validity"""
-    candidates_path = Path("docs/semantic-foundation/semantic/candidates.yaml")
+    candidates_path = Path("docs/fact/candidates.yaml")
     if not candidates_path.exists():
         pytest.skip("candidates.yaml not found")
 
@@ -306,7 +306,7 @@ def test_recommendations_yaml_structure(tmp_path):
 
 def test_recommendations_markdown_generation(tmp_path):
     """Test recommendations.md generation"""
-    candidates_path = Path("docs/semantic-foundation/semantic/candidates.yaml")
+    candidates_path = Path("docs/fact/candidates.yaml")
     if not candidates_path.exists():
         pytest.skip("candidates.yaml not found")
 
@@ -358,7 +358,7 @@ def test_deterministic_recommendation():
 
 def test_priority_computation():
     """Test that priority is always max(business_score, value_score)"""
-    candidates_path = Path("docs/semantic-foundation/semantic/candidates.yaml")
+    candidates_path = Path("docs/fact/candidates.yaml")
     if not candidates_path.exists():
         pytest.skip("candidates.yaml not found")
 
@@ -395,7 +395,7 @@ def test_valid_status_values():
     """Test that only valid status values are used"""
     valid_statuses = {'recommend', 'not_recommend', 'defer'}
 
-    candidates_path = Path("docs/semantic-foundation/semantic/candidates.yaml")
+    candidates_path = Path("docs/fact/candidates.yaml")
     if not candidates_path.exists():
         pytest.skip("candidates.yaml not found")
 
@@ -412,7 +412,7 @@ def test_valid_action_values():
     """Test that only valid action values are used"""
     valid_actions = {'keep', 'merge', 'drop', 'backlog', 'verify_first'}
 
-    candidates_path = Path("docs/semantic-foundation/semantic/candidates.yaml")
+    candidates_path = Path("docs/fact/candidates.yaml")
     if not candidates_path.exists():
         pytest.skip("candidates.yaml not found")
 

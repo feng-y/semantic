@@ -24,7 +24,7 @@ def test_cache_lookup_fast(tmp_path):
     file_path.write_text("content")
     file_hash = "abc123"
     signals = {
-        "domain_signals": [{"name": "D1", "score": 0.9}],
+        "domain_signals": [{"signal_type": "test", "source": "test", "evidence": "test evidence", "confidence": "high", "name": "D1", "score": 0.9}],
         "concept_signals": [],
         "rule_signals": [],
         "demand_pattern_signals": [],
@@ -64,7 +64,7 @@ def test_large_signal_merge_fast(tmp_path):
         fp = tmp_path / f"file_{i}.yaml"
         fp.write_text(f"content {i}")
         signals = {
-            "domain_signals": [{"name": f"D{i}"}],
+            "domain_signals": [{"signal_type": "test", "source": "test", "evidence": "test evidence", "confidence": "high", "name": f"D{i}"}],
             "concept_signals": [],
             "rule_signals": [],
             "demand_pattern_signals": [],
@@ -74,10 +74,10 @@ def test_large_signal_merge_fast(tmp_path):
     # Build two dicts with 100 items per category
     def make_signals(n, prefix):
         return {
-            "domain_signals": [{"name": f"{prefix}_D{j}"} for j in range(n)],
-            "concept_signals": [{"name": f"{prefix}_C{j}"} for j in range(n)],
-            "rule_signals": [{"name": f"{prefix}_R{j}"} for j in range(n)],
-            "demand_pattern_signals": [{"name": f"{prefix}_P{j}"} for j in range(n)],
+            "domain_signals": [{"signal_type": "test", "source": "test", "evidence": "test evidence", "confidence": "high", "name": f"{prefix}_D{j}"} for j in range(n)],
+            "concept_signals": [{"signal_type": "test", "source": "test", "evidence": "test evidence", "confidence": "high", "name": f"{prefix}_C{j}"} for j in range(n)],
+            "rule_signals": [{"signal_type": "test", "source": "test", "evidence": "test evidence", "confidence": "high", "name": f"{prefix}_R{j}"} for j in range(n)],
+            "demand_pattern_signals": [{"signal_type": "test", "source": "test", "evidence": "test evidence", "confidence": "high", "name": f"{prefix}_P{j}"} for j in range(n)],
         }
 
     dict_a = make_signals(100, "A")
