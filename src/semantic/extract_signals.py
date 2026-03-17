@@ -22,6 +22,18 @@ try:
 except ImportError:
     INCREMENTAL_AVAILABLE = False
 
+try:
+    from .metrics import MetricsCollector
+except ImportError:
+    from metrics import MetricsCollector
+
+try:
+    from .logger import get_logger, configure_logging
+except ImportError:
+    from logger import get_logger, configure_logging
+
+logger = get_logger(__name__)
+
 def load_fact_canonical(fact_root: Path) -> Optional[Dict[str, Any]]:
     """Load FACT canonical YAML (primary hard input)"""
     canonical_path = fact_root / "fact_canonical_sample.yaml"
@@ -192,7 +204,7 @@ def extract_signals_from_files(canonical: Dict[str, Any], working: Optional[Dict
     }
 
 
-def run_incremental_extraction(fact_root: Path, cache_dir: Path) -> Dict[str, List[Dict[str, Any]]]:
+def run_incremental_extraction(fact_root: Path, cache_dir: Path, max_entries: int = 100, ttl_hours: float = 24.0) -> Dict[str, List[Dict[str, Any]]]:
     """
     Run incremental extraction using change detection and caching.
 
@@ -200,7 +212,7 @@ def run_incremental_extraction(fact_root: Path, cache_dir: Path) -> Dict[str, Li
         Merged signals from cached and newly extracted data
     """
     detector = ChangeDetector(fact_root, cache_dir)
-    cache = SignalCache(cache_dir)
+    cache = SignalCache(cache_dir, max_entries=max_entries, ttl_hours=ttl_hours)
 
     # Detect changes
     changes = detector.detect_changes()
@@ -209,7 +221,7 @@ def run_incremental_extraction(fact_root: Path, cache_dir: Path) -> Dict[str, Li
     removed = changes['removed']
 
     if not changed and not added and not removed:
-        print("ℹ No changes detected, using cached signals")
+        logger.info("No changes detected, using cached signals")
         # Load all cached signals
         canonical_path = fact_root / "fact_canonical_sample.yaml"
         working_path = fact_root / "fact_working_summary_sample.yaml"
@@ -223,21 +235,28 @@ def run_incremental_extraction(fact_root: Path, cache_dir: Path) -> Dict[str, Li
                     cached_signals.append(signals)
 
         if cached_signals:
+            stats = cache.get_cache_stats()
+            hits = stats.get('hits', 0)
+            misses = stats.get('misses', 0)
+            total = hits + misses
+            if total > 0:
+                rate = stats.get('hit_rate', 0.0)
+                logger.info("Cache: %d hits, %d misses (%.0f%% hit rate)", hits, misses, rate * 100)
             return cache.merge_signals(*cached_signals)
 
     # Report changes
     if changed:
-        print(f"ℹ Changed files: {len(changed)}")
+        logger.info("Changed files: %d", len(changed))
         for f in changed:
-            print(f"  - {f.name}")
+            logger.debug("  - %s", f.name)
     if added:
-        print(f"ℹ Added files: {len(added)}")
+        logger.info("Added files: %d", len(added))
         for f in added:
-            print(f"  - {f.name}")
+            logger.debug("  - %s", f.name)
     if removed:
-        print(f"ℹ Removed files: {len(removed)}")
+        logger.info("Removed files: %d", len(removed))
         for f in removed:
-            print(f"  - {f.name}")
+            logger.debug("  - %s", f.name)
             cache.invalidate_file(f)
 
     # Extract signals from changed/added files
@@ -245,7 +264,7 @@ def run_incremental_extraction(fact_root: Path, cache_dir: Path) -> Dict[str, Li
     working = load_fact_working_summary(fact_root)
 
     if canonical is None:
-        print("✗ ERROR: fact_canonical_sample.yaml not found")
+        logger.error("✗ ERROR: fact_canonical_sample.yaml not found")
         return cache.merge_signals()
 
     # Extract fresh signals
@@ -262,6 +281,12 @@ def run_incremental_extraction(fact_root: Path, cache_dir: Path) -> Dict[str, Li
         if working_path.exists():
             file_hash = detector.compute_file_hash(working_path)
             cache.store_signals(working_path, file_hash, fresh_signals)
+
+    # Report cache statistics
+    cache_stats = cache.get_cache_stats()
+    if cache_stats['hits'] + cache_stats['misses'] > 0:
+        logger.info("Cache: %d hits, %d misses (%.1f%% hit rate)",
+                   cache_stats['hits'], cache_stats['misses'], cache_stats['hit_rate'] * 100)
 
     return fresh_signals
 
@@ -280,24 +305,36 @@ def main():
                         help='Cache directory for incremental mode')
     parser.add_argument('--clear-cache', action='store_true',
                         help='Clear cache before extraction')
+    parser.add_argument('--cache-ttl-hours', type=float, default=24.0,
+                        help='Cache TTL in hours (0 = no expiry)')
+    parser.add_argument('--cache-max-entries', type=int, default=100,
+                        help='Max cache entries (0 = unlimited)')
+    parser.add_argument('--metrics', action='store_true', help='Show timing metrics')
+    parser.add_argument('--verbose', action='store_true', help='Enable debug logging')
+    parser.add_argument('--quiet', action='store_true', help='Suppress non-error output')
     args = parser.parse_args()
+
+    configure_logging(args.verbose, args.quiet)
 
     fact_root = Path(args.fact_root)
     output_path = Path(args.output)
     cache_dir = Path(args.cache_dir)
 
+    metrics = MetricsCollector(enabled=args.metrics)
+
     # Clear cache if requested
     if args.clear_cache:
-        cache = SignalCache(cache_dir)
+        cache = SignalCache(cache_dir, max_entries=args.cache_max_entries, ttl_hours=args.cache_ttl_hours)
         cache.clear_all()
-        print("✓ Cache cleared")
+        logger.info("✓ Cache cleared")
         if not args.incremental:
             return 0
 
     # Run extraction
     if args.incremental:
-        print("Running incremental extraction...")
-        signals = run_incremental_extraction(fact_root, cache_dir)
+        logger.info("Running incremental extraction...")
+        with metrics.time("incremental_extraction"):
+            signals = run_incremental_extraction(fact_root, cache_dir, max_entries=args.cache_max_entries, ttl_hours=args.cache_ttl_hours)
 
         # Build output structure
         signals_data = {
@@ -314,18 +351,21 @@ def main():
         print("Running full extraction...")
 
         # Validate inputs
-        canonical = load_fact_canonical(fact_root)
+        with metrics.time("load_canonical"):
+            canonical = load_fact_canonical(fact_root)
         if canonical is None:
             print("✗ ERROR: fact_canonical_sample.yaml not found")
             print(f"  Expected at: {fact_root / 'fact_canonical_sample.yaml'}")
             return 1
 
-        working = load_fact_working_summary(fact_root)
+        with metrics.time("load_working"):
+            working = load_fact_working_summary(fact_root)
         if working is None:
             print("⚠ WARNING: fact_working_summary_sample.yaml not found (proceeding without it)")
 
         # Extract signals
-        signals = extract_signals_from_files(canonical, working)
+        with metrics.time("signal_extraction"):
+            signals = extract_signals_from_files(canonical, working)
 
         # Build output structure
         signals_data = {
@@ -355,6 +395,10 @@ def main():
         render_path = Path(args.render_md)
         render_signals_markdown(signals_data, render_path)
         print(f"✓ Rendered view: {render_path}")
+
+    report = metrics.report()
+    if report:
+        print(report)
 
     return 0
 
