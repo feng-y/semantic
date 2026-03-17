@@ -59,13 +59,6 @@ AUGMENT_PROMPTS: dict[str, tuple[str, str]] = {
     "prompts/discover/evidence-extraction.prompt": ("repo-facts", "discovery"),
 }
 
-# Steps after which validation runs (0-indexed step positions of validate-artifact)
-# From the skill: step 3 validates after evidence-extraction, step 6 validates after repo-understanding
-VALIDATION_STEP_TARGETS = {
-    3: "repo-facts",        # validate repo-facts after evidence-extraction
-    6: "repo-understanding",  # validate repo-understanding after repo-understanding
-}
-
 
 def validate_artifact_content(content: str, name: str) -> list[str]:
     """Structural validation against schema-defined sections.
@@ -451,7 +444,7 @@ def run_discovery(
         if action == "run":
             # Is this a validation step?
             if target == "prompts/validation/validate-artifact.prompt":
-                artifact_to_validate = VALIDATION_STEP_TARGETS.get(i)
+                artifact_to_validate = step.get("validate")
                 if artifact_to_validate:
                     step_result = _execute_validation_step(
                         root, i, target, artifact_to_validate,
@@ -460,7 +453,7 @@ def run_discovery(
                     step_result = StepResult(
                         step_index=i, action="run", target=target,
                         status="skipped",
-                        errors=["No validation target mapped for this step"],
+                        errors=["No validation target specified in step"],
                     )
             # Is this an augmentation step?
             elif target in AUGMENT_PROMPTS:

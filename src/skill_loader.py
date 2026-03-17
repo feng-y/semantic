@@ -176,9 +176,10 @@ def get_skill_steps(skill: dict[str, Any]) -> list[dict[str, str]]:
       - {run: path}
       - {apply: path}
       - {if: condition, run: path}
+      - {run: path, validate: artifact_name}  # validation steps
 
     Returns list of dicts with 'action' and 'target' keys,
-    plus 'condition' for conditional steps.
+    plus 'condition' for conditional steps, and 'validate' for validation steps.
     """
     steps_raw = skill.get("steps", [])
     if not isinstance(steps_raw, list):
@@ -188,13 +189,21 @@ def get_skill_steps(skill: dict[str, Any]) -> list[dict[str, str]]:
     for entry in steps_raw:
         if isinstance(entry, dict):
             if "run" in entry and "if" in entry:
-                steps.append({
+                step_dict = {
                     "action": "conditional",
                     "condition": entry["if"],
                     "target": entry["run"],
-                })
+                }
+                # Preserve additional fields like validate
+                if "validate" in entry:
+                    step_dict["validate"] = entry["validate"]
+                steps.append(step_dict)
             elif "run" in entry:
-                steps.append({"action": "run", "target": entry["run"]})
+                step_dict = {"action": "run", "target": entry["run"]}
+                # Preserve additional fields like validate
+                if "validate" in entry:
+                    step_dict["validate"] = entry["validate"]
+                steps.append(step_dict)
             elif "apply" in entry:
                 steps.append({"action": "apply", "target": entry["apply"]})
             else:

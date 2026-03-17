@@ -10,9 +10,11 @@ steps:
   - run: prompts/discover/repo-facts.prompt
   - run: prompts/discover/evidence-extraction.prompt
   - run: prompts/validation/validate-artifact.prompt
+    validate: repo-facts
   - run: prompts/discover/domain-candidates.prompt
   - run: prompts/discover/repo-understanding.prompt
   - run: prompts/validation/validate-artifact.prompt
+    validate: repo-understanding
   - run: prompts/discover/knowledge-confidence.prompt
   - run: prompts/discover/review-summary.prompt
   - apply: protocols/artifact-versioning.md
