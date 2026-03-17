@@ -261,8 +261,27 @@ Questions here
 ## System Summary
 Summary here
 """
+        # Should FAIL - not all required sections present (AND logic)
         errors = artifact_validation.validate_review_summary(content)
-        assert errors == []
+        assert len(errors) > 0
+        assert "missing required sections" in errors[0].lower()
+        assert "Pipelines" in errors[0]
+
+    def test_missing_multiple_required_sections(self) -> None:
+        content = """# Review Summary
+
+## System Summary
+Summary here
+
+## Pipelines
+Pipeline info
+"""
+        # Missing: Concepts, Candidate Domains, Assumptions, Questions for Architect
+        errors = artifact_validation.validate_review_summary(content)
+        assert len(errors) > 0
+        assert "missing required sections" in errors[0].lower()
+        assert "Concepts" in errors[0]
+        assert "Assumptions" in errors[0]
 
 
 class TestBaselineFilesValidation:
@@ -311,6 +330,15 @@ class TestCaseInsensitiveMatching:
 
 ## system purpose
 Purpose here
+
+## pipelines
+Pipeline info
+
+## concepts
+Concept info
+
+## candidate domains
+Domain info
 """
         errors = artifact_validation.validate_repo_understanding(content)
         assert errors == []
@@ -320,6 +348,12 @@ Purpose here
 
 ## CONFIRMED KNOWLEDGE
 Confirmed info
+
+## inferred knowledge
+Inferred info
+
+## Uncertain Knowledge
+Uncertain info
 """
         errors = artifact_validation.validate_knowledge_confidence(content)
         assert errors == []
