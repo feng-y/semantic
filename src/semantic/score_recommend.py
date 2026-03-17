@@ -376,7 +376,14 @@ def main():
                         help="Confidence threshold for auto-accept (default: high)")
     parser.add_argument("--audit-log", type=str, default=None,
                         help="Path to write auto-accept audit log")
+    parser.add_argument("--cache-dir", default=".semantic-cache/stages", help="Cache directory")
+    parser.add_argument("--no-cache", action="store_true", help="Bypass cache entirely")
     args = parser.parse_args()
+
+    try:
+        from semantic.stage_cache import StageCache
+    except ImportError:
+        from stage_cache import StageCache
 
     # Load candidates
     candidates_path = Path(args.candidates)
@@ -385,6 +392,22 @@ def main():
     if not candidates:
         print(f"ERROR: Could not load candidates from {candidates_path}")
         return
+
+    # Cache lookup
+    cache = StageCache(Path(args.cache_dir)) if not args.no_cache else None
+    input_hash = cache.hash_file(candidates_path) if cache else ""
+
+    if cache and input_hash:
+        cached = cache.get('score_recommend', input_hash)
+        if cached is not None:
+            print("✓ Using cached recommendations (input unchanged)")
+            output_path = Path(args.output)
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            with open(output_path, 'w', encoding='utf-8') as f:
+                yaml.safe_dump(cached, f, sort_keys=False, allow_unicode=True)
+            if args.render_md:
+                render_recommendations_markdown(cached, Path(args.render_md))
+            return
 
     # Extract candidate groups
     domains = candidates.get('domains', [])
@@ -410,6 +433,10 @@ def main():
             'recommendation_count': len(domain_recs) + len(concept_recs) + len(rule_recs) + len(demand_model_recs)
         }
     }
+
+    # Store in cache
+    if cache and input_hash:
+        cache.put('score_recommend', input_hash, recommendations_data)
 
     # Write canonical output
     output_path = Path(args.output)

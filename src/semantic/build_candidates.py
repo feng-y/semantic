@@ -186,7 +186,14 @@ def main():
     parser.add_argument("--signals", required=True, help="Path to signals.yaml")
     parser.add_argument("--output", required=True, help="Path to output candidates.yaml")
     parser.add_argument("--render-md", help="Path to output candidates.md")
+    parser.add_argument("--cache-dir", default=".semantic-cache/stages", help="Cache directory")
+    parser.add_argument("--no-cache", action="store_true", help="Bypass cache entirely")
     args = parser.parse_args()
+
+    try:
+        from semantic.stage_cache import StageCache
+    except ImportError:
+        from stage_cache import StageCache
 
     # Load signals
     signals_path = Path(args.signals)
@@ -195,6 +202,22 @@ def main():
     if not signals_data:
         print(f"✗ Failed to load signals from {signals_path}")
         return 1
+
+    # Cache lookup
+    cache = StageCache(Path(args.cache_dir)) if not args.no_cache else None
+    input_hash = cache.hash_file(signals_path) if cache else ""
+
+    if cache and input_hash:
+        cached = cache.get('build_candidates', input_hash)
+        if cached is not None:
+            print("✓ Using cached candidates (input unchanged)")
+            output_path = Path(args.output)
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            with open(output_path, 'w', encoding='utf-8') as f:
+                yaml.safe_dump(cached, f, sort_keys=False, allow_unicode=True)
+            if args.render_md:
+                render_candidates_markdown(cached, Path(args.render_md))
+            return 0
 
     # Extract signal groups
     domain_signals = signals_data.get('domain_signals', [])
@@ -220,6 +243,10 @@ def main():
             'candidate_count': len(domains) + len(concepts) + len(rules) + len(demand_models)
         }
     }
+
+    # Store in cache
+    if cache and input_hash:
+        cache.put('build_candidates', input_hash, candidates_data)
 
     # Write canonical output
     output_path = Path(args.output)
