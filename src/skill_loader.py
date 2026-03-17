@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import re
 from pathlib import Path
 from typing import Any
@@ -132,8 +133,8 @@ def _load_skills_from_plugin_json(plugin_json_path: Path) -> dict[str, dict[str,
     Returns dict keyed by skill name (e.g., "init" -> semantic-init skill data).
     """
     try:
-        plugin_data = yaml.safe_load(plugin_json_path.read_text())
-    except yaml.YAMLError as e:
+        plugin_data = json.loads(plugin_json_path.read_text())
+    except json.JSONDecodeError as e:
         raise SkillLoadError(f"Invalid JSON in {plugin_json_path}: {e}") from e
 
     if not isinstance(plugin_data, dict):
