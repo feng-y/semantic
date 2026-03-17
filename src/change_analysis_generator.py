@@ -114,8 +114,10 @@ def _find_bullets_after_label(content: str, label: str) -> list[str]:
                     out.append(val)
                 continue
             if re.match(r"^\s*[-*]?\s*[A-Za-z].*:\s*", nxt):
+                break  # Stop at next section header
+            else:
+                # Non-bullet, non-header line - end of bullet list
                 break
-            break
         break
     return _unique(out)
 
