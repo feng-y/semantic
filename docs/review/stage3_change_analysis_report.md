@@ -109,7 +109,7 @@ Commands run:
 Result:
 
 - `tests/test_stage3_change_analysis.py`: **8 passed**
-- full suite: **245 passed, 0 failed**
+- full suite: **313 passed, 0 failed**
 
 ## Remaining Gaps (Deferred to Stage 4+)
 
