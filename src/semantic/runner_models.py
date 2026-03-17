@@ -3,7 +3,7 @@ from typing import Dict, List, Optional, Literal
 from pydantic import BaseModel
 
 class RunState(BaseModel):
-    mode: Literal["next", "all"]
+    mode: Literal["next", "all", "resume", "reset"]
     current_stage: Optional[str] = None
     completed_stages: List[str] = []
     artifacts: Dict[str, str] = {}
