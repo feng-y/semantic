@@ -6,7 +6,7 @@ triggers:
   - semantic-signals
   - extract signals
   - semantic step1
-argument-hint: "[--fact-root PATH] [--output PATH]"
+argument-hint: "[--fact-root PATH] [--output PATH] [--incremental] [--cache-dir PATH] [--clear-cache]"
 ---
 
 # Semantic Signals — Signal Extraction
@@ -158,6 +158,115 @@ python -m semantic.extract_signals \
 ```
 /semantic-signals
 ```
+
+### Incremental Mode
+
+**Purpose**: Extract signals only from changed files and reuse cached results for unchanged files.
+
+**Benefits**:
+- 80% cost reduction (only process changed files)
+- 80% time savings (skip unchanged files)
+- Enables frequent re-runs for iterative workflows
+
+#### Enable Incremental Extraction
+
+```bash
+python -m semantic.extract_signals \
+  --fact-root docs/semantic-foundation/fact \
+  --output docs/semantic-foundation/semantic/signals.yaml \
+  --incremental
+```
+
+#### Parameters
+
+**--incremental**
+- Enables incremental extraction mode
+- Detects changed files using SHA256 hashing
+- Reuses cached signals for unchanged files
+- Default: disabled (full extraction)
+
+**--cache-dir PATH**
+- Specifies custom cache directory location
+- Default: `.semantic-cache/` in current directory
+- Cache structure:
+  - `signals/` - Cached signal files
+  - `change_state.json` - Change detection state
+
+**--clear-cache**
+- Clears all cached signals before extraction
+- Forces full re-extraction of all files
+- Useful for cache corruption or major changes
+- Use with `--incremental` to rebuild cache
+
+#### Cache Management
+
+**View Cache Statistics**:
+```bash
+# Cache info is logged during extraction
+python -m semantic.extract_signals --incremental --fact-root docs/semantic-foundation/fact
+# Output includes: cache hits, misses, total entries
+```
+
+**Clear Cache**:
+```bash
+# Option 1: Use --clear-cache flag
+python -m semantic.extract_signals --incremental --clear-cache --fact-root docs/semantic-foundation/fact
+
+# Option 2: Delete cache directory manually
+rm -rf .semantic-cache/
+```
+
+**Cache Location**:
+- Default: `.semantic-cache/` in working directory
+- Custom: Use `--cache-dir` to specify location
+- Recommended: Add `.semantic-cache/` to `.gitignore`
+
+#### When to Use Incremental Mode
+
+**Use incremental mode when**:
+- Making iterative changes to FACT inputs
+- Re-running after small modifications
+- Working on large projects (>50 files)
+- Cost and time are concerns
+
+**Use full mode when**:
+- First-time extraction
+- Major restructuring of FACT inputs
+- Cache corruption suspected
+- Need guaranteed fresh extraction
+
+#### Performance Expectations
+
+**Typical Scenario** (20% files changed):
+- Processing time: 80% faster
+- API cost: 80% lower
+- Cache hit rate: 80%
+
+**First Run** (no cache):
+- Same as full mode
+- Builds cache for future runs
+
+**Cache Invalidation**:
+- Automatic on file content changes
+- Manual via `--clear-cache`
+- Per-file granularity
+
+#### Troubleshooting
+
+**Cache not working**:
+- Verify `--incremental` flag is set
+- Check cache directory exists and is writable
+- Review change detection state in `change_state.json`
+
+**Unexpected full extraction**:
+- First run always does full extraction
+- `--clear-cache` forces full extraction
+- Missing or corrupted cache triggers full extraction
+
+**Stale cached signals**:
+- Use `--clear-cache` to rebuild
+- Verify file hashes in `change_state.json`
+- Check cache directory permissions
 
 ## Constraints
 
