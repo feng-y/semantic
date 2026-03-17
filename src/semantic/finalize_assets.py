@@ -1,11 +1,11 @@
 """Semantic Finalization - Generate final semantic asset maps"""
 from pathlib import Path
-import argparse, yaml, hashlib
+import argparse, yaml, hashlib, sys
 from typing import Dict, List, Any
 from datetime import datetime
 
 def load_yaml(path: Path) -> Dict[str, Any]:
-    with open(path, 'r') as f:
+    with open(path, 'r', encoding='utf-8') as f:
         return yaml.safe_load(f)
 
 def check_unresolved_verifications(checks: Dict) -> List[str]:
@@ -16,8 +16,16 @@ def check_unresolved_verifications(checks: Dict) -> List[str]:
             unresolved.append(check['target_name'])
     return unresolved
 
+_SINGULAR = {
+    'domains': 'domain',
+    'concepts': 'concept',
+    'rules': 'rule',
+    'demand_models': 'demand_model',
+}
+
 def generate_final_id(name: str, type_prefix: str) -> str:
-    return f"{type_prefix}_{hashlib.md5(name.encode()).hexdigest()[:8]}"
+    content = f"{type_prefix}:{name}".encode('utf-8')
+    return f"{type_prefix}_{hashlib.sha256(content).hexdigest()[:12]}"
 
 def finalize_domain(decision: Dict) -> Dict:
     return {
@@ -66,7 +74,7 @@ def build_change_log(decisions: Dict) -> Dict:
     for group in ['domains', 'concepts', 'rules', 'demand_models']:
         for dec in decisions.get(group, []):
             action = dec['final_action']
-            entry = {'name': dec['name'], 'type': group.rstrip('s'), 'reason': dec['final_reason']}
+            entry = {'name': dec['name'], 'type': _SINGULAR.get(group, group.rstrip('s')), 'reason': dec['final_reason']}
             if action == 'keep': added.append(entry)
             elif action == 'merge': merged.append({**entry, 'target': dec.get('merge_target')})
             elif action == 'drop': dropped.append(entry)
@@ -103,7 +111,6 @@ def main():
     if unresolved:
         print(f"⚠ Unresolved verify_first items: {', '.join(unresolved)}")
         print("Finalization blocked. Resolve evidence checks first.")
-        import sys
         sys.exit(1)  # Exit with error code
 
     output_dir = Path(args.output_dir)
@@ -120,7 +127,7 @@ def main():
     for name, data in [('domain-map', domain_map), ('concept-map', concept_map), ('rule-map', rule_map), ('demand-model-map', demand_model_map), ('change-log', change_log)]:
         yaml_path = output_dir / f"{name}.yaml"
         md_path = output_dir / f"{name}.md"
-        with open(yaml_path, 'w') as f:
+        with open(yaml_path, 'w', encoding='utf-8') as f:
             yaml.safe_dump(data, f, sort_keys=False)
         render_markdown(data, name.replace('-', ' ').title(), md_path)
         print(f"✓ {yaml_path}")

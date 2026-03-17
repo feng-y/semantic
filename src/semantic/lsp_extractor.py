@@ -35,7 +35,7 @@ def extract_symbols(source_path: Path) -> List[SymbolInfo]:
     module_name = source_path.stem
     symbols = []
 
-    for node in ast.walk(tree):
+    for node in ast.iter_child_nodes(tree):
         if isinstance(node, ast.ClassDef):
             bases = [_name_of(b) for b in node.bases if _name_of(b)]
             symbols.append(SymbolInfo(
@@ -46,9 +46,8 @@ def extract_symbols(source_path: Path) -> List[SymbolInfo]:
                 docstring=ast.get_docstring(node),
                 bases=bases,
             ))
-            # methods
-            for item in node.body:
-                if isinstance(item, ast.FunctionDef) and not item.name.startswith('_'):
+            for item in ast.iter_child_nodes(node):
+                if isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef)) and not item.name.startswith('_'):
                     symbols.append(SymbolInfo(
                         name=f"{node.name}.{item.name}",
                         kind='method',
@@ -58,7 +57,6 @@ def extract_symbols(source_path: Path) -> List[SymbolInfo]:
                         bases=[],
                     ))
         elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-            # top-level functions only
             if not node.name.startswith('_'):
                 symbols.append(SymbolInfo(
                     name=node.name,

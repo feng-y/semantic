@@ -44,8 +44,8 @@ START
 ### Step 1: Validate Inputs
 
 **Check for:**
-- [ ] `docs/semantic-foundation/fact/fact_canonical_sample.yaml` exists (REQUIRED)
-- [ ] `docs/semantic-foundation/fact/fact_working_summary_sample.yaml` exists (optional)
+- [ ] `docs/fact/fact_canonical_sample.yaml` exists (REQUIRED)
+- [ ] `docs/fact/fact_working_summary_sample.yaml` exists (optional)
 - [ ] `docs/fact/baseline/*.md` exists (optional)
 
 **Blocking conditions:**
@@ -129,10 +129,10 @@ demand_pattern_signals:
 ### Step 6: Write Outputs
 
 **Canonical output:**
-- `docs/semantic-foundation/semantic/signals.yaml`
+- `docs/fact/signals.yaml`
 
 **View output:**
-- `docs/semantic-foundation/semantic/signals.md`
+- `docs/fact/signals.md`
 
 **Metadata:**
 ```yaml
@@ -148,9 +148,9 @@ metadata:
 
 ```bash
 python -m semantic.extract_signals \
-  --fact-root docs/semantic-foundation/fact \
-  --output docs/semantic-foundation/semantic/signals.yaml \
-  --render-md docs/semantic-foundation/semantic/signals.md
+  --fact-root docs/fact \
+  --output docs/fact/signals.yaml \
+  --render-md docs/fact/signals.md
 ```
 
 ### From Skill

@@ -9,9 +9,16 @@ import yaml
 from typing import Dict, List, Any
 import hashlib
 
+_SINGULAR = {
+    'domains': 'domain',
+    'concepts': 'concept',
+    'rules': 'rule',
+    'demand_models': 'demand_model',
+}
+
 def generate_check_id(target_id: str) -> str:
     """Generate stable check ID from target ID"""
-    hash_suffix = hashlib.md5(target_id.encode()).hexdigest()[:8]
+    hash_suffix = hashlib.sha256(target_id.encode()).hexdigest()[:12]
     return f"check_{hash_suffix}"
 
 def create_evidence_check(recommendation: Dict[str, Any], rec_type: str) -> Dict[str, Any]:
@@ -60,7 +67,7 @@ def generate_evidence_checks(recommendations: Dict[str, Any]) -> List[Dict[str, 
     # Process each recommendation group
     for group_name in ['domains', 'concepts', 'rules', 'demand_models']:
         recs = recommendations.get(group_name, [])
-        rec_type = group_name.rstrip('s')
+        rec_type = _SINGULAR.get(group_name, group_name.rstrip('s'))
         
         for rec in recs:
             # Check if verification is needed

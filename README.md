@@ -157,18 +157,18 @@ Internal runtime:
     state_inspector.py   → semantic state routing
 
 Semantic state (generated):
-  docs/semantic-foundation/semantic/  → generated semantic state
+  docs/fact/  → generated semantic state
     schemas/             → artifact schema contracts
     discovery/           → versioned working artifacts (generated)
     review/              → review-summary, architect-feedback (generated)
     baseline/            → accepted baseline (generated, immutable)
 
 Documentation:
-  docs/semantic-foundation/  → architecture decision records
-  docs/review/               → development reports and audit artifacts
+  docs/semantic-design/  → architecture decision records
+  docs/review/           → development reports and audit artifacts
 ```
 
-> **Note:** `docs/semantic-foundation/semantic/` contains machine-generated semantic state, not ordinary documentation. The `discovery/`, `review/`, and `baseline/` subdirectories are written by the pipeline at runtime.
+> **Note:** `docs/fact/` contains machine-generated semantic state, not ordinary documentation. The `discovery/`, `review/`, and `baseline/` subdirectories are written by the pipeline at runtime.
 
 ## Documentation
 

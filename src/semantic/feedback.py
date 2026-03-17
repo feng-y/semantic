@@ -54,6 +54,8 @@ class FeedbackCollector:
                     try:
                         entries.append(FeedbackEntry(**json.loads(line)))
                     except (json.JSONDecodeError, TypeError):
+                        import warnings
+                        warnings.warn(f"Skipping corrupt feedback entry: {line[:80]!r}")
                         continue
         return entries
 

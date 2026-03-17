@@ -18,6 +18,13 @@ try:
 except ImportError:
     _feedback_available = False
 
+_SINGULAR = {
+    'domains': 'domain',
+    'concepts': 'concept',
+    'rules': 'rule',
+    'demand_models': 'demand_model',
+}
+
 def load_recommendations(recommendations_path: Path) -> Optional[Dict[str, Any]]:
     """Load recommendations.yaml (primary input)"""
     if not recommendations_path.exists():
@@ -26,9 +33,9 @@ def load_recommendations(recommendations_path: Path) -> Optional[Dict[str, Any]]
         return yaml.safe_load(f)
 
 def generate_stable_id(name: str, type_prefix: str) -> str:
-    """Generate stable ID from name"""
-    hash_suffix = hashlib.md5(name.encode()).hexdigest()[:8]
-    return f"review_{type_prefix}_{hash_suffix}"
+    """Generate a stable ID from name and type prefix"""
+    content = f"{type_prefix}:{name}".encode('utf-8')
+    return f"review_{type_prefix}_{hashlib.sha256(content).hexdigest()[:12]}"
 
 def convert_to_review_decision(recommendation: Dict[str, Any], rec_type: str) -> Dict[str, Any]:
     """
@@ -82,7 +89,7 @@ def generate_review_decisions(recommendations: Dict[str, Any]) -> Dict[str, Any]
     # Process each recommendation group
     for group_name in ['domains', 'concepts', 'rules', 'demand_models']:
         recs = recommendations.get(group_name, [])
-        rec_type = group_name.rstrip('s')  # domain, concept, rule, demand_model
+        rec_type = _SINGULAR.get(group_name, group_name.rstrip('s'))  # domain, concept, rule, demand_model
         
         for rec in recs:
             decision = convert_to_review_decision(rec, rec_type)
@@ -225,7 +232,7 @@ def main():
         }
         collector = FeedbackCollector(Path(args.feedback_log))
         for group in ['domains', 'concepts', 'rules', 'demand_models']:
-            item_type = group.rstrip('s')
+            item_type = _SINGULAR.get(group, group.rstrip('s'))
             for decision in decisions_data[group]:
                 outcome = _action_to_outcome.get(decision['final_action'], 'deferred')
                 collector.record(

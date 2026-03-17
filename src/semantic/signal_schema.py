@@ -10,6 +10,8 @@ KNOWN_CATEGORIES = frozenset([
     'demand_pattern_signals',
 ])
 
+REQUIRED_SIGNAL_KEYS = {'signal_type', 'source', 'evidence', 'confidence'}
+
 
 def validate_signals(signals: Any) -> Tuple[bool, List[str]]:
     """
@@ -39,5 +41,9 @@ def validate_signals(signals: Any) -> Tuple[bool, List[str]]:
         for i, item in enumerate(value):
             if not isinstance(item, dict):
                 errors.append(f"{category}[{i}] must be a dict, got {type(item).__name__}")
+                continue
+            missing = REQUIRED_SIGNAL_KEYS - set(item.keys())
+            if missing:
+                errors.append(f"{category}[{i}] missing required keys: {sorted(missing)}")
 
     return len(errors) == 0, errors

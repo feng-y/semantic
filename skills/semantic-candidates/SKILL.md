@@ -40,7 +40,7 @@ START
 ### Step 1: Validate Inputs
 
 **Check for:**
-- [ ] `docs/semantic-foundation/semantic/signals.yaml` exists (REQUIRED)
+- [ ] `docs/fact/signals.yaml` exists (REQUIRED)
 - [ ] signals.yaml has valid structure (4 signal groups)
 
 **Blocking conditions:**
@@ -130,10 +130,10 @@ demand_models:
 ### Step 6: Write Outputs
 
 **Canonical output:**
-- `docs/semantic-foundation/semantic/candidates.yaml`
+- `docs/fact/candidates.yaml`
 
 **View output:**
-- `docs/semantic-foundation/semantic/candidates.md`
+- `docs/fact/candidates.md`
 
 **Metadata:**
 ```yaml
@@ -149,9 +149,9 @@ metadata:
 
 ```bash
 python -m semantic.build_candidates \
-  --signals docs/semantic-foundation/semantic/signals.yaml \
-  --output docs/semantic-foundation/semantic/candidates.yaml \
-  --render-md docs/semantic-foundation/semantic/candidates.md
+  --signals docs/fact/signals.yaml \
+  --output docs/fact/candidates.yaml \
+  --render-md docs/fact/candidates.md
 ```
 
 ### From Skill

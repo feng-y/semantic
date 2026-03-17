@@ -79,7 +79,7 @@ class ChangeDetector:
             tmp_path = tmp.name
         os.replace(tmp_path, self.state_file)
 
-    def detect_changes(self) -> Dict[str, List[Path]]:
+    def detect_changes(self, save: bool = True) -> Dict[str, List[Path]]:
         """
         Detect which files have changed since last run.
 
@@ -120,13 +120,14 @@ class ChangeDetector:
                 changes['removed'].append(file_path)
 
         # Save current state
-        self.save_state(current_hashes)
+        if save:
+            self.save_state(current_hashes)
 
         return changes
 
     def has_changes(self) -> bool:
-        """Quick check if any files have changed"""
-        changes = self.detect_changes()
+        """Quick check if any files have changed (read-only, does not save state)"""
+        changes = self.detect_changes(save=False)
         return bool(changes['added'] or changes['changed'] or changes['removed'])
 
     def is_first_run(self) -> bool:

@@ -286,11 +286,6 @@ def run_incremental_extraction(fact_root: Path, cache_dir: Path, max_entries: in
         file_hash = detector.compute_file_hash(canonical_path)
         cache.store_signals(canonical_path, file_hash, fresh_signals)
 
-    if working:
-        working_path = fact_root / "fact_working_summary_sample.yaml"
-        if working_path.exists():
-            file_hash = detector.compute_file_hash(working_path)
-            cache.store_signals(working_path, file_hash, fresh_signals)
 
     # Report cache statistics
     cache_stats = cache.get_cache_stats()

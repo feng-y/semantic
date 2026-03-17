@@ -20,10 +20,9 @@ def load_signals(signals_path: Path) -> Optional[Dict[str, Any]]:
         return yaml.safe_load(f)
 
 def generate_stable_id(name: str, type_prefix: str) -> str:
-    """Generate stable ID from name"""
-    # Use hash of name for stability
-    hash_suffix = hashlib.md5(name.encode()).hexdigest()[:8]
-    return f"{type_prefix}_{hash_suffix}"
+    """Generate a stable ID from name and type prefix"""
+    content = f"{type_prefix}:{name}".encode('utf-8')
+    return f"{type_prefix}_{hashlib.sha256(content).hexdigest()[:12]}"
 
 def synthesize_domain_candidates(domain_signals: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     """Synthesize domain candidates from domain signals"""
