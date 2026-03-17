@@ -1,0 +1,53 @@
+review_target: demand_analysis_steps
+
+reviewed_files:
+  - path: docs/demand/demand_analysis_steps.md
+  - path: src/demand/normalize_issue.py
+  - path: src/demand/map_semantics.py
+  - path: src/demand/match_development_type.py
+  - path: src/demand/build_demand_card.py
+  - path: src/demand/validate_demand_card.py
+  - path: schemas/demand/demand-card.schema.json
+  - path: templates/demand/demand-card.template.yaml
+  - path: src/demand/models.py
+  - path: tests/demand/test_normalize_issue.py
+  - path: tests/demand/test_map_semantics.py
+  - path: tests/demand/test_match_development_type.py
+  - path: tests/demand/test_demand_card_e2e.py
+
+overall_status: pass_with_gaps
+
+assessments:
+  normalize_correctness: pass
+  semantic_mapping_correctness: partial
+  development_type_matching: pass
+  card_assembly: pass
+  e2e_validity: pass
+  test_quality: pass
+  minimality_discipline: pass
+
+strengths:
+  - Normalize step is bounded and preserves authoritative issue fields.
+  - Mapping/matching outputs are deterministic and keep Demand Card minimal.
+  - Development type remains strictly constrained to five enums.
+  - Assembly reuses Demand Card V1 builder/validator without shape drift.
+  - E2E generation and validation are covered by tests.
+
+gaps:
+  - Semantic mapping currently depends on lexical overlap and may under-match synonym-heavy issue text.
+  - Invariant fallback can be broader than ideal in some matched scenarios.
+
+blocking_issues: []
+
+recommended_fixes:
+  - priority: medium
+    target: src/demand/map_semantics.py
+    issue: Mapping under-matches when issue wording differs from asset labels.
+    recommendation: Add deterministic synonym/alias support for core semantic terms.
+  - priority: low
+    target: tests/demand/test_map_semantics.py
+    issue: Limited coverage for indirect phrasing scenarios.
+    recommendation: Add controlled fixtures for non-literal mappings.
+
+decisions:
+  demand_analysis_steps_ready: true

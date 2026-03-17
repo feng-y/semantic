@@ -1,0 +1,13 @@
+demand_card:
+  request_source:
+    issue_id: "ISSUE-001"
+    issue_text: >
+      Describe the original issue / request here.
+  semantic_mapping:
+    domains: []
+    concepts: []
+    rules: []
+    invariants: []
+  development_type: "feature"
+  uncertainties:
+    open_questions: []

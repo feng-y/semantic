@@ -1,0 +1,62 @@
+review_target: demand_main_chain
+
+reviewed_files:
+  - path: docs/demand/demand_chain_inventory_and_completion.md
+  - path: docs/demand/demand_chain_inventory_and_completion.yaml
+  - path: src/demand/normalize_issue.py
+  - path: src/demand/map_semantics.py
+  - path: src/demand/match_development_type.py
+  - path: src/demand/build_demand_card.py
+  - path: src/demand/validate_demand_card.py
+  - path: src/demand/run.py
+  - path: src/demand/stage_registry.py
+  - path: tests/demand/test_normalize_issue.py
+  - path: tests/demand/test_map_semantics.py
+  - path: tests/demand/test_match_development_type.py
+  - path: tests/demand/test_build_demand_card.py
+  - path: tests/demand/test_validate_demand_card.py
+  - path: tests/demand/test_demand_card_e2e.py
+  - path: tests/demand/test_demand_pipeline.py
+  - path: tests/demand/test_demand_pipeline_e2e.py
+  - path: docs/semantic-foundation/semantic/domain-map.yaml
+  - path: docs/semantic-foundation/semantic/concept-map.yaml
+  - path: docs/semantic-foundation/semantic/rule-map.yaml
+  - path: docs/semantic-foundation/semantic/demand-model-map.yaml
+
+overall_status: pass_with_gaps
+
+assessments:
+  normalize: pass
+  map: pass
+  match: partial
+  demand_card: pass
+  validate: pass
+  semantic_foundation_integration: partial
+  chain_coherence: pass
+  test_quality: pass
+
+strengths:
+  - normalize/map/match/build/validate are connected into a coherent demand chain.
+  - Card assembly preserves the canonical minimal Demand Card shape.
+  - Validator is strict, including unknown-field rejection.
+  - Mapping is deterministic and consumes real semantic foundation maps.
+  - Demand tests are substantial and include step-level and chain-level checks.
+
+gaps:
+  - demand-model-map integration is wired but low-signal in current repository data because demand_models are empty.
+  - match behavior remains primarily text/rule-driven when no demand-model hints are available.
+
+blocking_issues: []
+
+recommended_fixes:
+  - priority: medium
+    target: semantic foundation demand-model-map generation path
+    issue: Sparse/empty demand-model-map limits practical grounding for match hints.
+    recommendation: Emit minimally useful demand model entries from semantic stage outputs.
+  - priority: low
+    target: tests/demand/test_match_development_type.py
+    issue: Demand-model integration is currently validated with synthetic fixtures only.
+    recommendation: Add fixture-backed tests using a non-empty demand-model-map sample.
+
+decisions:
+  demand_main_chain_ready: true

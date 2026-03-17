@@ -1,0 +1,22 @@
+hardening_target: demand_analysis_steps
+
+updated_files:
+  - path: src/demand/map_semantics.py
+    reason: Added deterministic controlled synonym/alias support to reduce under-match on paraphrased issue text.
+  - path: docs/demand/demand_analysis_steps.md
+    reason: Documented bounded alias support in mapping step behavior.
+  - path: docs/demand/demand_analysis_steps_hardening.md
+    reason: Recorded hardening rationale, implementation, tests, and scope boundaries.
+
+tests_updated:
+  - path: tests/demand/test_map_semantics.py
+    reason: Added non-literal/paraphrase mapping coverage for domain, concept, rule, and invariant recovery.
+  - path: tests/demand/test_demand_card_e2e.py
+    reason: Added paraphrased end-to-end case to verify valid minimal card generation.
+
+remaining_risks:
+  - Alias catalog is intentionally small and may not cover all domain-specific paraphrases.
+  - Phrase-based alias matching is bounded and can still miss highly indirect wording.
+
+decisions:
+  hardening_completed: true

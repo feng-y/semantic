@@ -1,0 +1,46 @@
+review_target: demand_pipeline
+
+reviewed_files:
+  - path: docs/demand/demand_pipeline.md
+  - path: src/demand/run.py
+  - path: src/demand/stage_registry.py
+  - path: skills/demand-pipeline/SKILL.md
+  - path: src/demand/normalize_issue.py
+  - path: src/demand/map_semantics.py
+  - path: src/demand/match_development_type.py
+  - path: src/demand/build_demand_card.py
+  - path: src/demand/validate_demand_card.py
+  - path: tests/demand/test_demand_pipeline.py
+  - path: tests/demand/test_demand_pipeline_e2e.py
+
+overall_status: pass_with_gaps
+
+assessments:
+  pipeline_wiring: pass
+  output_contract: pass
+  failure_surfacing: pass
+  demand_card_integrity: pass
+  skill_correctness: pass
+  test_quality: partial
+  minimal_orchestration: pass
+
+strengths:
+  - Normalize/map/match/build/validate are wired in required order.
+  - Pipeline output contract is explicit and stable for callers.
+  - Stage-level failures are surfaced clearly with failed_stage and error details.
+  - Final Demand Card remains minimal and contract-consistent.
+  - demand-pipeline skill is thin and implementation-aligned.
+
+gaps:
+  - Build-step exception path is not explicitly tested.
+
+blocking_issues: []
+
+recommended_fixes:
+  - priority: medium
+    target: tests/demand/test_demand_pipeline.py
+    issue: Missing explicit build_demand_card failure test.
+    recommendation: Add a mocked build failure case and assert failed_stage/error behavior.
+
+decisions:
+  demand_pipeline_ready: true

@@ -1,0 +1,49 @@
+review_target: demand_card_v1
+
+reviewed_files:
+  - path: docs/demand/demand_card_v1.md
+  - path: schemas/demand/demand-card.schema.json
+  - path: templates/demand/demand-card.template.yaml
+  - path: src/demand/models.py
+  - path: src/demand/build_demand_card.py
+  - path: src/demand/validate_demand_card.py
+  - path: tests/demand/test_build_demand_card.py
+  - path: tests/demand/test_validate_demand_card.py
+
+overall_status: pass_with_gaps
+
+assessments:
+  shape_correctness: pass
+  schema_usefulness: pass
+  template_alignment: pass
+  model_correctness: pass
+  builder_correctness: pass
+  validator_correctness: pass
+  test_quality: partial
+  minimality_discipline: pass
+
+strengths:
+  - Canonical demand_card shape is stable and aligned across schema/template/model.
+  - development_type is strictly enforced to five allowed values.
+  - Builder emits minimal execution-facing fact structure without prohibited fields.
+  - Validator enforces required fields, enum constraints, and non-empty array items.
+  - Tests cover key positive and negative paths for builder and validator.
+
+gaps:
+  - Missing explicit negative test for non-array open_questions.
+  - Runtime validator does not currently reject unknown extra fields (schema does).
+
+blocking_issues: []
+
+recommended_fixes:
+  - priority: medium
+    target: tests/demand/test_validate_demand_card.py
+    issue: Non-array open_questions case is not explicitly tested.
+    recommendation: Add a test where open_questions is a string/object and assert failure.
+  - priority: medium
+    target: src/demand/validate_demand_card.py
+    issue: Unknown-field rejection is not mirrored from schema strictness.
+    recommendation: Add optional unknown-field checks to align validator behavior with additionalProperties false.
+
+decisions:
+  demand_card_v1_ready: true

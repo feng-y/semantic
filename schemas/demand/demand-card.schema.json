@@ -1,0 +1,98 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "schemas/demand/demand-card.schema.json",
+  "title": "Demand Card V1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["demand_card"],
+  "properties": {
+    "demand_card": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["request_source", "semantic_mapping", "development_type", "uncertainties"],
+      "properties": {
+        "request_source": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["issue_id", "issue_text"],
+          "properties": {
+            "issue_id": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": ".*\\S.*"
+            },
+            "issue_text": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": ".*\\S.*"
+            }
+          }
+        },
+        "semantic_mapping": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["domains", "concepts", "rules", "invariants"],
+          "properties": {
+            "domains": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": ".*\\S.*"
+              }
+            },
+            "concepts": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": ".*\\S.*"
+              }
+            },
+            "rules": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": ".*\\S.*"
+              }
+            },
+            "invariants": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": ".*\\S.*"
+              }
+            }
+          }
+        },
+        "development_type": {
+          "type": "string",
+          "enum": [
+            "feature",
+            "bugfix",
+            "refactor",
+            "migration",
+            "optimize"
+          ]
+        },
+        "uncertainties": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["open_questions"],
+          "properties": {
+            "open_questions": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": ".*\\S.*"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

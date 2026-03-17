@@ -1,0 +1,61 @@
+inventory_target: demand_main_chain
+
+steps:
+  normalize:
+    status: implemented
+    notes: Input trimming and required-field validation are implemented and tested.
+  map:
+    status: implemented
+    notes: Deterministic mapping to domains/concepts/rules/invariants with real semantic foundation asset consumption.
+  match:
+    status: implemented
+    notes: Deterministic single-type classification now uses issue text plus semantic-mapping context and demand-model hints.
+  demand_card:
+    status: implemented
+    notes: Canonical Demand Card V1 assembly is implemented and remains minimal.
+  validate:
+    status: implemented
+    notes: Strict validation implemented, including unknown-field rejection and type/enum constraints.
+
+semantic_foundation_integration:
+  domain_map:
+    status: integrated
+    notes: Loaded from semantic foundation artifacts and used directly by mapping stage.
+  concept_map:
+    status: integrated
+    notes: Loaded from semantic foundation artifacts and used directly by mapping stage.
+  rule_map:
+    status: integrated
+    notes: Loaded from semantic foundation artifacts and used directly by mapping stage.
+  demand_model_map:
+    status: integrated
+    notes: Used for invariant extraction fallback and match-stage development-type hints when model references are explicit.
+
+updated_files:
+  - path: src/demand/match_development_type.py
+    reason: Added semantic-mapping and demand-model-map grounded matching support.
+  - path: src/demand/run.py
+    reason: Wired demand_model_map into match step during pipeline orchestration.
+  - path: src/demand/build_demand_card.py
+    reason: Wired demand_model_map into match step in analyze-and-build path.
+  - path: docs/demand/demand_analysis_steps.md
+    reason: Updated match documentation to reflect grounded deterministic inputs.
+  - path: docs/demand/demand_chain_inventory_and_completion.md
+    reason: Added required inventory/completion report.
+  - path: docs/demand/demand_chain_inventory_and_completion.yaml
+    reason: Added required structured inventory/completion status.
+
+tests_updated:
+  - path: tests/demand/test_map_semantics.py
+    reason: Added test proving real semantic foundation artifact integration.
+  - path: tests/demand/test_match_development_type.py
+    reason: Added tests for semantic-mapping context and demand-model-map hint grounding.
+  - path: tests/demand/test_demand_pipeline.py
+    reason: Added explicit build-failure surfacing test for chain orchestration robustness.
+
+remaining_gaps:
+  - Alias catalog and demand-model hint coverage are intentionally bounded and require incremental expansion for wider phrasing coverage.
+  - Current repository sample demand_model_map content is sparse, so hint path is wired but may be lightly exercised in real runs.
+
+decisions:
+  demand_main_chain_ready: true
