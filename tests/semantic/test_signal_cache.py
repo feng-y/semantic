@@ -293,45 +293,81 @@ def test_merge_signals_empty_cached(tmp_path):
     """Test merging with empty cached signals"""
     cache = SignalCache(tmp_path)
 
-    cached = []
-    new = [{'signal_type': 'new1'}]
+    cached = {
+        'domain_signals': [],
+        'concept_signals': []
+    }
+    new = {
+        'domain_signals': [{'signal_type': 'new1'}],
+        'concept_signals': []
+    }
 
     merged = cache.merge_signals(cached, new)
 
-    assert merged == new
+    assert merged['domain_signals'] == new['domain_signals']
 
 
 def test_merge_signals_empty_new(tmp_path):
     """Test merging with empty new signals"""
     cache = SignalCache(tmp_path)
 
-    cached = [{'signal_type': 'cached1'}]
-    new = []
+    cached = {
+        'domain_signals': [{'signal_type': 'cached1'}],
+        'concept_signals': []
+    }
+    new = {
+        'domain_signals': [],
+        'concept_signals': []
+    }
 
     merged = cache.merge_signals(cached, new)
 
-    assert merged == cached
+    assert merged['domain_signals'] == cached['domain_signals']
 
 
 def test_merge_signals_both_empty(tmp_path):
     """Test merging with both empty"""
     cache = SignalCache(tmp_path)
 
-    merged = cache.merge_signals([], [])
+    empty1 = {
+        'domain_signals': [],
+        'concept_signals': [],
+        'rule_signals': [],
+        'demand_pattern_signals': []
+    }
+    empty2 = {
+        'domain_signals': [],
+        'concept_signals': [],
+        'rule_signals': [],
+        'demand_pattern_signals': []
+    }
 
-    assert merged == []
+    merged = cache.merge_signals(empty1, empty2)
+
+    assert merged == {
+        'domain_signals': [],
+        'concept_signals': [],
+        'rule_signals': [],
+        'demand_pattern_signals': []
+    }
 
 
 def test_merge_signals_preserves_order(tmp_path):
     """Test that merge preserves order (cached first, then new)"""
     cache = SignalCache(tmp_path)
 
-    cached = [{'id': 1}, {'id': 2}]
-    new = [{'id': 3}, {'id': 4}]
+    cached = {
+        'domain_signals': [{'id': 1}, {'id': 2}],
+        'concept_signals': []
+    }
+    new = {
+        'domain_signals': [{'id': 3}, {'id': 4}],
+        'concept_signals': []
+    }
 
     merged = cache.merge_signals(cached, new)
 
-    assert merged == [{'id': 1}, {'id': 2}, {'id': 3}, {'id': 4}]
+    assert merged['domain_signals'] == [{'id': 1}, {'id': 2}, {'id': 3}, {'id': 4}]
 
 
 def test_cache_handles_corrupted_file(tmp_path):
@@ -341,10 +377,23 @@ def test_cache_handles_corrupted_file(tmp_path):
     file_path = Path("/test/file.yaml")
     file_hash = "abc123"
 
-    # Create corrupted cache file
+    # Create corrupted signal file
     cache_key = cache._get_cache_key(file_path, file_hash)
-    cache_path = cache._get_cache_path(cache_key)
-    cache_path.write_text("invalid json {{{")
+    signal_file = cache._get_signal_file(cache_key)
+
+    # Create index entry pointing to corrupted file
+    index = {
+        str(file_path): {
+            'file_hash': file_hash,
+            'cache_key': cache_key,
+            'cached_at': datetime.now(timezone.utc).isoformat(),
+            'signal_file': str(signal_file)
+        }
+    }
+    cache.save_index(index)
+
+    # Write corrupted signal file
+    signal_file.write_text("invalid json {{{")
 
     # Should return None for corrupted cache
     result = cache.get_cached_signals(file_path, file_hash)
@@ -358,12 +407,15 @@ def test_cache_handles_missing_fields(tmp_path):
     file_path = Path("/test/file.yaml")
     file_hash = "abc123"
 
-    # Create cache entry with missing 'signals' field
-    cache_key = cache._get_cache_key(file_path, file_hash)
-    cache_path = cache._get_cache_path(cache_key)
-
-    with open(cache_path, 'w') as f:
-        json.dump({'file_hash': file_hash}, f)
+    # Create index entry with missing cache_key field
+    index = {
+        str(file_path): {
+            'file_hash': file_hash,
+            # missing 'cache_key' field
+            'cached_at': datetime.now(timezone.utc).isoformat()
+        }
+    }
+    cache.save_index(index)
 
     # Should return None for incomplete entry
     result = cache.get_cached_signals(file_path, file_hash)
@@ -403,10 +455,10 @@ def test_multiple_cache_instances_same_dir(tmp_path):
     signals = {'data': 'test'}
 
     # Write with cache1
-    cache1.put(file_path, file_hash, signals)
+    cache1.store_signals(file_path, file_hash, signals)
 
     # Read with cache2
-    retrieved = cache2.get(file_path, file_hash)
+    retrieved = cache2.get_cached_signals(file_path, file_hash)
 
     assert retrieved == signals
 

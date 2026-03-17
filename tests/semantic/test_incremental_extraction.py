@@ -313,9 +313,14 @@ def test_incremental_with_new_file(tmp_path, fact_files):
     detector1 = ChangeDetector(fact_files, cache_dir)
     changes1 = detector1.detect_changes()
 
-    # Add new file
-    new_file = fact_files / "new_fact_file.yaml"
-    new_file.write_text("new_data: value")
+    # Initially both tracked files are added
+    assert len(changes1['added']) == 2
+
+    # Add a baseline markdown file (which is tracked)
+    baseline_dir = fact_files.parent / "fact" / "baseline"
+    baseline_dir.mkdir(parents=True, exist_ok=True)
+    new_file = baseline_dir / "new_baseline.md"
+    new_file.write_text("# New baseline content")
 
     # Second run
     detector2 = ChangeDetector(fact_files, cache_dir)
@@ -426,8 +431,8 @@ def test_merge_signals_empty_new(tmp_path):
 
 def test_state_persistence_across_runs(tmp_path, fact_files):
     """Test that state persists correctly across multiple runs"""
-    state_file = tmp_path / "state.json"
     cache_dir = tmp_path / "cache"
+    state_file = cache_dir / "change_state.json"
 
     # Run 1
     detector1 = ChangeDetector(fact_files, cache_dir)
@@ -441,7 +446,7 @@ def test_state_persistence_across_runs(tmp_path, fact_files):
     changes2 = detector2.detect_changes()
 
     # Should load previous state
-    assert len(detector2.previous_state) > 0
+    assert len(detector2.load_state()) > 0
     assert len(changes2['unchanged']) == 2
 
 
@@ -452,15 +457,27 @@ def test_cache_stats_accuracy(tmp_path, fact_files):
 
     # Initially empty
     stats = cache.get_cache_stats()
-    assert stats['cache_entries'] == 0
+    assert stats['indexed_files'] == 0
     assert stats['total_size_bytes'] == 0
 
     # Add some entries
-    cache.store_signals(Path("/file1.yaml"), "hash1", {'data': 'test1'})
-    cache.store_signals(Path("/file2.yaml"), "hash2", {'data': 'test2'})
+    signals1 = {
+        'domain_signals': [{'signal_type': 'test1'}],
+        'concept_signals': [],
+        'rule_signals': [],
+        'demand_pattern_signals': []
+    }
+    signals2 = {
+        'domain_signals': [{'signal_type': 'test2'}],
+        'concept_signals': [],
+        'rule_signals': [],
+        'demand_pattern_signals': []
+    }
+    cache.store_signals(Path("/file1.yaml"), "hash1", signals1)
+    cache.store_signals(Path("/file2.yaml"), "hash2", signals2)
 
     stats = cache.get_cache_stats()
-    assert stats['cache_entries'] == 2
+    assert stats['indexed_files'] == 2
     assert stats['total_size_bytes'] > 0
 
 
@@ -491,11 +508,14 @@ def test_concurrent_file_changes(tmp_path, fact_files):
 
 def test_hash_collision_resistance(tmp_path):
     """Test that different files produce different hashes"""
-    state_file = tmp_path / "state.json"
-    detector = ChangeDetector(state_file, ["*.txt"])
+    cache_dir = tmp_path / "cache"
+    fact_root = tmp_path / "fact"
+    fact_root.mkdir()
 
-    file1 = tmp_path / "file1.txt"
-    file2 = tmp_path / "file2.txt"
+    detector = ChangeDetector(fact_root, cache_dir)
+
+    file1 = fact_root / "file1.txt"
+    file2 = fact_root / "file2.txt"
 
     file1.write_text("content A")
     file2.write_text("content B")
@@ -523,11 +543,11 @@ def test_incremental_extraction_complete_workflow(tmp_path, fact_data):
     with open(working_path, 'w') as f:
         yaml.safe_dump(fact_data['working'], f)
 
-    detector = ChangeDetector(fact_files, cache_dir)
+    detector = ChangeDetector(fact_root, cache_dir)
     cache = SignalCache(cache_dir)
 
     # === Run 1: Full extraction ===
-    changes1 = detector.detect_changes(fact_root)
+    changes1 = detector.detect_changes()
     assert len(changes1['added']) == 2
 
     # Extract and cache
@@ -539,8 +559,8 @@ def test_incremental_extraction_complete_workflow(tmp_path, fact_data):
     cache.store_signals(canonical_path, hash1, signals1)
 
     # === Run 2: No changes ===
-    detector2 = ChangeDetector(fact_files, cache_dir)
-    changes2 = detector2.detect_changes(fact_root)
+    detector2 = ChangeDetector(fact_root, cache_dir)
+    changes2 = detector2.detect_changes()
     assert len(changes2['unchanged']) == 2
 
     # Use cache
@@ -552,8 +572,8 @@ def test_incremental_extraction_complete_workflow(tmp_path, fact_data):
     with open(canonical_path, 'w') as f:
         yaml.safe_dump(fact_data['canonical'], f)
 
-    detector3 = ChangeDetector(fact_files, cache_dir)
-    changes3 = detector3.detect_changes(fact_root)
+    detector3 = ChangeDetector(fact_root, cache_dir)
+    changes3 = detector3.detect_changes()
     assert len(changes3['changed']) == 1
     assert len(changes3['unchanged']) == 1
 
@@ -596,8 +616,15 @@ def test_error_handling_corrupted_state(tmp_path, fact_files):
 
     # Should handle gracefully
     detector = ChangeDetector(fact_files, cache_dir)
-    changes = detector.detect_changes()
 
-    # Should treat as first run
+    # Load state should return empty dict for corrupted file
+    state_before = detector.load_state()
+    assert len(state_before) == 0
+
+    # Detect changes should treat as first run
+    changes = detector.detect_changes()
     assert len(changes['added']) == 2
-    assert len(detector.load_state()) == 0
+
+    # After detect_changes, state should be saved correctly
+    state_after = detector.load_state()
+    assert len(state_after) == 2
