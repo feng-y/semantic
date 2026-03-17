@@ -28,7 +28,7 @@ Out of scope (deferred to later stages):
 ## Previously Added in Stage 3
 
 - `docs/review/stage3_change_analysis_mapping.md`
-- `docs/fact-design/012-change-analysis-output-model.md`
+- `docs/semantic-design/012-change-analysis-output-model.md`
 - `docs/fact/templates/change-analysis.template.md`
 - `src/change_analysis_generator.py`
 - `src/change_analysis_validation.py`
