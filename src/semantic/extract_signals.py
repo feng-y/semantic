@@ -15,8 +15,12 @@ import yaml
 from typing import Dict, List, Any, Optional
 from datetime import datetime, timezone
 
-from .change_detector import ChangeDetector
-from .signal_cache import SignalCache
+try:
+    from .change_detector import ChangeDetector
+    from .signal_cache import SignalCache
+    INCREMENTAL_AVAILABLE = True
+except ImportError:
+    INCREMENTAL_AVAILABLE = False
 
 def load_fact_canonical(fact_root: Path) -> Optional[Dict[str, Any]]:
     """Load FACT canonical YAML (primary hard input)"""
@@ -199,7 +203,10 @@ def run_incremental_extraction(fact_root: Path, cache_dir: Path) -> Dict[str, Li
     cache = SignalCache(cache_dir)
 
     # Detect changes
-    changed, added, removed = detector.detect_changes()
+    changes = detector.detect_changes()
+    changed = changes['changed']
+    added = changes['added']
+    removed = changes['removed']
 
     if not changed and not added and not removed:
         print("ℹ No changes detected, using cached signals")

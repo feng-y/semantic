@@ -44,13 +44,13 @@ def test_first_run_all_files_added(temp_fact_dir, temp_cache_dir):
     working.write_text("concepts: []\n")
 
     detector = ChangeDetector(temp_fact_dir, temp_cache_dir)
-    changed, added, removed = detector.detect_changes()
+    changes = detector.detect_changes()
 
-    assert len(changed) == 0
-    assert len(added) == 2
-    assert len(removed) == 0
-    assert canonical in added
-    assert working in added
+    assert len(changes['changed']) == 0
+    assert len(changes['added']) == 2
+    assert len(changes['removed']) == 0
+    assert canonical in changes['added']
+    assert working in changes['added']
 
 
 def test_no_changes_detected(temp_fact_dir, temp_cache_dir):
@@ -65,11 +65,11 @@ def test_no_changes_detected(temp_fact_dir, temp_cache_dir):
     detector.detect_changes()
 
     # Second run - no changes
-    changed, added, removed = detector.detect_changes()
+    changes = detector.detect_changes()
 
-    assert len(changed) == 0
-    assert len(added) == 0
-    assert len(removed) == 0
+    assert len(changes['changed']) == 0
+    assert len(changes['added']) == 0
+    assert len(changes['removed']) == 0
 
 
 def test_file_modification_detected(temp_fact_dir, temp_cache_dir):
@@ -87,12 +87,12 @@ def test_file_modification_detected(temp_fact_dir, temp_cache_dir):
     canonical.write_text("modules: [module1]\n")
 
     # Second run - should detect change
-    changed, added, removed = detector.detect_changes()
+    changes = detector.detect_changes()
 
-    assert len(changed) == 1
-    assert canonical in changed
-    assert len(added) == 0
-    assert len(removed) == 0
+    assert len(changes['changed']) == 1
+    assert canonical in changes['changed']
+    assert len(changes['added']) == 0
+    assert len(changes['removed']) == 0
 
 
 def test_file_removal_detected(temp_fact_dir, temp_cache_dir):
@@ -110,12 +110,12 @@ def test_file_removal_detected(temp_fact_dir, temp_cache_dir):
     canonical.unlink()
 
     # Second run - should detect removal
-    changed, added, removed = detector.detect_changes()
+    changes = detector.detect_changes()
 
-    assert len(changed) == 0
-    assert len(added) == 0
-    assert len(removed) == 1
-    assert canonical in removed
+    assert len(changes['changed']) == 0
+    assert len(changes['added']) == 0
+    assert len(changes['removed']) == 1
+    assert canonical in changes['removed']
 
 
 def test_compute_file_hash(temp_fact_dir, temp_cache_dir):
