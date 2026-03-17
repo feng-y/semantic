@@ -3,6 +3,10 @@ Semantic Signals Extraction
 
 Extracts semantic signals from FACT layer inputs.
 This is the first stage of the semantic layer.
+
+Supports both full and incremental extraction modes:
+- Full mode (default): Extracts all signals from scratch
+- Incremental mode (--incremental): Only re-extracts signals from changed files
 """
 
 from pathlib import Path
@@ -10,6 +14,9 @@ import argparse
 import yaml
 from typing import Dict, List, Any, Optional
 from datetime import datetime, timezone
+
+from .change_detector import ChangeDetector
+from .signal_cache import SignalCache
 
 def load_fact_canonical(fact_root: Path) -> Optional[Dict[str, Any]]:
     """Load FACT canonical YAML (primary hard input)"""
@@ -88,12 +95,13 @@ def extract_concept_signals(canonical: Dict[str, Any], working: Optional[Dict[st
     return signals
 
 def extract_rule_signals(canonical: Dict[str, Any], working: Optional[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    """Extract business rule indicator signals"""
+    """Extract rule/constraint indicator signals"""
     signals = []
 
-    # From canonical: validation patterns in modules
+    # From canonical: validation modules
     if canonical and 'modules' in canonical:
-        validation_modules = [m for m in canonical['modules'] if 'validation' in m.get('name', '').lower()]
+        modules = canonical['modules']
+        validation_modules = [m for m in modules if 'validation' in m.get('name', '').lower() or 'validator' in m.get('name', '').lower()]
         if validation_modules:
             signals.append({
                 'signal_type': 'validation_logic',
@@ -103,15 +111,28 @@ def extract_rule_signals(canonical: Dict[str, Any], working: Optional[Dict[str, 
                 'summary': f"Repository contains {len(validation_modules)} validation modules"
             })
 
+    # From working summary: rules
+    if working and 'rules' in working:
+        rules = working['rules']
+        if rules:
+            signals.append({
+                'signal_type': 'rule_identification',
+                'source': 'fact_working_summary:rules',
+                'evidence': f"{len(rules)} rules identified",
+                'confidence': 'medium',
+                'summary': f"Working summary identifies {len(rules)} rules"
+            })
+
     return signals
 
 def extract_demand_pattern_signals(canonical: Dict[str, Any], working: Optional[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    """Extract demand model structure indicator signals"""
+    """Extract demand pattern indicator signals"""
     signals = []
 
-    # From canonical: change analysis patterns
+    # From canonical: change-related modules
     if canonical and 'modules' in canonical:
-        change_modules = [m for m in canonical['modules'] if 'change' in m.get('name', '').lower()]
+        modules = canonical['modules']
+        change_modules = [m for m in modules if any(keyword in m.get('name', '').lower() for keyword in ['change', 'diff', 'delta', 'update'])]
         if change_modules:
             signals.append({
                 'signal_type': 'change_analysis_pattern',
@@ -121,74 +142,194 @@ def extract_demand_pattern_signals(canonical: Dict[str, Any], working: Optional[
                 'summary': f"Repository contains {len(change_modules)} change analysis modules"
             })
 
+    # From working summary: demand patterns
+    if working and 'demand_patterns' in working:
+        patterns = working['demand_patterns']
+        if patterns:
+            signals.append({
+                'signal_type': 'demand_pattern_identification',
+                'source': 'fact_working_summary:demand_patterns',
+                'evidence': f"{len(patterns)} patterns identified",
+                'confidence': 'medium',
+                'summary': f"Working summary identifies {len(patterns)} demand patterns"
+            })
+
     return signals
 
 def render_signals_markdown(signals_data: Dict[str, Any], output_path: Path):
-    """Render signals as markdown view"""
-    lines = ["# Semantic Signals", ""]
-    lines.append(f"**Generated**: {signals_data.get('metadata', {}).get('generated_at', 'unknown')}")
-    lines.append(f"**Source**: {signals_data.get('metadata', {}).get('fact_source', 'unknown')}")
-    lines.append("")
+    """Render signals as markdown for human review"""
+    lines = ["# Semantic Signals\n"]
+    lines.append(f"Generated: {signals_data['metadata']['generated_at']}\n")
+    lines.append(f"Source: {signals_data['metadata']['fact_source']}\n")
+    lines.append(f"Total signals: {signals_data['metadata']['signal_count']}\n")
 
-    for group_name in ['domain_signals', 'concept_signals', 'rule_signals', 'demand_pattern_signals']:
-        signals = signals_data.get(group_name, [])
-        group_title = group_name.replace('_', ' ').title()
-        lines.append(f"## {group_title} ({len(signals)})")
-        lines.append("")
+    for category in ['domain_signals', 'concept_signals', 'rule_signals', 'demand_pattern_signals']:
+        signals = signals_data.get(category, [])
+        if signals:
+            lines.append(f"\n## {category.replace('_', ' ').title()}\n")
+            for signal in signals:
+                lines.append(f"- **{signal['signal_type']}** ({signal['confidence']})")
+                lines.append(f"  - Source: {signal['source']}")
+                lines.append(f"  - Evidence: {signal['evidence']}")
+                lines.append(f"  - Summary: {signal['summary']}\n")
 
-        if not signals:
-            lines.append("*(No signals extracted)*")
-            lines.append("")
-        else:
-            for sig in signals:
-                lines.append(f"### {sig.get('signal_type', 'unknown')}")
-                lines.append(f"- **Source**: {sig.get('source', 'unknown')}")
-                lines.append(f"- **Evidence**: {sig.get('evidence', 'none')}")
-                lines.append(f"- **Confidence**: {sig.get('confidence', 'unknown')}")
-                if sig.get('summary'):
-                    lines.append(f"- **Summary**: {sig.get('summary')}")
-                lines.append("")
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(output_path, 'w', encoding='utf-8') as f:
+        f.writelines(lines)
 
-    output_path.write_text('\n'.join(lines), encoding='utf-8')
+
+def extract_signals_from_files(canonical: Dict[str, Any], working: Optional[Dict[str, Any]]) -> Dict[str, List[Dict[str, Any]]]:
+    """Extract all signal categories from FACT data"""
+    return {
+        'domain_signals': extract_domain_signals(canonical, working),
+        'concept_signals': extract_concept_signals(canonical, working),
+        'rule_signals': extract_rule_signals(canonical, working),
+        'demand_pattern_signals': extract_demand_pattern_signals(canonical, working)
+    }
+
+
+def run_incremental_extraction(fact_root: Path, cache_dir: Path) -> Dict[str, List[Dict[str, Any]]]:
+    """
+    Run incremental extraction using change detection and caching.
+
+    Returns:
+        Merged signals from cached and newly extracted data
+    """
+    detector = ChangeDetector(fact_root, cache_dir)
+    cache = SignalCache(cache_dir)
+
+    # Detect changes
+    changed, added, removed = detector.detect_changes()
+
+    if not changed and not added and not removed:
+        print("ℹ No changes detected, using cached signals")
+        # Load all cached signals
+        canonical_path = fact_root / "fact_canonical_sample.yaml"
+        working_path = fact_root / "fact_working_summary_sample.yaml"
+
+        cached_signals = []
+        for file_path in [canonical_path, working_path]:
+            if file_path.exists():
+                file_hash = detector.compute_file_hash(file_path)
+                signals = cache.get_cached_signals(file_path, file_hash)
+                if signals:
+                    cached_signals.append(signals)
+
+        if cached_signals:
+            return cache.merge_signals(*cached_signals)
+
+    # Report changes
+    if changed:
+        print(f"ℹ Changed files: {len(changed)}")
+        for f in changed:
+            print(f"  - {f.name}")
+    if added:
+        print(f"ℹ Added files: {len(added)}")
+        for f in added:
+            print(f"  - {f.name}")
+    if removed:
+        print(f"ℹ Removed files: {len(removed)}")
+        for f in removed:
+            print(f"  - {f.name}")
+            cache.invalidate_file(f)
+
+    # Extract signals from changed/added files
+    canonical = load_fact_canonical(fact_root)
+    working = load_fact_working_summary(fact_root)
+
+    if canonical is None:
+        print("✗ ERROR: fact_canonical_sample.yaml not found")
+        return cache.merge_signals()
+
+    # Extract fresh signals
+    fresh_signals = extract_signals_from_files(canonical, working)
+
+    # Cache the results
+    canonical_path = fact_root / "fact_canonical_sample.yaml"
+    if canonical_path.exists():
+        file_hash = detector.compute_file_hash(canonical_path)
+        cache.store_signals(canonical_path, file_hash, fresh_signals)
+
+    if working:
+        working_path = fact_root / "fact_working_summary_sample.yaml"
+        if working_path.exists():
+            file_hash = detector.compute_file_hash(working_path)
+            cache.store_signals(working_path, file_hash, fresh_signals)
+
+    return fresh_signals
+
 
 def main():
-    parser = argparse.ArgumentParser(description="Extract semantic signals from FACT inputs")
-    parser.add_argument("--fact-root", required=True, help="Path to FACT inputs directory")
-    parser.add_argument("--output", required=True, help="Path to output signals.yaml")
-    parser.add_argument("--render-md", help="Path to output signals.md (optional)")
+    parser = argparse.ArgumentParser(description="Extract semantic signals from FACT layer")
+    parser.add_argument('--fact-root', type=str, default='docs/semantic-foundation/fact',
+                        help='Path to FACT layer root directory')
+    parser.add_argument('--output', type=str, default='docs/semantic-foundation/semantic/signals.yaml',
+                        help='Output path for signals YAML')
+    parser.add_argument('--render-md', type=str,
+                        help='Optional: render markdown view to this path')
+    parser.add_argument('--incremental', action='store_true',
+                        help='Enable incremental extraction (only re-extract changed files)')
+    parser.add_argument('--cache-dir', type=str, default='.semantic-cache',
+                        help='Cache directory for incremental mode')
+    parser.add_argument('--clear-cache', action='store_true',
+                        help='Clear cache before extraction')
     args = parser.parse_args()
 
     fact_root = Path(args.fact_root)
     output_path = Path(args.output)
+    cache_dir = Path(args.cache_dir)
 
-    # Load FACT inputs
-    canonical = load_fact_canonical(fact_root)
-    if not canonical:
-        print("ERROR: fact_canonical_sample.yaml not found (required primary input)")
-        return 1
+    # Clear cache if requested
+    if args.clear_cache:
+        cache = SignalCache(cache_dir)
+        cache.clear_all()
+        print("✓ Cache cleared")
+        if not args.incremental:
+            return 0
 
-    working = load_fact_working_summary(fact_root)
-    if not working:
-        print("WARNING: fact_working_summary_sample.yaml not found (auxiliary input missing)")
+    # Run extraction
+    if args.incremental:
+        print("Running incremental extraction...")
+        signals = run_incremental_extraction(fact_root, cache_dir)
 
-    # Extract signals
-    domain_signals = extract_domain_signals(canonical, working)
-    concept_signals = extract_concept_signals(canonical, working)
-    rule_signals = extract_rule_signals(canonical, working)
-    demand_pattern_signals = extract_demand_pattern_signals(canonical, working)
-
-    # Build output structure
-    signals_data = {
-        'domain_signals': domain_signals,
-        'concept_signals': concept_signals,
-        'rule_signals': rule_signals,
-        'demand_pattern_signals': demand_pattern_signals,
-        'metadata': {
-            'generated_at': datetime.now(timezone.utc).isoformat(),
-            'fact_source': 'fact_canonical_sample.yaml',
-            'signal_count': len(domain_signals) + len(concept_signals) + len(rule_signals) + len(demand_pattern_signals)
+        # Build output structure
+        signals_data = {
+            **signals,
+            'metadata': {
+                'generated_at': datetime.now(timezone.utc).isoformat(),
+                'fact_source': 'fact_canonical_sample.yaml',
+                'extraction_mode': 'incremental',
+                'signal_count': sum(len(signals.get(k, [])) for k in ['domain_signals', 'concept_signals', 'rule_signals', 'demand_pattern_signals'])
+            }
         }
-    }
+    else:
+        # Full extraction (original behavior)
+        print("Running full extraction...")
+
+        # Validate inputs
+        canonical = load_fact_canonical(fact_root)
+        if canonical is None:
+            print("✗ ERROR: fact_canonical_sample.yaml not found")
+            print(f"  Expected at: {fact_root / 'fact_canonical_sample.yaml'}")
+            return 1
+
+        working = load_fact_working_summary(fact_root)
+        if working is None:
+            print("⚠ WARNING: fact_working_summary_sample.yaml not found (proceeding without it)")
+
+        # Extract signals
+        signals = extract_signals_from_files(canonical, working)
+
+        # Build output structure
+        signals_data = {
+            **signals,
+            'metadata': {
+                'generated_at': datetime.now(timezone.utc).isoformat(),
+                'fact_source': 'fact_canonical_sample.yaml',
+                'extraction_mode': 'full',
+                'signal_count': sum(len(signals.get(k, [])) for k in ['domain_signals', 'concept_signals', 'rule_signals', 'demand_pattern_signals'])
+            }
+        }
 
     # Write canonical YAML output
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -196,10 +337,10 @@ def main():
         yaml.safe_dump(signals_data, f, sort_keys=False, allow_unicode=True)
 
     print(f"✓ Extracted {signals_data['metadata']['signal_count']} signals")
-    print(f"  - Domain signals: {len(domain_signals)}")
-    print(f"  - Concept signals: {len(concept_signals)}")
-    print(f"  - Rule signals: {len(rule_signals)}")
-    print(f"  - Demand pattern signals: {len(demand_pattern_signals)}")
+    print(f"  - Domain signals: {len(signals_data.get('domain_signals', []))}")
+    print(f"  - Concept signals: {len(signals_data.get('concept_signals', []))}")
+    print(f"  - Rule signals: {len(signals_data.get('rule_signals', []))}")
+    print(f"  - Demand pattern signals: {len(signals_data.get('demand_pattern_signals', []))}")
     print(f"✓ Written to: {output_path}")
 
     # Render markdown view if requested

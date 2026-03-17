@@ -57,9 +57,28 @@ Config info
 ## Repository
 Info here
 """
-        # Should pass - at least one section present
+        # Should FAIL - not all required sections present (AND logic)
         errors = artifact_validation.validate_repo_facts(content)
-        assert errors == []
+        assert len(errors) > 0
+        assert "missing required sections" in errors[0].lower()
+        assert "Modules" in errors[0]  # Should list missing sections
+
+    def test_missing_multiple_required_sections(self) -> None:
+        content = """# Repo Facts
+
+## Repository
+Info here
+
+## Modules
+Module info
+"""
+        # Missing: Entrypoints, Core Entities, Configuration
+        errors = artifact_validation.validate_repo_facts(content)
+        assert len(errors) > 0
+        assert "missing required sections" in errors[0].lower()
+        assert "Entrypoints" in errors[0]
+        assert "Core Entities" in errors[0]
+        assert "Configuration" in errors[0]
 
 
 class TestRepoUnderstandingValidation:
@@ -99,8 +118,27 @@ Domain info
 ## System Purpose
 Purpose here
 """
+        # Should FAIL - not all required sections present (AND logic)
         errors = artifact_validation.validate_repo_understanding(content)
-        assert errors == []
+        assert len(errors) > 0
+        assert "missing required sections" in errors[0].lower()
+        assert "Pipelines" in errors[0]
+
+    def test_missing_multiple_required_sections(self) -> None:
+        content = """# Repo Understanding
+
+## System Purpose
+Purpose here
+
+## Pipelines
+Pipeline info
+"""
+        # Missing: Concepts, Candidate Domains
+        errors = artifact_validation.validate_repo_understanding(content)
+        assert len(errors) > 0
+        assert "missing required sections" in errors[0].lower()
+        assert "Concepts" in errors[0]
+        assert "Candidate Domains" in errors[0]
 
 
 class TestKnowledgeConfidenceValidation:
@@ -137,8 +175,24 @@ Uncertain info
 ## Confirmed Knowledge
 Confirmed info
 """
+        # Should FAIL - not all required sections present (AND logic)
         errors = artifact_validation.validate_knowledge_confidence(content)
-        assert errors == []
+        assert len(errors) > 0
+        assert "missing required sections" in errors[0].lower()
+        assert "Inferred Knowledge" in errors[0]
+
+    def test_missing_multiple_required_sections(self) -> None:
+        content = """# Knowledge Confidence
+
+## Confirmed Knowledge
+Confirmed info
+"""
+        # Missing: Inferred Knowledge, Uncertain Knowledge
+        errors = artifact_validation.validate_knowledge_confidence(content)
+        assert len(errors) > 0
+        assert "missing required sections" in errors[0].lower()
+        assert "Inferred Knowledge" in errors[0]
+        assert "Uncertain Knowledge" in errors[0]
 
 
 class TestDomainCandidatesValidation:
