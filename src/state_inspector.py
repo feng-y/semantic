@@ -70,6 +70,47 @@ def inspect(root: str | Path) -> SemanticState:
     return state
 
 
+def recommend_next(state: SemanticState, runner_status=None) -> str:
+    """Return the recommended next command based on current state."""
+    # If runner has a next_action, prefer it
+    if runner_status and not runner_status.blocked:
+        if runner_status.next_action not in ("pipeline complete", "run semantic-signals"):
+            return runner_status.next_action
+
+    # Fall back to FACT layer state logic
+    if not state.has_discovery_artifacts:
+        return "run /semantic-discover"
+    if not state.has_review_summary:
+        return "run /semantic-discover (no review summary yet)"
+    if not state.has_architect_feedback:
+        return "run /semantic-review (awaiting architect feedback)"
+    if not state.feedback_has_acceptance:
+        return "run /semantic-refine (feedback not yet accepted)"
+    if not state.has_accepted_baseline:
+        return "run /semantic-baseline (baseline not yet generated)"
+    return "semantic workflow complete"
+
+
+def inspect_with_runner(root, workspace=None) -> dict:
+    """Inspect both FACT layer state and runner pipeline state."""
+    root = Path(root)
+    state = inspect(root)
+
+    runner_status = None
+    if workspace:
+        try:
+            from semantic.status import get_status
+            runner_status = get_status(Path(workspace))
+        except Exception:
+            pass
+
+    return {
+        "fact_state": state,
+        "runner_status": runner_status,
+        "next": recommend_next(state, runner_status),
+    }
+
+
 def recommend_action(state: SemanticState) -> str:
     """Recommend the next action based on current semantic state.
 

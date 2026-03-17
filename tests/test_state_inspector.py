@@ -101,3 +101,51 @@ def test_scan_versions_finds_review_summary(temp_repo):
 
     assert "review-summary" in versions
     assert versions["review-summary"] == [1, 2, 3]  # Should be sorted
+
+
+def test_recommend_next_no_discovery():
+    from src.state_inspector import SemanticState, recommend_next
+    state = SemanticState()
+    assert "discover" in recommend_next(state).lower()
+
+
+def test_recommend_next_complete():
+    from src.state_inspector import SemanticState, recommend_next
+    state = SemanticState(
+        has_discovery_artifacts=True,
+        has_review_summary=True,
+        has_architect_feedback=True,
+        feedback_has_acceptance=True,
+        has_accepted_baseline=True,
+    )
+    assert "complete" in recommend_next(state).lower()
+
+
+def test_recommend_next_prefers_runner_status():
+    from src.state_inspector import SemanticState, recommend_next
+    from src.semantic.status import StatusReport
+    state = SemanticState(has_discovery_artifacts=True)
+    runner = StatusReport(
+        current_stage="step2_candidates",
+        next_action="run semantic-recommend",
+        blocked=False,
+        blocked_reason=None,
+        completed=["step1_signals", "step2_candidates"],
+    )
+    result = recommend_next(state, runner)
+    assert "semantic-recommend" in result
+
+
+def test_recommend_next_blocked_runner():
+    from src.state_inspector import SemanticState, recommend_next
+    from src.semantic.status import StatusReport
+    state = SemanticState(has_discovery_artifacts=True)
+    runner = StatusReport(
+        current_stage="step5_finalize",
+        next_action="resolve: verify_first items have unresolved evidence checks",
+        blocked=True,
+        blocked_reason="verify_first items have unresolved evidence checks",
+        completed=["step1_signals"],
+    )
+    result = recommend_next(state, runner)
+    assert "discover" in result.lower() or "review" in result.lower() or "resolve" in result.lower()
