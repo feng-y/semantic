@@ -19,6 +19,7 @@ from src.commit_semantic.prompt_runner import (
     generate_issue_text
 )
 from src.validators import validate_semantic_case, ValidationError
+from src.commit_semantic.executor_bridge import get_executor
 
 
 def generate_semantics_for_case(case_input_path: str, output_dir: str, invalid_dir: str, executor=None):
@@ -145,10 +146,18 @@ def main():
 
     args = parser.parse_args()
 
+    # Get executor from environment
+    executor = get_executor()
+    if executor is None:
+        print("ERROR: No executor configured. This skill must be run from Claude Code.")
+        print("The host environment should call set_executor() before running.")
+        sys.exit(1)
+
     generate_semantics(
         input_dir=args.input_dir,
         output_dir=args.output_dir,
-        invalid_dir=args.invalid_dir
+        invalid_dir=args.invalid_dir,
+        executor=executor
     )
 
 
