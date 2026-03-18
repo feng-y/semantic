@@ -1,0 +1,20 @@
+Metadata-Version: 2.4
+Name: semantic-harness
+Version: 0.0.1
+Summary: Evidence-driven semantic construction pipeline for Claude Code
+License: MIT
+Project-URL: Homepage, https://github.com/feng-y/semantic
+Project-URL: Documentation, https://github.com/feng-y/semantic#readme
+Project-URL: Repository, https://github.com/feng-y/semantic
+Project-URL: Issues, https://github.com/feng-y/semantic/issues
+Classifier: Development Status :: 5 - Production/Stable
+Classifier: Intended Audience :: Developers
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Programming Language :: Python :: 3.10
+Classifier: Programming Language :: Python :: 3.11
+Classifier: Programming Language :: Python :: 3.12
+Classifier: Topic :: Software Development :: Libraries :: Python Modules
+Requires-Python: >=3.10
+Requires-Dist: pyyaml>=6.0
+Provides-Extra: test
+Requires-Dist: pytest>=8.0; extra == "test"

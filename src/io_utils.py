@@ -68,7 +68,8 @@ def semantic_case_input_to_dict(case: SemanticCaseInput) -> Dict[str, Any]:
             'too_many_diff_themes': case.split_hints.too_many_diff_themes,
             'mixed_feature_and_bugfix': case.split_hints.mixed_feature_and_bugfix,
             'unrelated_objects_detected': case.split_hints.unrelated_objects_detected
-        }
+        },
+        'semantic_value': case.semantic_value
     }
 
 
@@ -86,5 +87,8 @@ def semantic_case_output_to_dict(case: SemanticCaseOutput) -> Dict[str, Any]:
         'split_suggestion': {
             'needs_split': case.split_suggestion.needs_split,
             'split_reasons': case.split_suggestion.split_reasons
-        }
+        },
+        'semantic_value': case.semantic_value,
+        'dedup_key': case.dedup_key,
+        'pattern_id': case.pattern_id
     }

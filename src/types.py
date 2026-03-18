@@ -17,6 +17,12 @@ class ChangeRole(str, Enum):
     SUPPORTING = "supporting"
 
 
+class SemanticValue(str, Enum):
+    HIGH = "high"
+    MEDIUM = "medium"
+    LOW = "low"
+
+
 @dataclass
 class RawCommit:
     commit_id: str
@@ -61,6 +67,7 @@ class SemanticCaseInput:
     related_tests: List[str] = field(default_factory=list)
     bugfix_evidence: BugfixEvidence = field(default_factory=BugfixEvidence)
     split_hints: SplitHints = field(default_factory=SplitHints)
+    semantic_value: str = "medium"  # high/medium/low
 
 
 @dataclass
@@ -80,3 +87,6 @@ class SemanticCaseOutput:
     rules: List[str] = field(default_factory=list)
     invariants: List[str] = field(default_factory=list)
     split_suggestion: SplitSuggestion = field(default_factory=SplitSuggestion)
+    semantic_value: str = "medium"
+    dedup_key: str = ""
+    pattern_id: str = ""
