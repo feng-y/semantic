@@ -16,7 +16,7 @@ import hashlib
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional, Callable, TYPE_CHECKING
-from datetime import datetime
+from datetime import datetime, timezone
 
 if TYPE_CHECKING:
     from .dedup import DedupInput
@@ -444,7 +444,7 @@ Respond with JSON:
         log_path.parent.mkdir(parents=True, exist_ok=True)
 
         log_entry = {
-            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "decision_type": decision_type,
             "input": input_data,
             "output": output_data,
