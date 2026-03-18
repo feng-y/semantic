@@ -14,7 +14,7 @@ def validate_structure(case_dict: Dict) -> None:
     required_fields = [
         'case_id', 'commit_id', 'module', 'commit_log',
         'issue_text', 'development_type', 'rules', 'invariants',
-        'split_suggestion'
+        'split_suggestion', 'semantic_value'
     ]
 
     for field in required_fields:
@@ -44,6 +44,8 @@ def validate_types(case_dict: Dict) -> None:
         raise ValidationError("split_suggestion.needs_split must be bool")
     if not isinstance(case_dict['split_suggestion']['split_reasons'], list):
         raise ValidationError("split_suggestion.split_reasons must be list")
+    if not isinstance(case_dict['semantic_value'], str):
+        raise ValidationError("semantic_value must be string")
 
 
 def validate_enums(case_dict: Dict) -> None:
@@ -53,6 +55,12 @@ def validate_enums(case_dict: Dict) -> None:
 
     if dev_type not in valid_types:
         raise ValidationError(f"Invalid development_type: {dev_type}")
+
+    valid_semantic_values = {'high', 'medium', 'low'}
+    semantic_value = case_dict['semantic_value']
+
+    if semantic_value not in valid_semantic_values:
+        raise ValidationError(f"Invalid semantic_value: {semantic_value}")
 
 
 def validate_consistency(case_dict: Dict) -> None:

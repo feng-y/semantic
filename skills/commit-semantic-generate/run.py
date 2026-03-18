@@ -70,7 +70,8 @@ def generate_semantics_for_case(case_input_path: str, output_dir: str, invalid_d
             'development_type': issue_result['development_type'],
             'rules': rules_invariants['rules'],
             'invariants': rules_invariants['invariants'],
-            'split_suggestion': issue_result['split_suggestion']
+            'split_suggestion': issue_result['split_suggestion'],
+            'semantic_value': case_input['semantic_value']  # Preserve semantic_value from input
         }
 
         # Validate
