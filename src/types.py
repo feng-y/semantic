@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 from enum import Enum
 
 
@@ -92,3 +92,58 @@ class SemanticCaseOutput:
     semantic_value: str = "medium"
     dedup_key: str = ""
     pattern_id: str = ""
+
+
+@dataclass
+class CaseRecord:
+    """Matches the case dict written to cases.jsonl (semantic_case_output_to_dict)."""
+    case_id: str
+    commit_id: str
+    module: str
+    commit_log: str
+    issue_text: str
+    development_type: str
+    domain: str = ""
+    rules: List[str] = field(default_factory=list)
+    invariants: List[str] = field(default_factory=list)
+    split_suggestion: Dict[str, Any] = field(default_factory=dict)
+    semantic_value: str = "medium"
+    dedup_key: str = ""
+    pattern_id: str = ""
+
+
+@dataclass
+class DomainPatternStat:
+    pattern_count: int
+    status: str
+    action: str
+
+
+@dataclass
+class HighFrequencyPattern:
+    pattern_id: str
+    domain: str
+    count: int
+    representative_issue_text: str
+
+
+@dataclass
+class ExportSummary:
+    """Matches the dict returned by generate_statistics()."""
+    total_cases: int
+    unique_cases: int
+    duplicate_cases: int
+    duplicate_groups: int
+    valid_cases: int
+    invalid_cases: int
+    low_value_cases: int
+    validation_pass_rate: float
+    development_type_distribution: Dict[str, int]
+    bugfix_count: int
+    bugfix_ratio: float
+    needs_split_count: int
+    needs_split_ratio: float
+    pattern_count: int
+    domain_pattern_stats: Dict[str, Any] = field(default_factory=dict)
+    high_frequency_patterns: List[Any] = field(default_factory=list)
+    invalid_reason_top_n: Dict[str, int] = field(default_factory=dict)

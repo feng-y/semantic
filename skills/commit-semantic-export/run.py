@@ -7,6 +7,7 @@ Exports validated semantic cases to various formats.
 
 import sys
 import argparse
+import dataclasses
 from pathlib import Path
 from collections import Counter
 
@@ -16,6 +17,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from src.io_utils import load_yaml, save_jsonl, save_json
 from src.commit_semantic.deduplication import deduplicate_cases
 from src.commit_semantic.pattern_extraction_v2 import extract_patterns_v2, check_pattern_count
+from src.types import CaseRecord, ExportSummary, DomainPatternStat, HighFrequencyPattern
 
 
 def merge_incremental_export(
@@ -176,29 +178,29 @@ def export_cases(
         low_value_path
     )
 
-    # Save statistics
+    # Save statistics (serialize dataclass to dict for JSON)
     stats_path = output_path / "summary.json"
-    save_json(stats, str(stats_path))
+    save_json(dataclasses.asdict(stats), str(stats_path))
     print(f"Statistics saved to {stats_path}")
 
     # Print summary
     print("\n=== Summary ===")
-    print(f"Total cases: {stats['total_cases']}")
-    print(f"Unique cases: {stats['unique_cases']}")
-    print(f"Duplicate cases: {stats['duplicate_cases']} ({stats['duplicate_groups']} groups)")
-    print(f"Low value cases: {stats['low_value_cases']}")
-    print(f"Validation pass rate: {stats['validation_pass_rate']:.1%}")
+    print(f"Total cases: {stats.total_cases}")
+    print(f"Unique cases: {stats.unique_cases}")
+    print(f"Duplicate cases: {stats.duplicate_cases} ({stats.duplicate_groups} groups)")
+    print(f"Low value cases: {stats.low_value_cases}")
+    print(f"Validation pass rate: {stats.validation_pass_rate:.1%}")
     print(f"\nDevelopment type distribution:")
-    for dev_type, count in stats['development_type_distribution'].items():
+    for dev_type, count in stats.development_type_distribution.items():
         print(f"  {dev_type}: {count}")
-    print(f"\nBugfix ratio: {stats['bugfix_ratio']:.1%}")
-    print(f"Needs split ratio: {stats['needs_split_ratio']:.1%}")
-    print(f"Pattern count: {stats['pattern_count']}")
+    print(f"\nBugfix ratio: {stats.bugfix_ratio:.1%}")
+    print(f"Needs split ratio: {stats.needs_split_ratio:.1%}")
+    print(f"Pattern count: {stats.pattern_count}")
 
     # Print domain pattern status
-    if stats['domain_pattern_stats']:
+    if stats.domain_pattern_stats:
         print(f"\nDomain pattern status:")
-        for domain, domain_stats in stats['domain_pattern_stats'].items():
+        for domain, domain_stats in stats.domain_pattern_stats.items():
             status = domain_stats['status']
             count = domain_stats['pattern_count']
             action = domain_stats['action']
@@ -215,9 +217,9 @@ def export_cases(
                 print(f"    → Action: {action}")
 
     # Print high frequency patterns
-    if stats['high_frequency_patterns']:
+    if stats.high_frequency_patterns:
         print(f"\nTop high-frequency patterns:")
-        for i, pattern in enumerate(stats['high_frequency_patterns'][:5], 1):
+        for i, pattern in enumerate(stats.high_frequency_patterns[:5], 1):
             print(f"  {i}. [{pattern['domain']}] {pattern['representative_issue_text'][:60]}... (count: {pattern['count']})")
 
 
@@ -228,8 +230,8 @@ def generate_statistics(
     pattern_count_status: dict,
     invalid_path: Path,
     low_value_path: Path
-) -> dict:
-    """Generate statistics from cases."""
+) -> ExportSummary:
+    """Generate statistics from cases, returned as an ExportSummary dataclass."""
     total_unique = len(unique_cases)
     total_duplicates = sum(len(group['duplicate_case_ids']) for group in duplicate_groups)
 
@@ -274,43 +276,43 @@ def generate_statistics(
     # Pattern statistics by domain
     domain_pattern_stats = {}
     for domain, status in pattern_count_status.items():
-        domain_pattern_stats[domain] = {
-            'pattern_count': status['pattern_count'],
-            'status': status['pattern_count_status'],
-            'action': status['action']
-        }
+        domain_pattern_stats[domain] = dataclasses.asdict(DomainPatternStat(
+            pattern_count=status['pattern_count'],
+            status=status['pattern_count_status'],
+            action=status['action']
+        ))
 
     # High frequency patterns (top 10)
     high_freq_patterns = sorted(patterns, key=lambda p: p['count'], reverse=True)[:10]
     high_freq_summary = [
-        {
-            'pattern_id': p['pattern_id'],
-            'domain': p['domain'],
-            'count': p['count'],
-            'representative_issue_text': p['representative_issue_text']
-        }
+        dataclasses.asdict(HighFrequencyPattern(
+            pattern_id=p['pattern_id'],
+            domain=p['domain'],
+            count=p['count'],
+            representative_issue_text=p['representative_issue_text']
+        ))
         for p in high_freq_patterns
     ]
 
-    return {
-        'total_cases': total_cases,
-        'unique_cases': total_unique,
-        'duplicate_cases': total_duplicates,
-        'duplicate_groups': len(duplicate_groups),
-        'valid_cases': total_unique,
-        'invalid_cases': total_invalid,
-        'low_value_cases': total_low_value,
-        'validation_pass_rate': validation_pass_rate,
-        'development_type_distribution': dev_type_dist,
-        'bugfix_count': bugfix_count,
-        'bugfix_ratio': bugfix_ratio,
-        'needs_split_count': needs_split_count,
-        'needs_split_ratio': needs_split_ratio,
-        'pattern_count': len(patterns),
-        'domain_pattern_stats': domain_pattern_stats,
-        'high_frequency_patterns': high_freq_summary,
-        'invalid_reason_top_n': invalid_reason_dist
-    }
+    return ExportSummary(
+        total_cases=total_cases,
+        unique_cases=total_unique,
+        duplicate_cases=total_duplicates,
+        duplicate_groups=len(duplicate_groups),
+        valid_cases=total_unique,
+        invalid_cases=total_invalid,
+        low_value_cases=total_low_value,
+        validation_pass_rate=validation_pass_rate,
+        development_type_distribution=dev_type_dist,
+        bugfix_count=bugfix_count,
+        bugfix_ratio=bugfix_ratio,
+        needs_split_count=needs_split_count,
+        needs_split_ratio=needs_split_ratio,
+        pattern_count=len(patterns),
+        domain_pattern_stats=domain_pattern_stats,
+        high_frequency_patterns=high_freq_summary,
+        invalid_reason_top_n=invalid_reason_dist
+    )
 
 
 def main():

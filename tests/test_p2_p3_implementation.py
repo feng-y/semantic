@@ -163,6 +163,7 @@ def test_pattern_fingerprint():
 
     case = {
         "module": "qserver.parser",
+        "domain": "parsing",
         "development_type": "bugfix",
         "issue_text": "fix：修复解析错误",
         "rules": ["must maintain compatibility"],
