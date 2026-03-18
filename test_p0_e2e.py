@@ -72,7 +72,7 @@ def main():
         result = subprocess.run([
             "python3", "skills/commit-semantic-collect/run.py",
             ".",
-            "--commit-range", "HEAD~5..HEAD~3",  # Use commits with actual code changes
+            "--commit-range", "HEAD~10..HEAD",  # Wider range to ensure we get cases
             "--output-dir", str(input_dir),
             "--low-value-dir", str(low_value_dir)
         ], capture_output=True, text=True)
@@ -90,9 +90,23 @@ def main():
         print(f"✓ High/medium value cases: {len(high_medium_files)}")
         print(f"✓ Low value cases: {len(low_value_files)}")
 
+        # CRITICAL: Test must validate full pipeline, not skip phases
         if len(high_medium_files) == 0:
-            print("⚠ No high/medium value cases found, skipping generation")
-            return True
+            print("✗ FAIL: No high/medium value cases collected")
+            print("  Pipeline cannot be validated without semantic_case_inputs")
+            return False
+
+        # Validate semantic_value field exists in collected cases
+        sample_case = load_yaml(str(high_medium_files[0]))
+        if "semantic_value" not in sample_case:
+            print("✗ FAIL: semantic_value field missing from collected cases")
+            return False
+
+        if sample_case["semantic_value"] not in ["high", "medium", "low"]:
+            print(f"✗ FAIL: Invalid semantic_value: {sample_case['semantic_value']}")
+            return False
+
+        print(f"✓ semantic_value classification working: {sample_case['semantic_value']}")
 
         # Step 2: Generate semantics for high/medium value cases
         print("\n=== Step 2: Generate Semantics (with mock executor) ===")
@@ -157,6 +171,25 @@ def main():
 
         print(f"\n✓ Generated semantics: {success_count} success, {failure_count} failed")
 
+        # Validate that we actually generated cases (not all low_value)
+        if success_count == 0:
+            print("✗ FAIL: No semantic cases generated")
+            print("  Pipeline must produce semantic_cases from semantic_case_inputs")
+            return False
+
+        # Validate semantic_value flows through to generated cases
+        generated_files = list(output_dir.glob("*.yaml"))
+        if len(generated_files) == 0:
+            print("✗ FAIL: No files in semantic_cases directory")
+            return False
+
+        sample_generated = load_yaml(str(generated_files[0]))
+        if "semantic_value" not in sample_generated:
+            print("✗ FAIL: semantic_value missing from generated cases")
+            return False
+
+        print(f"✓ semantic_value preserved in pipeline: {sample_generated['semantic_value']}")
+
         # Step 3: Export cases with P0 features (dedup + pattern extraction)
         print("\n=== Step 3: Export Cases (with dedup and pattern extraction) ===")
         result = subprocess.run([
@@ -180,17 +213,35 @@ def main():
 
         print("\n=== Verifying P0 Outputs ===")
 
-        if cases_jsonl.exists():
-            print(f"✓ cases.jsonl exists: {cases_jsonl}")
-        else:
-            print(f"✗ cases.jsonl missing")
+        # CRITICAL: All export outputs must exist
+        if not cases_jsonl.exists():
+            print(f"✗ FAIL: cases.jsonl missing")
+            print("  Export phase must produce cases.jsonl")
+            return False
+        print(f"✓ cases.jsonl exists: {cases_jsonl}")
+
+        if not patterns_jsonl.exists():
+            print(f"✗ FAIL: patterns.jsonl missing")
+            print("  Export phase must produce patterns.jsonl")
+            return False
+        print(f"✓ patterns.jsonl exists: {patterns_jsonl}")
+
+        # Validate cases.jsonl has content
+        import json
+        with open(cases_jsonl) as f:
+            case_lines = f.readlines()
+
+        if len(case_lines) == 0:
+            print("✗ FAIL: cases.jsonl is empty")
             return False
 
-        if patterns_jsonl.exists():
-            print(f"✓ patterns.jsonl exists: {patterns_jsonl}")
-        else:
-            print(f"✗ patterns.jsonl missing")
+        # Validate semantic_value in exported cases
+        first_case = json.loads(case_lines[0])
+        if "semantic_value" not in first_case:
+            print("✗ FAIL: semantic_value missing from exported cases")
             return False
+
+        print(f"✓ Exported {len(case_lines)} cases with semantic_value: {first_case['semantic_value']}")
 
         if summary_json.exists():
             print(f"✓ summary.json exists: {summary_json}")
