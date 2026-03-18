@@ -62,6 +62,7 @@ class SemanticCaseInput:
     case_id: str
     commit_id: str
     module: str
+    domain: str  # REQUIRED by P0 spec (line 238)
     files: List[str]
     diff_chunks: List[str]
     related_tests: List[str] = field(default_factory=list)
@@ -81,6 +82,7 @@ class SemanticCaseOutput:
     case_id: str
     commit_id: str
     module: str
+    domain: str  # REQUIRED by P0 spec (line 250)
     commit_log: str
     issue_text: str
     development_type: DevelopmentType

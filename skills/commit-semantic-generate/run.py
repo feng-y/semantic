@@ -63,6 +63,7 @@ def generate_semantics_for_case(case_input_path: str, output_dir: str, invalid_d
             'case_id': case_input['case_id'],
             'commit_id': case_input['commit_id'],
             'module': case_input['module'],
+            'domain': case_input.get('domain', case_input['module']),  # Preserve domain from input
             'commit_log': commit_log,
             'issue_text': issue_result['issue_text'],
             'development_type': issue_result['development_type'],
