@@ -75,7 +75,8 @@ def export_cases(
     output_dir: str = "data/exports",
     invalid_dir: str = "data/invalid_cases",
     low_value_dir: str = "data/low_value_cases",
-    incremental: bool = False
+    incremental: bool = False,
+    use_model_optimization: bool = False
 ):
     """
     Export validated semantic cases to JSONL and generate statistics.
@@ -92,6 +93,7 @@ def export_cases(
         invalid_dir: Directory with invalid cases
         low_value_dir: Directory with low value cases
         incremental: If True, merge with existing export
+        use_model_optimization: Enable model-assisted dedup and canonical selection
     """
     input_path = Path(input_dir)
     output_path = Path(output_dir)
@@ -323,6 +325,8 @@ def main():
                        help="Directory with low value cases")
     parser.add_argument("--incremental", action="store_true",
                        help="Merge with existing export (incremental mode)")
+    parser.add_argument("--use-model-optimization", action="store_true",
+                       help="Enable model-assisted dedup and canonical selection (costs API tokens)")
 
     args = parser.parse_args()
 
@@ -331,7 +335,8 @@ def main():
         output_dir=args.output_dir,
         invalid_dir=args.invalid_dir,
         low_value_dir=args.low_value_dir,
-        incremental=args.incremental
+        incremental=args.incremental,
+        use_model_optimization=args.use_model_optimization
     )
 
 

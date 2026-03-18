@@ -145,10 +145,16 @@ def generate_pattern_fingerprint_v2(case: Dict) -> str:
 
 def extract_patterns_v2(
     cases: List[Dict],
-    similarity_threshold: float = 0.50
+    similarity_threshold: float = 0.50,
+    use_model_optimization: bool = False
 ) -> Tuple[List[Dict], Dict[str, int]]:
     """
     Extract patterns with P2/P3 enhancements.
+
+    Args:
+        cases: List of case dictionaries
+        similarity_threshold: Similarity threshold for pattern grouping
+        use_model_optimization: Enable model-assisted canonical selection
 
     Returns:
         (patterns, domain_pattern_counts)
@@ -172,7 +178,11 @@ def extract_patterns_v2(
         pattern_inputs.append(pattern_input)
 
     # Group patterns
-    pattern_groups = group_patterns(pattern_inputs, similarity_threshold=similarity_threshold)
+    pattern_groups = group_patterns(
+        pattern_inputs,
+        similarity_threshold=similarity_threshold,
+        use_model_optimization=use_model_optimization
+    )
 
     # Convert to dict format
     patterns = []

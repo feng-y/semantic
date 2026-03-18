@@ -11,9 +11,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from difflib import SequenceMatcher
-from typing import Iterable
+from typing import Iterable, Optional, Callable
 
 from .normalize import build_constraint_signature, normalize_text
+from .model_optimizer import score_abstraction_quality, ModelOptimizerConfig
+from .dedup import DedupInput
 
 
 @dataclass
@@ -90,6 +92,9 @@ def group_patterns(
     cases: Iterable[PatternInput],
     *,
     similarity_threshold: float = 0.50,
+    use_model_optimization: bool = False,
+    model_executor: Optional[Callable[[str], str]] = None,
+    model_config: Optional[ModelOptimizerConfig] = None,
 ) -> list[PatternGroup]:
     """
     Group cases into patterns.
@@ -103,6 +108,9 @@ def group_patterns(
     Args:
         cases: Input cases to group
         similarity_threshold: Minimum similarity for grouping (default 0.50)
+        use_model_optimization: Enable model-assisted canonical selection
+        model_executor: Callable for model API calls (required if use_model_optimization=True)
+        model_config: Configuration for model optimization
 
     Returns:
         List of pattern groups
@@ -129,7 +137,12 @@ def group_patterns(
             if len(cluster) < 2:
                 continue
 
-            canonical = select_canonical_pattern_case(cluster)
+            canonical = select_canonical_pattern_case(
+                cluster,
+                use_model_optimization=use_model_optimization,
+                model_executor=model_executor,
+                model_config=model_config,
+            )
 
             # Extract domain from canonical case
             domain = canonical.domain
@@ -228,29 +241,73 @@ def pair_similarity(a: PatternInput, b: PatternInput) -> float:
     return 0.5 * s1 + 0.3 * s2 + 0.2 * s3
 
 
-def select_canonical_pattern_case(cases: list[PatternInput]) -> PatternInput:
+def select_canonical_pattern_case(
+    cases: list[PatternInput],
+    *,
+    use_model_optimization: bool = False,
+    model_executor: Optional[Callable[[str], str]] = None,
+    model_config: Optional[ModelOptimizerConfig] = None,
+) -> PatternInput:
     """
     Select canonical case for pattern.
 
     Selection criteria (in order):
     1. Higher semantic_value
-    2. More abstract but not vague issue_text (~16 chars preferred)
+    2. Model quality scoring (if enabled) OR more abstract but not vague issue_text (~16 chars preferred)
     3. More stable rules/invariants (more is better)
     4. Stable case_id
 
     Args:
         cases: Cases in pattern cluster
+        use_model_optimization: Enable model-assisted quality scoring
+        model_executor: Callable for model API calls (required if use_model_optimization=True)
+        model_config: Configuration for model optimization
 
     Returns:
         Selected canonical case
     """
-    def score(case: PatternInput) -> tuple[int, int, int, str]:
-        semantic_rank = {"high": 0, "medium": 1, "low": 2}.get(case.semantic_value, 1)
-        issue_penalty = abs(len(case.issue_text) - 16)
-        constraint_penalty = -(len(case.rules) + len(case.invariants))  # More is better
-        return (semantic_rank, issue_penalty, constraint_penalty, case.case_id)
+    if not use_model_optimization:
+        # Fallback to rule-based selection
+        return _select_pattern_by_rules(cases)
 
-    return sorted(cases, key=score)[0]
+    # Phase 1: Filter by semantic_value (keep only top tier)
+    top_tier = _filter_pattern_by_semantic_value(cases)
+
+    # Phase 2: Model scores abstraction quality for all candidates
+    try:
+        # Convert PatternInput to DedupInput for model scoring
+        dedup_cases = [
+            DedupInput(
+                case_id=c.case_id,
+                module=c.module,
+                development_type=c.development_type,
+                issue_text=c.issue_text,
+                rules=c.rules,
+                invariants=c.invariants,
+                semantic_value=c.semantic_value
+            )
+            for c in top_tier
+        ]
+
+        quality_scores = score_abstraction_quality(
+            dedup_cases,
+            executor=model_executor,
+            config=model_config
+        )
+
+        # Phase 3: Select highest quality score
+        best_idx = 0
+        best_score = quality_scores[0].score
+        for i, qs in enumerate(quality_scores):
+            if qs.score > best_score:
+                best_score = qs.score
+                best_idx = i
+
+        return top_tier[best_idx]
+
+    except Exception:
+        # Fallback to rule-based selection on model errors
+        return _select_pattern_by_rules(cases)
 
 
 def check_pattern_count(groups: list[PatternGroup], domain: str) -> PatternCheckResult:
@@ -448,3 +505,42 @@ def _jaccard(a: str, b: str) -> float:
     if not sa or not sb:
         return 0.0
     return len(sa & sb) / len(sa | sb)
+
+
+def _select_pattern_by_rules(cases: list[PatternInput]) -> PatternInput:
+    """
+    Select canonical case using rule-based logic.
+
+    Fallback when model optimization is disabled or fails.
+
+    Args:
+        cases: Cases in pattern cluster
+
+    Returns:
+        Selected canonical case
+    """
+    def score(case: PatternInput) -> tuple[int, int, int, str]:
+        semantic_rank = {"high": 0, "medium": 1, "low": 2}.get(case.semantic_value, 1)
+        issue_penalty = abs(len(case.issue_text) - 16)
+        constraint_penalty = -(len(case.rules) + len(case.invariants))  # More is better
+        return (semantic_rank, issue_penalty, constraint_penalty, case.case_id)
+
+    return sorted(cases, key=score)[0]
+
+
+def _filter_pattern_by_semantic_value(cases: list[PatternInput]) -> list[PatternInput]:
+    """
+    Filter cases to keep only top semantic_value tier.
+
+    Args:
+        cases: List of cases
+
+    Returns:
+        Cases with highest semantic_value
+    """
+    # Find highest semantic value
+    value_rank = {"high": 0, "medium": 1, "low": 2}
+    best_rank = min(value_rank.get(c.semantic_value, 1) for c in cases)
+
+    # Filter to keep only best tier
+    return [c for c in cases if value_rank.get(c.semantic_value, 1) == best_rank]

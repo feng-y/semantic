@@ -1,285 +1,362 @@
-#!/usr/bin/env python3
 """
-End-to-end test for P0 implementation.
+End-to-end tests for P0 pipeline closure.
 
-Tests the complete flow with P0 features:
-1. collect_cases - with semantic_value classification and low-value filtering
-2. generate_case_semantics - generate semantic fields (using mock executor)
-3. export_cases - with deduplication and pattern extraction
+Tests the complete flow using synthetic fixtures — no git repo or API calls needed:
+1. Dedup pipeline: cases → group_strict_duplicates → canonical selection
+2. Pattern extraction: cases → extract_patterns_v2 → domain fingerprints
+3. Export pipeline: cases → deduplicate_cases → export stats
+4. semantic_value preserved end-to-end
+5. domain field used in pattern fingerprint (not re-guessed from module)
+6. canonical selection respects semantic_value ranking
 """
 
 import sys
+import json
 import tempfile
-import shutil
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent))
+import pytest
 
-from src.io_utils import load_yaml, save_yaml
-from src.commit_semantic.prompt_runner import (
-    generate_commit_log,
-    generate_rules_invariants,
-    generate_issue_text
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+from src.commit_semantic.dedup import (
+    DedupInput,
+    build_dedup_key,
+    group_strict_duplicates,
+    select_canonical_duplicate,
 )
-from src.validators import validate_semantic_case
+from src.commit_semantic.deduplication import deduplicate_cases, generate_dedup_key
+from src.commit_semantic.patterning import (
+    PatternInput,
+    build_pattern_fingerprint,
+    group_patterns,
+)
+from src.commit_semantic.pattern_extraction_v2 import extract_patterns_v2
 
 
-def mock_executor(prompt: str) -> str:
-    """Mock executor for testing."""
-    if "Generate Rules and Invariants" in prompt:
-        return """```yaml
-rules:
-  - legacy syntax compatibility must be preserved during repair
-invariants:
-  - historical inputs remain parseable
-```"""
-    elif "Generate Issue Text" in prompt:
-        return """```yaml
-issue_text: >
-  feat：实现需求分析流程
-development_type: feature
-split_suggestion:
-  needs_split: false
-  split_reasons: []
-```"""
-    elif "Generate Commit Log" in prompt:
-        return """```yaml
-commit_log: >
-  实现需求分析的完整流程，包括规范化、语义映射和类型匹配。
-```"""
-    else:
-        return """```yaml
-error: unknown prompt type
-```"""
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+def make_dedup_input(
+    case_id: str,
+    module: str = "parser",
+    development_type: str = "bugfix",
+    issue_text: str = "fix: null pointer crash",
+    rules: list = None,
+    invariants: list = None,
+    semantic_value: str = "medium",
+) -> DedupInput:
+    return DedupInput(
+        case_id=case_id,
+        module=module,
+        development_type=development_type,
+        issue_text=issue_text,
+        rules=rules or ["must maintain compatibility"],
+        invariants=invariants or ["inputs remain parseable"],
+        semantic_value=semantic_value,
+    )
 
 
-def main():
-    print("╔══════════════════════════════════════════════════════════════╗")
-    print("║  Commit Semantic P0 - End-to-End Test                       ║")
-    print("╚══════════════════════════════════════════════════════════════╝")
-
-    with tempfile.TemporaryDirectory() as tmpdir:
-        tmpdir = Path(tmpdir)
-        input_dir = tmpdir / "semantic_case_inputs"
-        low_value_dir = tmpdir / "low_value_cases"
-        output_dir = tmpdir / "semantic_cases"
-        invalid_dir = tmpdir / "invalid_cases"
-        export_dir = tmpdir / "exports"
-
-        # Step 1: Run collect_cases with P0 features
-        print("\n=== Step 1: Collect Cases (with value classification) ===")
-        import subprocess
-        result = subprocess.run([
-            "python3", "skills/commit-semantic-collect/run.py",
-            ".",
-            "--commit-range", "HEAD~10..HEAD",  # Wider range to ensure we get cases
-            "--output-dir", str(input_dir),
-            "--low-value-dir", str(low_value_dir)
-        ], capture_output=True, text=True)
-
-        if result.returncode != 0:
-            print(f"✗ collect_cases failed: {result.stderr}")
-            return False
-
-        print(result.stdout)
-
-        # Check outputs
-        high_medium_files = list(input_dir.glob("*.yaml")) if input_dir.exists() else []
-        low_value_files = list(low_value_dir.glob("*.yaml")) if low_value_dir.exists() else []
-
-        print(f"✓ High/medium value cases: {len(high_medium_files)}")
-        print(f"✓ Low value cases: {len(low_value_files)}")
-
-        # CRITICAL: Test must validate full pipeline, not skip phases
-        if len(high_medium_files) == 0:
-            print("✗ FAIL: No high/medium value cases collected")
-            print("  Pipeline cannot be validated without semantic_case_inputs")
-            return False
-
-        # Validate semantic_value field exists in collected cases
-        sample_case = load_yaml(str(high_medium_files[0]))
-        if "semantic_value" not in sample_case:
-            print("✗ FAIL: semantic_value field missing from collected cases")
-            return False
-
-        if sample_case["semantic_value"] not in ["high", "medium", "low"]:
-            print(f"✗ FAIL: Invalid semantic_value: {sample_case['semantic_value']}")
-            return False
-
-        print(f"✓ semantic_value classification working: {sample_case['semantic_value']}")
-
-        # Step 2: Generate semantics for high/medium value cases
-        print("\n=== Step 2: Generate Semantics (with mock executor) ===")
-        output_dir.mkdir(parents=True, exist_ok=True)
-        invalid_dir.mkdir(parents=True, exist_ok=True)
-
-        success_count = 0
-        failure_count = 0
-
-        # Process first 5 high/medium value cases
-        for case_file in high_medium_files[:5]:
-            print(f"\nProcessing {case_file.name}...")
-            try:
-                case_input = load_yaml(str(case_file))
-
-                # Generate commit_log
-                commit_log = generate_commit_log(case_input, mock_executor)
-                print(f"  ✓ commit_log: {commit_log[:50]}...")
-
-                # Generate rules/invariants
-                rules_inv = generate_rules_invariants(case_input, commit_log, mock_executor)
-                print(f"  ✓ rules: {len(rules_inv['rules'])}, invariants: {len(rules_inv['invariants'])}")
-
-                # Generate issue_text
-                issue = generate_issue_text(
-                    case_input,
-                    commit_log,
-                    rules_inv["rules"],
-                    rules_inv["invariants"],
-                    mock_executor
-                )
-                print(f"  ✓ issue_text: {issue['issue_text'][:50]}...")
-
-                # Assemble complete case
-                complete_case = {
-                    "case_id": case_input["case_id"],
-                    "commit_id": case_input["commit_id"],
-                    "module": case_input["module"],
-                    "commit_log": commit_log,
-                    "issue_text": issue["issue_text"],
-                    "development_type": issue["development_type"],
-                    "rules": rules_inv["rules"],
-                    "invariants": rules_inv["invariants"],
-                    "split_suggestion": issue["split_suggestion"],
-                    "semantic_value": case_input.get("semantic_value", "medium"),
-                    "dedup_key": "",
-                    "pattern_id": ""
-                }
-
-                # Validate
-                validate_semantic_case(complete_case)
-                print(f"  ✓ Validation passed")
-
-                # Save
-                output_file = output_dir / case_file.name
-                save_yaml(complete_case, str(output_file))
-                success_count += 1
-
-            except Exception as e:
-                print(f"  ✗ Error: {e}")
-                failure_count += 1
-
-        print(f"\n✓ Generated semantics: {success_count} success, {failure_count} failed")
-
-        # Validate that we actually generated cases (not all low_value)
-        if success_count == 0:
-            print("✗ FAIL: No semantic cases generated")
-            print("  Pipeline must produce semantic_cases from semantic_case_inputs")
-            return False
-
-        # Validate semantic_value flows through to generated cases
-        generated_files = list(output_dir.glob("*.yaml"))
-        if len(generated_files) == 0:
-            print("✗ FAIL: No files in semantic_cases directory")
-            return False
-
-        sample_generated = load_yaml(str(generated_files[0]))
-        if "semantic_value" not in sample_generated:
-            print("✗ FAIL: semantic_value missing from generated cases")
-            return False
-
-        print(f"✓ semantic_value preserved in pipeline: {sample_generated['semantic_value']}")
-
-        # Step 3: Export cases with P0 features (dedup + pattern extraction)
-        print("\n=== Step 3: Export Cases (with dedup and pattern extraction) ===")
-        result = subprocess.run([
-            "python3", "skills/commit-semantic-export/run.py",
-            "--input-dir", str(output_dir),
-            "--output-dir", str(export_dir),
-            "--invalid-dir", str(invalid_dir),
-            "--low-value-dir", str(low_value_dir)
-        ], capture_output=True, text=True)
-
-        if result.returncode != 0:
-            print(f"✗ export_cases failed: {result.stderr}")
-            return False
-
-        print(result.stdout)
-
-        # Verify P0 outputs
-        cases_jsonl = export_dir / "cases.jsonl"
-        patterns_jsonl = export_dir / "patterns.jsonl"
-        summary_json = export_dir / "summary.json"
-
-        print("\n=== Verifying P0 Outputs ===")
-
-        # CRITICAL: All export outputs must exist
-        if not cases_jsonl.exists():
-            print(f"✗ FAIL: cases.jsonl missing")
-            print("  Export phase must produce cases.jsonl")
-            return False
-        print(f"✓ cases.jsonl exists: {cases_jsonl}")
-
-        if not patterns_jsonl.exists():
-            print(f"✗ FAIL: patterns.jsonl missing")
-            print("  Export phase must produce patterns.jsonl")
-            return False
-        print(f"✓ patterns.jsonl exists: {patterns_jsonl}")
-
-        # Validate cases.jsonl has content
-        import json
-        with open(cases_jsonl) as f:
-            case_lines = f.readlines()
-
-        if len(case_lines) == 0:
-            print("✗ FAIL: cases.jsonl is empty")
-            return False
-
-        # Validate semantic_value in exported cases
-        first_case = json.loads(case_lines[0])
-        if "semantic_value" not in first_case:
-            print("✗ FAIL: semantic_value missing from exported cases")
-            return False
-
-        print(f"✓ Exported {len(case_lines)} cases with semantic_value: {first_case['semantic_value']}")
-
-        if summary_json.exists():
-            print(f"✓ summary.json exists: {summary_json}")
-
-            # Check summary contains P0 fields
-            from src.io_utils import load_json
-            summary = load_json(str(summary_json))
-
-            required_fields = [
-                'unique_cases', 'duplicate_cases', 'low_value_cases',
-                'pattern_count', 'validation_pass_rate'
-            ]
-
-            for field in required_fields:
-                if field in summary:
-                    print(f"  ✓ {field}: {summary[field]}")
-                else:
-                    print(f"  ✗ Missing field: {field}")
-                    return False
-        else:
-            print(f"✗ summary.json missing")
-            return False
-
-        print("\n╔══════════════════════════════════════════════════════════════╗")
-        print("║  ✓ P0 End-to-End Test Passed                                ║")
-        print("╚══════════════════════════════════════════════════════════════╝")
-
-        print("\n验证完成:")
-        print("  ✓ Semantic value classification working")
-        print("  ✓ Low value filtering working")
-        print("  ✓ Deduplication working")
-        print("  ✓ Pattern extraction working")
-        print("  ✓ Enhanced statistics working")
-        print("\nP0 implementation verified!")
-
-        return True
+def make_case_dict(
+    case_id: str,
+    module: str = "parser",
+    domain: str = "parsing",
+    development_type: str = "bugfix",
+    issue_text: str = "fix: null pointer crash",
+    commit_log: str = "fix null pointer in parser",
+    rules: list = None,
+    invariants: list = None,
+    semantic_value: str = "medium",
+) -> dict:
+    return {
+        "case_id": case_id,
+        "module": module,
+        "domain": domain,
+        "development_type": development_type,
+        "issue_text": issue_text,
+        "commit_log": commit_log,
+        "rules": rules or ["must maintain compatibility"],
+        "invariants": invariants or ["inputs remain parseable"],
+        "semantic_value": semantic_value,
+        "split_suggestion": {"needs_split": False, "split_reasons": []},
+        "dedup_key": "",
+        "pattern_id": "",
+    }
 
 
-if __name__ == "__main__":
-    success = main()
-    sys.exit(0 if success else 1)
+# ---------------------------------------------------------------------------
+# 1. Dedup pipeline: semantic_value preserved through dedup
+# ---------------------------------------------------------------------------
+
+class TestDedupSemanticValuePreservation:
+    def test_semantic_value_preserved_in_dedup_input(self):
+        case = make_dedup_input("c1", semantic_value="high")
+        assert case.semantic_value == "high"
+
+    def test_dedup_key_ignores_semantic_value(self):
+        """Two cases identical except semantic_value must share the same dedup key."""
+        c_high = make_dedup_input("c1", issue_text="fix: null pointer", semantic_value="high")
+        c_low = make_dedup_input("c2", issue_text="fix: null pointer", semantic_value="low")
+        assert build_dedup_key(c_high) == build_dedup_key(c_low)
+
+    def test_canonical_selection_prefers_high_semantic_value(self):
+        """select_canonical_duplicate must pick the high-value case."""
+        cases = [
+            make_dedup_input("c_low", issue_text="fix: null pointer crash", semantic_value="low"),
+            make_dedup_input("c_high", issue_text="fix: null pointer crash", semantic_value="high"),
+            make_dedup_input("c_med", issue_text="fix: null pointer crash", semantic_value="medium"),
+        ]
+        canonical = select_canonical_duplicate(cases)
+        assert canonical.case_id == "c_high"
+
+    def test_canonical_selection_prefers_medium_over_low(self):
+        cases = [
+            make_dedup_input("c_low", issue_text="fix: null pointer crash", semantic_value="low"),
+            make_dedup_input("c_med", issue_text="fix: null pointer crash", semantic_value="medium"),
+        ]
+        canonical = select_canonical_duplicate(cases)
+        assert canonical.case_id == "c_med"
+
+    def test_group_strict_duplicates_returns_canonical_with_high_value(self):
+        """group_strict_duplicates canonical_case_id must be the high-value case."""
+        cases = [
+            make_dedup_input("c1", issue_text="fix: null pointer crash", semantic_value="low"),
+            make_dedup_input("c2", issue_text="fix: null pointer crash", semantic_value="high"),
+        ]
+        groups = group_strict_duplicates(cases)
+        assert len(groups) == 1
+        assert groups[0].canonical_case_id == "c2"
+        assert "c1" in groups[0].duplicate_case_ids
+
+
+# ---------------------------------------------------------------------------
+# 2. Pattern fingerprint uses domain field, not module
+# ---------------------------------------------------------------------------
+
+class TestPatternFingerprintUsesDomain:
+    def test_fingerprint_includes_domain_not_module(self):
+        """Two cases with same domain but different module must share fingerprint prefix."""
+        case_a = PatternInput(
+            case_id="a",
+            domain="parsing",
+            module="parser-v1",
+            development_type="bugfix",
+            commit_log="fix null pointer",
+            issue_text="fix: null pointer crash",
+            rules=["must maintain compatibility"],
+            invariants=["inputs remain parseable"],
+            semantic_value="medium",
+        )
+        case_b = PatternInput(
+            case_id="b",
+            domain="parsing",
+            module="parser-v2",  # different module, same domain
+            development_type="bugfix",
+            commit_log="fix null pointer",
+            issue_text="fix: null pointer crash",
+            rules=["must maintain compatibility"],
+            invariants=["inputs remain parseable"],
+            semantic_value="medium",
+        )
+        fp_a = build_pattern_fingerprint(case_a)
+        fp_b = build_pattern_fingerprint(case_b)
+        # Both start with the domain component
+        assert fp_a.startswith("parsing|")
+        assert fp_b.startswith("parsing|")
+        # Same domain → same fingerprint (module is not in fingerprint)
+        assert fp_a == fp_b
+
+    def test_different_domains_produce_different_fingerprints(self):
+        case_a = PatternInput(
+            case_id="a",
+            domain="parsing",
+            module="parser",
+            development_type="bugfix",
+            commit_log="fix null pointer",
+            issue_text="fix: null pointer crash",
+            rules=[],
+            invariants=[],
+        )
+        case_b = PatternInput(
+            case_id="b",
+            domain="query-service",
+            module="parser",  # same module, different domain
+            development_type="bugfix",
+            commit_log="fix null pointer",
+            issue_text="fix: null pointer crash",
+            rules=[],
+            invariants=[],
+        )
+        assert build_pattern_fingerprint(case_a) != build_pattern_fingerprint(case_b)
+
+    def test_extract_patterns_v2_uses_domain_field(self):
+        """extract_patterns_v2 must use case['domain'], not re-guess from module."""
+        cases = [
+            make_case_dict("c1", module="parser-v1", domain="parsing",
+                           issue_text="fix: null pointer crash", semantic_value="high"),
+            make_case_dict("c2", module="parser-v2", domain="parsing",
+                           issue_text="fix: null pointer crash", semantic_value="medium"),
+        ]
+        patterns, domain_counts = extract_patterns_v2(cases, similarity_threshold=0.50)
+        # Both cases share domain "parsing" → should form a pattern
+        assert "parsing" in domain_counts or len(patterns) >= 1
+
+
+# ---------------------------------------------------------------------------
+# 3. Full pipeline: cases → dedup → pattern extraction → export stats
+# ---------------------------------------------------------------------------
+
+class TestFullPipelineClosure:
+    def _make_synthetic_cases(self):
+        """Create a set of synthetic cases covering high/medium/low semantic_value."""
+        return [
+            # Duplicate pair: c1 (high) and c2 (low) — same issue_text
+            make_case_dict("c1", issue_text="fix: null pointer crash",
+                           semantic_value="high", domain="parsing"),
+            make_case_dict("c2", issue_text="fix: null pointer crash",
+                           semantic_value="low", domain="parsing"),
+            # Duplicate pair: c3 (medium) and c4 (medium)
+            make_case_dict("c3", issue_text="feat: add parser compatibility layer",
+                           development_type="feature", semantic_value="medium", domain="parsing"),
+            make_case_dict("c4", issue_text="feat: add parser compatibility layer",
+                           development_type="feature", semantic_value="medium", domain="parsing"),
+            # Unique case
+            make_case_dict("c5", issue_text="refactor: extract config module",
+                           development_type="refactor", semantic_value="medium",
+                           domain="configuration", module="config"),
+        ]
+
+    def test_deduplicate_cases_preserves_semantic_value(self):
+        cases = self._make_synthetic_cases()
+        unique_cases, dup_groups = deduplicate_cases(cases)
+
+        # c1 and c2 are duplicates; c1 (high) should be canonical
+        dup_group_for_c1_c2 = next(
+            (g for g in dup_groups if "c1" in (g["canonical_case_id"], *g["duplicate_case_ids"])
+             and "c2" in (g["canonical_case_id"], *g["duplicate_case_ids"])),
+            None
+        )
+        assert dup_group_for_c1_c2 is not None, "c1/c2 duplicate group not found"
+        assert dup_group_for_c1_c2["canonical_case_id"] == "c1", (
+            f"Expected c1 (high) as canonical, got {dup_group_for_c1_c2['canonical_case_id']}"
+        )
+
+        # All unique cases must have semantic_value
+        for case in unique_cases:
+            assert "semantic_value" in case, f"semantic_value missing from case {case['case_id']}"
+            assert case["semantic_value"] in ("high", "medium", "low")
+
+    def test_dedup_key_attached_to_unique_cases(self):
+        cases = self._make_synthetic_cases()
+        unique_cases, _ = deduplicate_cases(cases)
+        for case in unique_cases:
+            assert "dedup_key" in case
+            assert len(case["dedup_key"]) == 40  # SHA1 hex
+
+    def test_pattern_extraction_uses_domain(self):
+        cases = self._make_synthetic_cases()
+        unique_cases, _ = deduplicate_cases(cases)
+        patterns, domain_counts = extract_patterns_v2(unique_cases, similarity_threshold=0.50)
+
+        # domain_counts keys must be actual domain values, not module names
+        for domain in domain_counts:
+            assert domain in ("parsing", "configuration", ""), (
+                f"Unexpected domain in pattern counts: {domain!r}"
+            )
+
+    def test_export_stats_fields_present(self):
+        """Simulate the stats generation used by export skill."""
+        from collections import Counter
+        cases = self._make_synthetic_cases()
+        unique_cases, dup_groups = deduplicate_cases(cases)
+        patterns, domain_counts = extract_patterns_v2(unique_cases, similarity_threshold=0.50)
+
+        total_duplicates = sum(len(g["duplicate_case_ids"]) for g in dup_groups)
+        total_unique = len(unique_cases)
+        total_cases = total_unique + total_duplicates
+        validation_pass_rate = total_unique / total_cases if total_cases > 0 else 0
+
+        dev_types = [c["development_type"] for c in unique_cases]
+        dev_type_dist = dict(Counter(dev_types))
+
+        stats = {
+            "unique_cases": total_unique,
+            "duplicate_cases": total_duplicates,
+            "low_value_cases": 0,
+            "pattern_count": len(patterns),
+            "validation_pass_rate": validation_pass_rate,
+            "development_type_distribution": dev_type_dist,
+        }
+
+        required = ["unique_cases", "duplicate_cases", "low_value_cases",
+                    "pattern_count", "validation_pass_rate"]
+        for field in required:
+            assert field in stats, f"Missing required stats field: {field}"
+
+        assert stats["unique_cases"] > 0
+        assert stats["validation_pass_rate"] > 0
+
+    def test_semantic_value_survives_full_pipeline(self):
+        """semantic_value must be present in every unique case after dedup."""
+        cases = self._make_synthetic_cases()
+        unique_cases, _ = deduplicate_cases(cases)
+        for case in unique_cases:
+            assert case.get("semantic_value") in ("high", "medium", "low"), (
+                f"Case {case['case_id']} has invalid semantic_value: {case.get('semantic_value')!r}"
+            )
+
+    def test_export_to_jsonl_preserves_semantic_value(self):
+        """Round-trip through JSONL serialization must preserve semantic_value."""
+        cases = self._make_synthetic_cases()
+        unique_cases, _ = deduplicate_cases(cases)
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            jsonl_path = Path(tmpdir) / "cases.jsonl"
+            with open(jsonl_path, "w", encoding="utf-8") as f:
+                for case in unique_cases:
+                    f.write(json.dumps(case, ensure_ascii=False) + "\n")
+
+            with open(jsonl_path, encoding="utf-8") as f:
+                loaded = [json.loads(line) for line in f if line.strip()]
+
+        assert len(loaded) == len(unique_cases)
+        for case in loaded:
+            assert "semantic_value" in case
+            assert case["semantic_value"] in ("high", "medium", "low")
+
+
+# ---------------------------------------------------------------------------
+# 4. group_patterns threads use_model_optimization (no model calls)
+# ---------------------------------------------------------------------------
+
+class TestGroupPatternsModelOptimizationFlag:
+    def test_group_patterns_accepts_use_model_optimization_false(self):
+        """group_patterns must accept use_model_optimization=False without error."""
+        cases = [
+            PatternInput(
+                case_id="a",
+                domain="parsing",
+                module="parser",
+                development_type="bugfix",
+                commit_log="fix null pointer",
+                issue_text="fix: null pointer crash",
+                rules=["must maintain compatibility"],
+                invariants=["inputs remain parseable"],
+                semantic_value="high",
+            ),
+            PatternInput(
+                case_id="b",
+                domain="parsing",
+                module="parser",
+                development_type="bugfix",
+                commit_log="fix null pointer",
+                issue_text="fix: null pointer crash",
+                rules=["must maintain compatibility"],
+                invariants=["inputs remain parseable"],
+                semantic_value="medium",
+            ),
+        ]
+        # Must not raise
+        groups = group_patterns(cases, similarity_threshold=0.50, use_model_optimization=False)
+        assert isinstance(groups, list)

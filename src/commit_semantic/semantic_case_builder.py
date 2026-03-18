@@ -83,24 +83,18 @@ def _should_merge_groups(groups: List[ChangeGroup]) -> bool:
         return True
 
     # If total scope is small enough to describe in one issue_text
-    # Use combined heuristics: file count + diff size
+    # Use combined heuristics: file count + diff size.
+    # Require actual diff content (> 0) so that two distinct objects with no
+    # diff are not spuriously merged — they are independent actions.
     total_files = sum(len(g.files) for g in groups)
     total_diff_lines = sum(len(g.diff_chunks) for g in groups)
 
-    # Small scope: few files AND small diff
-    if total_files <= 3 and total_diff_lines <= 50:
+    # Small scope: few files AND small (but non-zero) diff
+    if total_files <= 3 and 0 < total_diff_lines <= 50:
         return True
 
-    # Medium scope with same domain: slightly larger but still coherent
-    if total_files <= 5 and len(themes) <= 2:
-        # Check if themes are related (e.g., "parser" and "parser_utils")
-        theme_list = list(themes)
-        if len(theme_list) == 2:
-            t1, t2 = theme_list[0], theme_list[1]
-            if t1 in t2 or t2 in t1:
-                return True
-
     # Otherwise, keep them separate - they represent distinct actions
+    # (P0 spec: 多个独立主动作时不合并)
     return False
 
 

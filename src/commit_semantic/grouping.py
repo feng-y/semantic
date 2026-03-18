@@ -55,8 +55,13 @@ def extract_change_groups(commit: RawCommit) -> List[ChangeGroup]:
                 theme_groups[theme] = []
             theme_groups[theme].append(primary_file)
 
+        # Track which supporting files have been claimed by a theme group
+        claimed_supporting: set = set()
+
+        theme_items = list(theme_groups.items())
+
         # Create one group per theme
-        for idx, (theme, theme_files) in enumerate(theme_groups.items()):
+        for idx, (theme, theme_files) in enumerate(theme_items):
             group_id = f"{commit.commit_id}_group_{idx}"
 
             # Find supporting files related to any file in this theme
@@ -66,6 +71,16 @@ def extract_change_groups(commit: RawCommit) -> List[ChangeGroup]:
                 for support_file in related:
                     if support_file not in related_supporting:
                         related_supporting.append(support_file)
+                        claimed_supporting.add(support_file)
+
+            # P0 spec: config/flag/wiring/registration 默认挂主组
+            # When there is only one primary theme, attach all remaining
+            # supporting files (e.g. config.yaml) to that single group.
+            if len(theme_items) == 1:
+                for support_file in supporting_files:
+                    if support_file not in claimed_supporting:
+                        related_supporting.append(support_file)
+                        claimed_supporting.add(support_file)
 
             # Get diff chunks only for files in this group
             group_files = theme_files + related_supporting
@@ -95,36 +110,64 @@ def extract_change_groups(commit: RawCommit) -> List[ChangeGroup]:
 def _filter_diff_chunks_for_files(diff_chunks: List[str], files: List[str]) -> List[str]:
     """
     Filter diff chunks to only include those relevant to the specified files.
+
+    A diff stream looks like:
+        diff --git a/foo.py b/foo.py   <- file boundary marker
+        --- a/foo.py
+        +++ b/foo.py
+        @@ ... @@
+        <hunk lines>
+        diff --git a/bar.py b/bar.py   <- next file boundary
+
+    We track which file we are currently inside.  A new `diff --git` line
+    always starts a new file section, so we re-evaluate membership there
+    and reset `current_file` to None when the new file is not in our set.
     """
     filtered = []
     current_file = None
 
     for chunk in diff_chunks:
-        # Check if this is a file header
-        if chunk.startswith('diff --git') or chunk.startswith('---') or chunk.startswith('+++'):
-            # Extract filename from diff header
+        if chunk.startswith('diff --git'):
+            # New file section — check if it belongs to our set
+            current_file = None
             for file_path in files:
                 if file_path in chunk:
                     current_file = file_path
-                    filtered.append(chunk)
                     break
-        elif current_file is not None:
-            # Include chunk if we're in a relevant file
-            filtered.append(chunk)
-            # Reset on next file marker
-            if chunk.startswith('diff --git'):
-                current_file = None
+            if current_file is not None:
+                filtered.append(chunk)
+        elif chunk.startswith('--- ') or chunk.startswith('+++ '):
+            # Header lines for the current file
+            if current_file is not None:
+                filtered.append(chunk)
+        else:
+            # Hunk content — include only when inside a relevant file
+            if current_file is not None:
+                filtered.append(chunk)
 
     return filtered
 
 
 def extract_theme_from_file(file_path: str) -> str:
-    """Extract a theme/module name from file path."""
-    parts = file_path.split('/')
-    if len(parts) > 1:
-        # Use the directory name as theme
-        return parts[-2]
-    return parts[0].split('.')[0]
+    """Extract a semantic object name from file path.
+
+    Uses the filename stem (without extension) as the primary key so that
+    files that represent the same object (e.g. parser.py + parser_test.py)
+    share a theme, regardless of which directory they live in.
+
+    Strips common suffixes (_test, _spec, _utils, _helpers) so that
+    "parser" and "parser_utils" are treated as the same semantic object.
+    """
+    filename = file_path.split('/')[-1]
+    stem = filename.split('.')[0]
+
+    # Strip common auxiliary suffixes to normalise to the core object name
+    for suffix in ('_test', '_spec', '_tests', '_utils', '_helpers', '_helper'):
+        if stem.endswith(suffix):
+            stem = stem[: -len(suffix)]
+            break
+
+    return stem
 
 
 def find_related_files(primary_file: str, supporting_files: List[str]) -> List[str]:

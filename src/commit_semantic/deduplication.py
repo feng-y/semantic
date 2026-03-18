@@ -31,9 +31,16 @@ def generate_dedup_key(case: Dict) -> str:
     return _build_dedup_key(dedup_input, use_constraint_signature=False)
 
 
-def deduplicate_cases(cases: List[Dict]) -> Tuple[List[Dict], List[Dict]]:
+def deduplicate_cases(
+    cases: List[Dict],
+    use_model_optimization: bool = False
+) -> Tuple[List[Dict], List[Dict]]:
     """
     Deduplicate cases based on dedup_key.
+
+    Args:
+        cases: List of case dictionaries
+        use_model_optimization: Enable model-assisted semantic duplicate detection
 
     Returns:
         (unique_cases, duplicate_groups)
@@ -65,7 +72,11 @@ def deduplicate_cases(cases: List[Dict]) -> Tuple[List[Dict], List[Dict]]:
         case_map[case["case_id"]] = case
 
     # Group duplicates
-    dup_groups = group_strict_duplicates(dedup_inputs, use_constraint_signature=False)
+    dup_groups = group_strict_duplicates(
+        dedup_inputs,
+        use_constraint_signature=False,
+        use_model_optimization=use_model_optimization
+    )
 
     # Build unique cases list and duplicate groups
     unique_case_ids = set()
