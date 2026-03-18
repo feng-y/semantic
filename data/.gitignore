@@ -1,0 +1,8 @@
+# Ignore all YAML and JSON files in data directories
+*.yaml
+*.yml
+*.json
+*.jsonl
+
+# Keep directory structure
+!.gitkeep
