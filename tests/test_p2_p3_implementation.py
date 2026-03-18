@@ -3,12 +3,11 @@
 Test P2/P3 pattern extraction implementation.
 
 Tests:
-1. Domain extraction and mapping
-2. Action/object/constraint class abstraction
-3. Pattern fingerprint generation
-4. Similarity-based grouping within buckets
-5. Pattern count checking and alerts
-6. Canonical pattern selection
+1. Action/object/constraint class abstraction
+2. Pattern fingerprint generation
+3. Similarity-based grouping within buckets
+4. Pattern count checking and alerts
+5. Canonical pattern selection
 """
 
 import sys
@@ -17,7 +16,6 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
 
 from src.commit_semantic.pattern_extraction_v2 import (
-    extract_domain,
     extract_action_class,
     extract_object_class,
     extract_constraint_class,
@@ -28,26 +26,6 @@ from src.commit_semantic.pattern_extraction_v2 import (
     extract_patterns_v2,
     check_pattern_count
 )
-
-
-def test_domain_extraction():
-    """Test domain extraction from module."""
-    print("Testing domain extraction...")
-
-    cases = [
-        {"module": "qserver.parser", "expected": "parsing"},
-        {"module": "feature-extraction.core", "expected": "feature-engineering"},
-        {"module": "demand.analyzer", "expected": "demand-analysis"},
-        {"module": "semantic.processor", "expected": "semantic-analysis"},
-        {"module": "unknown.module", "expected": "unknown.module"},
-    ]
-
-    for case in cases:
-        domain = extract_domain(case)
-        assert domain == case["expected"], f"Expected {case['expected']}, got {domain}"
-        print(f"  ✓ {case['module']} -> {domain}")
-
-    print("✓ Domain extraction tests passed\n")
 
 
 def test_action_class_extraction():
@@ -385,7 +363,6 @@ def main():
     print("╚══════════════════════════════════════════════════════════════╝\n")
 
     try:
-        test_domain_extraction()
         test_action_class_extraction()
         test_object_class_extraction()
         test_constraint_class_extraction()
