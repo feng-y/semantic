@@ -18,15 +18,26 @@ pip install -e .
 
 # Create data directories
 mkdir -p data/{raw_commits,semantic_case_inputs,semantic_cases,low_value_cases,invalid_cases,exports}
+
+# Verify installation
+python skills/commit-semantic-collect/run.py --help
+python skills/commit-semantic-generate/run.py --help
+python skills/commit-semantic-export/run.py --help
 ```
 
 ## Three-Step Pipeline
+
+**Command Format**: These are Python scripts that can be invoked as shell commands or as Claude Code skills (with `/` prefix).
 
 ### 1. Collect Cases
 
 Extract and group commits into semantic cases:
 
 ```bash
+# Shell command
+python skills/commit-semantic-collect/run.py /path/to/repo --commit-range HEAD~50..HEAD
+
+# Or as Claude Code skill
 /commit-semantic-collect --repo-path /path/to/repo --commit-range HEAD~50..HEAD
 ```
 
@@ -43,6 +54,10 @@ Extract and group commits into semantic cases:
 Generate structured fields for each case:
 
 ```bash
+# Shell command
+python skills/commit-semantic-generate/run.py --input-dir data/semantic_case_inputs
+
+# Or as Claude Code skill
 /commit-semantic-generate --input-dir data/semantic_case_inputs
 ```
 
@@ -59,6 +74,10 @@ Generate structured fields for each case:
 Deduplicate and aggregate patterns:
 
 ```bash
+# Shell command
+python skills/commit-semantic-export/run.py --input-dir data/semantic_cases
+
+# Or as Claude Code skill
 /commit-semantic-export --input-dir data/semantic_cases
 ```
 
@@ -129,18 +148,18 @@ data/
 ### Quick Test (10 commits)
 
 ```bash
-/commit-semantic-collect --repo-path . --commit-range HEAD~10..HEAD
-/commit-semantic-generate --input-dir data/semantic_case_inputs
-/commit-semantic-export --input-dir data/semantic_cases
+python skills/commit-semantic-collect/run.py . --commit-range HEAD~10..HEAD
+python skills/commit-semantic-generate/run.py --input-dir data/semantic_case_inputs
+python skills/commit-semantic-export/run.py --input-dir data/semantic_cases
 cat data/exports/summary.json
 ```
 
 ### Full History Scan
 
 ```bash
-/commit-semantic-collect --repo-path . --commit-range HEAD~500..HEAD
-/commit-semantic-generate --input-dir data/semantic_case_inputs
-/commit-semantic-export --input-dir data/semantic_cases
+python skills/commit-semantic-collect/run.py . --commit-range HEAD~500..HEAD
+python skills/commit-semantic-generate/run.py --input-dir data/semantic_case_inputs
+python skills/commit-semantic-export/run.py --input-dir data/semantic_cases
 ```
 
 ### Review Invalid Cases
@@ -160,11 +179,77 @@ jq '.pattern_stats' data/exports/summary.json
 
 ## Troubleshooting
 
-**High invalid rate**: Check `invalid_cases/` for common validation errors (prefix mismatch, generic rules).
+### High invalid rate
 
-**Pattern explosion (>30)**: Review object_class inference, consider broader categories.
+**Symptom**: Many cases in `invalid_cases/` directory.
 
-**Low semantic value**: Review `low_value_cases/` to understand filtering. Expected for maintenance-heavy repos.
+**Diagnosis**:
+```bash
+# Check validation errors
+ls data/invalid_cases/
+cat data/invalid_cases/case_*.yaml | grep -A 5 "validation_error"
+```
+
+**Common causes and fixes**:
+- **Prefix mismatch**: issue_text prefix doesn't match development_type
+  - Fix: Ensure issue_text starts with correct prefix (feat:, bugfix:, refactor:, migration:, optimize:)
+- **Generic rules/invariants**: Rules contain generic guidelines like "add null checks"
+  - Fix: Rewrite rules to be object-specific semantic constraints
+- **Missing required fields**: commit_log, issue_text, or development_type missing
+  - Fix: Check prompt outputs and ensure all fields are generated
+
+### Pattern explosion (>30 patterns)
+
+**Symptom**: `summary.json` shows >30 patterns in a domain.
+
+**Diagnosis**:
+```bash
+# Check pattern count per domain
+jq '.pattern_stats' data/exports/summary.json
+jq '.alerts' data/exports/summary.json
+```
+
+**Fixes**:
+- Review object_class inference logic in `src/commit_semantic/p4/patterning.py`
+- Consider broader object categories (merge similar classes)
+- Verify deduplication is working: check `duplicates.jsonl` for missed duplicates
+- Adjust similarity threshold in export configuration
+
+### Low semantic value cases
+
+**Symptom**: Many cases in `low_value_cases/` directory.
+
+**Diagnosis**:
+```bash
+# Review low value cases
+ls data/low_value_cases/ | wc -l
+cat data/low_value_cases/case_*.yaml | grep "semantic_value"
+```
+
+**Expected behavior**: Low-value filtering is working correctly for:
+- Format/lint/import/comment-only changes
+- Trivial test maintenance
+- Trivial config/flag wiring
+- Low-information parameter tweaks
+
+**Action**: This is expected for maintenance-heavy repositories. No fix needed unless filtering is too aggressive.
+
+### Empty output directories
+
+**Symptom**: No files generated in expected output directories.
+
+**Diagnosis**:
+```bash
+# Check if commits were found
+python skills/commit-semantic-collect/run.py . --commit-range HEAD~10..HEAD
+# Look for "Found N commits" message
+```
+
+**Fixes**:
+- Verify commit range is valid: `git log HEAD~10..HEAD`
+- Check path filters aren't excluding all files
+- Verify repository path is correct
+- Check for errors in console output
 
 ## More Information
 
