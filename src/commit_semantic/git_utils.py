@@ -1,6 +1,9 @@
 import subprocess
-from typing import List, Tuple
+from typing import List, Tuple, TYPE_CHECKING
 from src.types import RawCommit
+
+if TYPE_CHECKING:
+    from src.commit_semantic.state_tracker import StateTracker
 
 
 def get_commit_list(repo_path: str, commit_range: str = None,
@@ -68,3 +71,38 @@ def get_commit_message(repo_path: str, commit_id: str) -> str:
         return result.stdout.strip()
     except subprocess.CalledProcessError as e:
         raise RuntimeError(f"Git command failed: {' '.join(cmd)}\n{e.stderr}") from e
+
+
+def get_commit_list_incremental(
+    repo_path: str,
+    state_tracker: 'StateTracker',
+    commit_range: str = None,
+    author: str = None,
+    since: str = None,
+    until: str = None,
+    force_reprocess: bool = False
+) -> List[str]:
+    """
+    Get list of unprocessed commits.
+
+    Args:
+        repo_path: Path to git repository
+        state_tracker: State tracker instance
+        commit_range: Optional commit range (e.g., "HEAD~10..HEAD")
+        author: Optional author filter
+        since: Optional date filter (e.g., "2 weeks ago")
+        until: Optional date filter
+        force_reprocess: If True, ignore state and return all commits
+
+    Returns:
+        List of commit IDs that need processing
+    """
+    # Get all commits matching filters
+    all_commits = get_commit_list(repo_path, commit_range, author, since, until)
+
+    # If force reprocess, return all
+    if force_reprocess:
+        return all_commits
+
+    # Filter out already processed commits
+    return state_tracker.get_unprocessed_commits(all_commits)

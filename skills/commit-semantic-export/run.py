@@ -18,11 +18,64 @@ from src.commit_semantic.deduplication import deduplicate_cases
 from src.commit_semantic.pattern_extraction_v2 import extract_patterns_v2, check_pattern_count
 
 
+def merge_incremental_export(
+    existing_export_path: Path,
+    new_cases: list,
+    output_path: Path
+) -> list:
+    """
+    Merge new cases into existing export.
+
+    Strategy:
+    1. Load existing JSONL export
+    2. Append new cases
+    3. Write back atomically
+    4. Return merged cases
+
+    Args:
+        existing_export_path: Path to existing JSONL export
+        new_cases: List of new case dicts to append
+        output_path: Output path for merged export
+
+    Returns:
+        List of all cases (existing + new)
+    """
+    # Load existing cases
+    existing_cases = []
+    if existing_export_path.exists():
+        try:
+            import json
+            with open(existing_export_path, 'r', encoding='utf-8') as f:
+                existing_cases = [json.loads(line) for line in f if line.strip()]
+            print(f"Loaded {len(existing_cases)} existing cases from {existing_export_path}")
+        except Exception as e:
+            print(f"Warning: Failed to load existing export: {e}")
+            print("Starting with empty export")
+
+    # Append new cases
+    all_cases = existing_cases + new_cases
+    print(f"Merged: {len(existing_cases)} existing + {len(new_cases)} new = {len(all_cases)} total")
+
+    # Write atomically
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    tmp_path = output_path.with_suffix('.jsonl.tmp')
+
+    import json
+    with open(tmp_path, 'w', encoding='utf-8') as f:
+        for case in all_cases:
+            f.write(json.dumps(case, ensure_ascii=False) + '\n')
+
+    tmp_path.rename(output_path)
+
+    return all_cases
+
+
 def export_cases(
     input_dir: str = "data/semantic_cases",
     output_dir: str = "data/exports",
     invalid_dir: str = "data/invalid_cases",
-    low_value_dir: str = "data/low_value_cases"
+    low_value_dir: str = "data/low_value_cases",
+    incremental: bool = False
 ):
     """
     Export validated semantic cases to JSONL and generate statistics.
@@ -31,6 +84,14 @@ def export_cases(
     - Deduplication
     - Pattern extraction
     - Statistics generation
+    - Incremental merge (if enabled)
+
+    Args:
+        input_dir: Input directory with validated cases
+        output_dir: Output directory for exports
+        invalid_dir: Directory with invalid cases
+        low_value_dir: Directory with low value cases
+        incremental: If True, merge with existing export
     """
     input_path = Path(input_dir)
     output_path = Path(output_dir)
@@ -50,6 +111,15 @@ def export_cases(
             cases.append(case_data)
         except Exception as e:
             print(f"Error loading {case_file}: {e}")
+
+    # Handle incremental merge
+    jsonl_path = output_path / "cases.jsonl"
+    if incremental and jsonl_path.exists():
+        print(f"\nIncremental mode: merging with existing export...")
+        all_cases = merge_incremental_export(jsonl_path, cases, jsonl_path)
+        cases = all_cases
+    else:
+        print(f"\nFull export mode")
 
     # Deduplication
     print(f"\nDeduplicating cases...")
@@ -81,7 +151,6 @@ def export_cases(
             print(f"  ✗ {domain}: {count} patterns (CRITICAL - review urgently)")
 
     # Export unique cases to JSONL
-    jsonl_path = output_path / "cases.jsonl"
     save_jsonl(unique_cases, str(jsonl_path))
     print(f"\nExported {len(unique_cases)} unique cases to {jsonl_path}")
 
@@ -252,6 +321,8 @@ def main():
                        help="Directory with invalid cases")
     parser.add_argument("--low-value-dir", default="data/low_value_cases",
                        help="Directory with low value cases")
+    parser.add_argument("--incremental", action="store_true",
+                       help="Merge with existing export (incremental mode)")
 
     args = parser.parse_args()
 
@@ -259,7 +330,8 @@ def main():
         input_dir=args.input_dir,
         output_dir=args.output_dir,
         invalid_dir=args.invalid_dir,
-        low_value_dir=args.low_value_dir
+        low_value_dir=args.low_value_dir,
+        incremental=args.incremental
     )
 
 

@@ -12,10 +12,11 @@ from pathlib import Path
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from src.commit_semantic.git_utils import get_commit_list, get_commit_details
+from src.commit_semantic.git_utils import get_commit_list, get_commit_list_incremental, get_commit_details
 from src.commit_semantic.grouping import extract_change_groups, detect_bugfix_evidence
 from src.commit_semantic.semantic_case_builder import build_semantic_cases
 from src.commit_semantic.value_classifier import classify_semantic_value
+from src.commit_semantic.state_tracker import StateTracker
 from src.io_utils import save_yaml, semantic_case_input_to_dict
 
 
@@ -26,7 +27,10 @@ def collect_cases(
     since: str = None,
     until: str = None,
     output_dir: str = "data/semantic_case_inputs",
-    low_value_dir: str = "data/low_value_cases"
+    low_value_dir: str = "data/low_value_cases",
+    incremental: bool = False,
+    force: bool = False,
+    state_file: str = "data/.commit-semantic-state.json"
 ):
     """
     Main function to collect semantic cases from git history.
@@ -34,19 +38,50 @@ def collect_cases(
     Cases are classified by semantic_value and routed to different directories:
     - high/medium -> output_dir
     - low -> low_value_dir
+
+    Args:
+        repo_path: Path to git repository
+        commit_range: Optional commit range filter
+        author: Optional author filter
+        since: Optional date filter
+        until: Optional date filter
+        output_dir: Directory for high/medium value cases
+        low_value_dir: Directory for low value cases
+        incremental: If True, skip already processed commits
+        force: If True, reprocess all commits (ignore state)
+        state_file: Path to state file for incremental mode
     """
     print(f"Collecting commits from {repo_path}...")
 
-    # Get commit list
-    commit_ids = get_commit_list(
-        repo_path=repo_path,
-        commit_range=commit_range,
-        author=author,
-        since=since,
-        until=until
-    )
+    # Initialize state tracker if incremental mode
+    state_tracker = None
+    if incremental or force:
+        state_tracker = StateTracker(Path(state_file))
+        if not state_tracker.state.get('repo_path'):
+            state_tracker.state['repo_path'] = str(Path(repo_path).resolve())
+            state_tracker.save_state()
 
-    print(f"Found {len(commit_ids)} commits")
+    # Get commit list
+    if incremental:
+        commit_ids = get_commit_list_incremental(
+            repo_path=repo_path,
+            state_tracker=state_tracker,
+            commit_range=commit_range,
+            author=author,
+            since=since,
+            until=until,
+            force_reprocess=force
+        )
+        print(f"Found {len(commit_ids)} unprocessed commits")
+    else:
+        commit_ids = get_commit_list(
+            repo_path=repo_path,
+            commit_range=commit_range,
+            author=author,
+            since=since,
+            until=until
+        )
+        print(f"Found {len(commit_ids)} commits")
 
     all_cases = []
     low_value_cases = []
@@ -69,6 +104,7 @@ def collect_cases(
             cases = build_semantic_cases(commit_id, groups, bugfix_evidence)
 
             # Classify semantic value for each case
+            case_ids = []
             for case in cases:
                 semantic_value = classify_semantic_value(commit, groups, case)
                 case.semantic_value = semantic_value
@@ -78,12 +114,21 @@ def collect_cases(
                 else:
                     all_cases.append(case)
 
+                case_ids.append(case.case_id)
+
             high_medium_count = len([c for c in cases if c.semantic_value != "low"])
             low_count = len([c for c in cases if c.semantic_value == "low"])
             print(f"  Generated {len(cases)} semantic case(s) (high/medium: {high_medium_count}, low: {low_count})")
 
+            # Mark commit as processed in incremental mode
+            if state_tracker:
+                state_tracker.mark_commit_processed(commit_id, case_ids, status='completed')
+
         except Exception as e:
             print(f"  Error processing commit {commit_id}: {e}")
+            # Mark as failed in incremental mode
+            if state_tracker:
+                state_tracker.mark_commit_processed(commit_id, [], status='failed')
             continue
 
     # Save high/medium value cases
@@ -107,6 +152,13 @@ def collect_cases(
     print(f"\nCollected {len(low_value_cases)} low value cases")
     print(f"Saved to {low_value_dir}")
 
+    # Print state summary if incremental mode
+    if state_tracker:
+        print(f"\nState summary:")
+        print(f"  Total commits processed: {state_tracker.state['metadata']['total_commits_processed']}")
+        print(f"  Total cases generated: {state_tracker.state['metadata']['total_cases_generated']}")
+        print(f"  State file: {state_file}")
+
 
 def main():
     parser = argparse.ArgumentParser(description="Collect semantic cases from git history")
@@ -119,6 +171,12 @@ def main():
                        help="Output directory for semantic case inputs")
     parser.add_argument("--low-value-dir", default="data/low_value_cases",
                        help="Output directory for low value cases")
+    parser.add_argument("--incremental", action="store_true",
+                       help="Process only new commits (skip already processed)")
+    parser.add_argument("--force", action="store_true",
+                       help="Force reprocess all commits (ignore state)")
+    parser.add_argument("--state-file", default="data/.commit-semantic-state.json",
+                       help="Path to state file for incremental mode")
 
     args = parser.parse_args()
 
@@ -129,7 +187,10 @@ def main():
         since=args.since,
         until=args.until,
         output_dir=args.output_dir,
-        low_value_dir=args.low_value_dir
+        low_value_dir=args.low_value_dir,
+        incremental=args.incremental,
+        force=args.force,
+        state_file=args.state_file
     )
 
 
