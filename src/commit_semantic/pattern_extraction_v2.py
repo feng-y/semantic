@@ -97,7 +97,12 @@ def group_by_similarity(cases: List[Dict], threshold: float = 0.75) -> List[List
 
 
 def extract_domain(case: Dict) -> str:
-    """Extract domain from case module."""
+    """
+    DEPRECATED: Extract domain from case module.
+
+    This function is deprecated. Use case.get("domain") directly instead.
+    The explicit domain field should be used rather than re-guessing from module.
+    """
     module = case.get("module", "unknown")
 
     # Map common module patterns to domains
@@ -122,7 +127,8 @@ def extract_domain(case: Dict) -> str:
 
 def generate_pattern_fingerprint_v2(case: Dict) -> str:
     """Generate P2/P3 pattern fingerprint."""
-    domain = extract_domain(case)
+    # Use explicit domain field from case, not re-guessed from module
+    domain = case.get("domain", "")
     pattern_input = PatternInput(
         case_id=case.get("case_id", ""),
         domain=domain,
@@ -150,7 +156,8 @@ def extract_patterns_v2(
     # Convert to PatternInput
     pattern_inputs = []
     for case in cases:
-        domain = extract_domain(case)
+        # Use explicit domain field from case, not re-guessed from module
+        domain = case.get("domain", "")
         pattern_input = PatternInput(
             case_id=case.get("case_id", ""),
             domain=domain,
