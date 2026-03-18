@@ -98,9 +98,16 @@ def validate_consistency(case_dict: Dict) -> None:
 
     # Check for generic development rules/invariants
     generic_patterns = [
+        # English
         'null check', 'bounds check', 'exception handling',
         'input validation', 'avoid crash', 'thread-safety',
-        'code style', 'defensive programming'
+        'code style', 'defensive programming',
+        # Chinese
+        '空值判断', '空值检查', '空指针', '边界检查',
+        '异常处理', '输入校验', '输入验证', '避免崩溃',
+        '线程安全', '代码规范', '代码风格', '防御性编程',
+        '做好异常', '增加判断', '增加校验', '增加检查',
+        '避免出错', '保证稳定', '确保安全',
     ]
 
     all_rules_invariants = case_dict['rules'] + case_dict['invariants']

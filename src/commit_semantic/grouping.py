@@ -1,3 +1,4 @@
+import os
 from typing import List, Dict
 from src.types import RawCommit, ChangeGroup, ChangeRole, BugfixEvidence
 
@@ -73,16 +74,7 @@ def extract_change_groups(commit: RawCommit) -> List[ChangeGroup]:
                         related_supporting.append(support_file)
                         claimed_supporting.add(support_file)
 
-            # P0 spec: config/flag/wiring/registration 默认挂主组
-            # When there is only one primary theme, attach all remaining
-            # supporting files (e.g. config.yaml) to that single group.
-            if len(theme_items) == 1:
-                for support_file in supporting_files:
-                    if support_file not in claimed_supporting:
-                        related_supporting.append(support_file)
-                        claimed_supporting.add(support_file)
-
-            # Get diff chunks only for files in this group
+            # Get diff chunks only for files in this group (unclaimed files added below)
             group_files = theme_files + related_supporting
             group_diff_chunks = _filter_diff_chunks_for_files(commit.diff_chunks, group_files)
 
@@ -93,6 +85,23 @@ def extract_change_groups(commit: RawCommit) -> List[ChangeGroup]:
                 role=ChangeRole.PRIMARY,
                 diff_chunks=group_diff_chunks
             ))
+
+        # Distribute remaining unclaimed supporting files to the best-matching theme
+        unclaimed = [f for f in supporting_files if f not in claimed_supporting]
+        if unclaimed and groups:
+            for support_file in unclaimed:
+                best_group_idx = 0
+                best_prefix_len = 0
+                for idx, group in enumerate(groups):
+                    for gf in group.files:
+                        prefix = os.path.commonpath([support_file, gf]) if '/' in support_file and '/' in gf else ''
+                        if len(prefix) > best_prefix_len:
+                            best_prefix_len = len(prefix)
+                            best_group_idx = idx
+                groups[best_group_idx].files.append(support_file)
+            # Re-filter diff chunks for groups that received new files
+            for group in groups:
+                group.diff_chunks = _filter_diff_chunks_for_files(commit.diff_chunks, group.files)
     else:
         # All files are supporting - create one group
         group_id = f"{commit.commit_id}_group_0"

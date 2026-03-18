@@ -99,6 +99,15 @@ def generate_semantics_for_case(case_input_path: str, output_dir: str, invalid_d
 
     except Exception as e:
         print(f"  ✗ Error: {e}")
+        # Save to invalid directory for auditability
+        invalid_path = Path(invalid_dir) / Path(case_input_path).name
+        invalid_path.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            case_data = load_yaml(case_input_path)
+            case_data['generation_error'] = str(e)
+            save_yaml(case_data, str(invalid_path))
+        except Exception:
+            pass  # Best effort - don't fail on error logging
         return False
 
 

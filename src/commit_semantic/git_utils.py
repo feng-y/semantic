@@ -1,3 +1,4 @@
+import re
 import subprocess
 from typing import List, Tuple, TYPE_CHECKING
 from src.types import RawCommit
@@ -46,7 +47,10 @@ def get_commit_details(repo_path: str, commit_id: str) -> RawCommit:
         # Get diff chunks
         diff_cmd = ["git", "-C", repo_path, "show", "--format=", commit_id]
         diff_result = subprocess.run(diff_cmd, capture_output=True, text=True, check=True)
-        diff_chunks = [diff_result.stdout]
+        raw_diff = diff_result.stdout
+        # Split on "diff --git" boundaries, keeping the delimiter
+        chunks = re.split(r'(?=^diff --git )', raw_diff, flags=re.MULTILINE)
+        diff_chunks = [c for c in chunks if c.strip()]
 
         # Identify test files
         related_tests = [f for f in files if 'test' in f.lower() or f.endswith('_test.py') or f.endswith('.test.ts')]
