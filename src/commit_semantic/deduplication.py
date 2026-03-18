@@ -1,12 +1,13 @@
 """
-Deduplication logic for semantic cases.
+Deduplication wrapper for backward compatibility.
 
-Generates dedup keys and identifies duplicate cases.
+This module provides Dict-based interface while using the new P4 architecture
+(dedup.py with dataclasses) internally.
 """
 
-import hashlib
-import re
 from typing import Dict, List, Tuple
+
+from .dedup import DedupInput, build_dedup_key as _build_dedup_key, group_strict_duplicates
 
 
 def generate_dedup_key(case: Dict) -> str:
@@ -16,45 +17,18 @@ def generate_dedup_key(case: Dict) -> str:
     - normalized issue_text
     - development_type
 
-    Note: commit_log is NOT included per P2/P3 spec, as it naturally differs
-    for the same pattern applied to different objects/paths/modules.
+    Note: commit_log is NOT included per P2/P3 spec.
     """
-    module = case.get("module", "")
-    issue_text = normalize_text(case.get("issue_text", ""))
-    dev_type = case.get("development_type", "")
-
-    # Combine into key
-    key_parts = [module, issue_text, dev_type]
-    key_string = "|".join(key_parts)
-
-    # Hash for consistent length
-    return hashlib.sha256(key_string.encode()).hexdigest()[:16]
-
-
-def normalize_text(text: str) -> str:
-    """
-    Normalize text for comparison:
-    - Remove extra whitespace
-    - Lowercase
-    - Remove punctuation
-    - Remove numbers (for more aggressive dedup)
-    """
-    # Remove prefix (feat：, bugfix：, etc.)
-    text = re.sub(r'^(feat|bugfix|refactor|migration|optimize)：', '', text)
-
-    # Lowercase
-    text = text.lower()
-
-    # Remove extra whitespace
-    text = re.sub(r'\s+', ' ', text)
-
-    # Remove punctuation
-    text = re.sub(r'[^\w\s]', '', text)
-
-    # Strip
-    text = text.strip()
-
-    return text
+    dedup_input = DedupInput(
+        case_id=case.get("case_id", ""),
+        module=case.get("module", ""),
+        development_type=case.get("development_type", ""),
+        issue_text=case.get("issue_text", ""),
+        rules=case.get("rules", []),
+        invariants=case.get("invariants", []),
+        semantic_value=case.get("semantic_value", "medium"),
+    )
+    return _build_dedup_key(dedup_input, use_constraint_signature=False)
 
 
 def deduplicate_cases(cases: List[Dict]) -> Tuple[List[Dict], List[Dict]]:
@@ -74,103 +48,56 @@ def deduplicate_cases(cases: List[Dict]) -> Tuple[List[Dict], List[Dict]]:
             ...
         ]
     """
-    dedup_groups = {}
-
+    # Convert to DedupInput
+    dedup_inputs = []
+    case_map = {}
     for case in cases:
-        # Generate dedup key
-        dedup_key = generate_dedup_key(case)
-        case["dedup_key"] = dedup_key
+        dedup_input = DedupInput(
+            case_id=case.get("case_id", ""),
+            module=case.get("module", ""),
+            development_type=case.get("development_type", ""),
+            issue_text=case.get("issue_text", ""),
+            rules=case.get("rules", []),
+            invariants=case.get("invariants", []),
+            semantic_value=case.get("semantic_value", "medium"),
+        )
+        dedup_inputs.append(dedup_input)
+        case_map[case["case_id"]] = case
 
-        if dedup_key not in dedup_groups:
-            dedup_groups[dedup_key] = []
+    # Group duplicates
+    dup_groups = group_strict_duplicates(dedup_inputs, use_constraint_signature=False)
 
-        dedup_groups[dedup_key].append(case)
-
-    # Separate unique cases and duplicate groups
-    unique_cases = []
+    # Build unique cases list and duplicate groups
+    unique_case_ids = set()
     duplicate_groups = []
 
-    for dedup_key, group in dedup_groups.items():
-        if len(group) == 1:
-            # Unique case
-            unique_cases.append(group[0])
-        else:
-            # Duplicate group - select canonical case
-            canonical = select_canonical_case(group)
-            unique_cases.append(canonical)
+    for group in dup_groups:
+        # Add canonical to unique set
+        unique_case_ids.add(group.canonical_case_id)
 
-            # Record duplicate group
-            duplicate_group = {
-                "dedup_key": dedup_key,
-                "canonical_case_id": canonical["case_id"],
-                "duplicate_case_ids": [c["case_id"] for c in group if c["case_id"] != canonical["case_id"]]
-            }
-            duplicate_groups.append(duplicate_group)
+        # Convert to dict format
+        duplicate_groups.append({
+            "dedup_key": group.dedup_key,
+            "canonical_case_id": group.canonical_case_id,
+            "duplicate_case_ids": group.duplicate_case_ids,
+        })
+
+    # Add all cases that aren't duplicates
+    for case in cases:
+        case_id = case["case_id"]
+        # Generate and attach dedup_key
+        case["dedup_key"] = generate_dedup_key(case)
+
+        # Check if this case is a duplicate (not canonical)
+        is_duplicate = any(
+            case_id in group["duplicate_case_ids"]
+            for group in duplicate_groups
+        )
+
+        if not is_duplicate:
+            unique_case_ids.add(case_id)
+
+    # Build unique cases list
+    unique_cases = [case for case in cases if case["case_id"] in unique_case_ids]
 
     return unique_cases, duplicate_groups
-
-
-def select_canonical_case(cases: List[Dict]) -> Dict:
-    """
-    Select canonical case from duplicate group.
-
-    Priority:
-    1. Higher semantic_value
-    2. Clearer issue_text (not empty, not too vague)
-    3. More rules + invariants
-    4. First case_id (stable tiebreaker)
-    """
-    if not cases:
-        return {}
-
-    scored_cases = []
-
-    for case in cases:
-        score = 0
-
-        # Prefer higher semantic_value
-        semantic_value = case.get("semantic_value", "medium")
-        if semantic_value == "high":
-            score += 10
-        elif semantic_value == "medium":
-            score += 5
-
-        # Prefer more rules/invariants
-        score += len(case.get("rules", []))
-        score += len(case.get("invariants", []))
-
-        # Prefer moderate issue_text length (not too short, not too long)
-        issue_len = len(case.get("issue_text", ""))
-        if 20 < issue_len < 80:
-            score += 5
-
-        scored_cases.append((score, case))
-
-    # Sort by score (highest first)
-    scored_cases.sort(key=lambda x: x[0], reverse=True)
-
-    return scored_cases[0][1]
-
-
-def find_near_duplicates(cases: List[Dict], similarity_threshold: float = 0.9) -> List[List[str]]:
-    """
-    Find near-duplicate groups using text similarity.
-
-    Returns:
-        List of duplicate groups (each group is a list of case_ids)
-    """
-    # Simple implementation: group by normalized issue_text
-    groups = {}
-
-    for case in cases:
-        normalized = normalize_text(case.get("issue_text", ""))
-
-        if normalized not in groups:
-            groups[normalized] = []
-
-        groups[normalized].append(case["case_id"])
-
-    # Return groups with more than 1 member
-    duplicate_groups = [group for group in groups.values() if len(group) > 1]
-
-    return duplicate_groups

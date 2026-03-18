@@ -185,7 +185,7 @@ def test_similarity_calculation():
         {
             "text1": "feat：添加新功能",
             "text2": "feat：添加新功能",
-            "expected_min": 0.95
+            "expected_min": 0.90  # P4 formula: 0.5*seq + 0.3*jaccard + 0.2*constraint
         },
         {
             "text1": "feat：添加用户管理功能",
