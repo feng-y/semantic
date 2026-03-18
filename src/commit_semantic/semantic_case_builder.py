@@ -70,18 +70,37 @@ def build_semantic_cases(
 def _should_merge_groups(groups: List[ChangeGroup]) -> bool:
     """
     Determine if multiple groups should be merged into one semantic case.
+
+    Merge criterion: can the changes be compressed into a single coherent issue_text?
+    This is determined by:
+    1. Same theme/module (semantic coherence)
+    2. Small total scope (can be described concisely)
+    3. Related changes (not independent actions)
     """
-    # If all groups share the same theme, merge them
+    # If all groups share the same theme, they're semantically coherent
     themes = set(g.theme for g in groups)
     if len(themes) == 1:
         return True
 
-    # If total file count is small, merge them
+    # If total scope is small enough to describe in one issue_text
+    # Use combined heuristics: file count + diff size
     total_files = sum(len(g.files) for g in groups)
-    if total_files <= 5:
+    total_diff_lines = sum(len(g.diff_chunks) for g in groups)
+
+    # Small scope: few files AND small diff
+    if total_files <= 3 and total_diff_lines <= 50:
         return True
 
-    # Otherwise, keep them separate
+    # Medium scope with same domain: slightly larger but still coherent
+    if total_files <= 5 and len(themes) <= 2:
+        # Check if themes are related (e.g., "parser" and "parser_utils")
+        theme_list = list(themes)
+        if len(theme_list) == 2:
+            t1, t2 = theme_list[0], theme_list[1]
+            if t1 in t2 or t2 in t1:
+                return True
+
+    # Otherwise, keep them separate - they represent distinct actions
     return False
 
 

@@ -30,7 +30,8 @@ def analyze_file_role(file_path: str, all_files: List[str]) -> ChangeRole:
 def extract_change_groups(commit: RawCommit) -> List[ChangeGroup]:
     """
     Extract change groups from a commit.
-    Groups related changes together based on file relationships.
+    Groups related changes together based on semantic coherence.
+    Each group represents changes that belong together semantically.
     """
     groups = []
     primary_files = []
@@ -44,23 +45,38 @@ def extract_change_groups(commit: RawCommit) -> List[ChangeGroup]:
         else:
             supporting_files.append(file_path)
 
-    # If we have primary files, create groups around them
+    # If we have primary files, group by semantic coherence
     if primary_files:
-        # For now, create one group per primary file
-        # In a more sophisticated implementation, we'd group related files
-        for idx, primary_file in enumerate(primary_files):
-            group_id = f"{commit.commit_id}_group_{idx}"
+        # Group primary files by theme/module
+        theme_groups: Dict[str, List[str]] = {}
+        for primary_file in primary_files:
             theme = extract_theme_from_file(primary_file)
+            if theme not in theme_groups:
+                theme_groups[theme] = []
+            theme_groups[theme].append(primary_file)
 
-            # Find related supporting files
-            related_supporting = find_related_files(primary_file, supporting_files)
+        # Create one group per theme
+        for idx, (theme, theme_files) in enumerate(theme_groups.items()):
+            group_id = f"{commit.commit_id}_group_{idx}"
+
+            # Find supporting files related to any file in this theme
+            related_supporting = []
+            for primary_file in theme_files:
+                related = find_related_files(primary_file, supporting_files)
+                for support_file in related:
+                    if support_file not in related_supporting:
+                        related_supporting.append(support_file)
+
+            # Get diff chunks only for files in this group
+            group_files = theme_files + related_supporting
+            group_diff_chunks = _filter_diff_chunks_for_files(commit.diff_chunks, group_files)
 
             groups.append(ChangeGroup(
                 group_id=group_id,
                 theme=theme,
-                files=[primary_file] + related_supporting,
+                files=group_files,
                 role=ChangeRole.PRIMARY,
-                diff_chunks=commit.diff_chunks  # Simplified: share all diffs
+                diff_chunks=group_diff_chunks
             ))
     else:
         # All files are supporting - create one group
@@ -74,6 +90,32 @@ def extract_change_groups(commit: RawCommit) -> List[ChangeGroup]:
         ))
 
     return groups
+
+
+def _filter_diff_chunks_for_files(diff_chunks: List[str], files: List[str]) -> List[str]:
+    """
+    Filter diff chunks to only include those relevant to the specified files.
+    """
+    filtered = []
+    current_file = None
+
+    for chunk in diff_chunks:
+        # Check if this is a file header
+        if chunk.startswith('diff --git') or chunk.startswith('---') or chunk.startswith('+++'):
+            # Extract filename from diff header
+            for file_path in files:
+                if file_path in chunk:
+                    current_file = file_path
+                    filtered.append(chunk)
+                    break
+        elif current_file is not None:
+            # Include chunk if we're in a relevant file
+            filtered.append(chunk)
+            # Reset on next file marker
+            if chunk.startswith('diff --git'):
+                current_file = None
+
+    return filtered
 
 
 def extract_theme_from_file(file_path: str) -> str:
