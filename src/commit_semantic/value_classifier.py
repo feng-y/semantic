@@ -75,6 +75,17 @@ def _is_high_value(commit: RawCommit, groups: List[ChangeGroup], case: SemanticC
                 if total_diff_size > 100:  # More than trivial change
                     return True
 
+    # New feature implementation (many new files with code)
+    if len(case.files) >= 3:
+        code_extensions = {'.py', '.js', '.ts', '.tsx', '.go', '.rs', '.java', '.c', '.cpp'}
+        code_files = [f for f in case.files if any(f.endswith(ext) for ext in code_extensions)]
+
+        if len(code_files) >= 2:
+            # Check if substantial new code
+            total_diff_size = sum(len(chunk) for chunk in case.diff_chunks)
+            if total_diff_size > 500:  # Substantial new implementation
+                return True
+
     return False
 
 
@@ -193,20 +204,20 @@ def _is_pure_threshold_tweak(commit: RawCommit, case: SemanticCaseInput) -> bool
 def _cannot_form_stable_semantic(groups: List[ChangeGroup], case: SemanticCaseInput) -> bool:
     """Check if case cannot form stable semantic package."""
 
-    # Too scattered
-    if len(case.files) > 20:
+    # Too scattered (very high threshold)
+    if len(case.files) > 30:
         return True
 
-    # Too many unrelated groups
-    if len(groups) > 10:
+    # Too many unrelated groups (very high threshold)
+    if len(groups) > 15:
         return True
 
-    # No clear module
+    # No clear module AND too many files
     if not case.module or case.module == "unknown":
-        if len(case.files) > 5:
+        if len(case.files) > 10:
             return True
 
-    # Too many split hints
+    # Too many split hints (need at least 3 hints to reject)
     hints = case.split_hints
     hint_count = sum([
         hints.too_many_files,
@@ -215,7 +226,7 @@ def _cannot_form_stable_semantic(groups: List[ChangeGroup], case: SemanticCaseIn
         hints.unrelated_objects_detected
     ])
 
-    if hint_count >= 3:
+    if hint_count >= 4:  # Changed from 3 to 4
         return True
 
     return False
