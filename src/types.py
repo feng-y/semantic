@@ -62,9 +62,9 @@ class SemanticCaseInput:
     case_id: str
     commit_id: str
     module: str
-    domain: str  # REQUIRED by P0 spec (line 238)
     files: List[str]
     diff_chunks: List[str]
+    domain: str = ""  # Optional, defaults to module if not provided (P0 spec line 238)
     related_tests: List[str] = field(default_factory=list)
     bugfix_evidence: BugfixEvidence = field(default_factory=BugfixEvidence)
     split_hints: SplitHints = field(default_factory=SplitHints)
@@ -82,10 +82,10 @@ class SemanticCaseOutput:
     case_id: str
     commit_id: str
     module: str
-    domain: str  # REQUIRED by P0 spec (line 250)
     commit_log: str
     issue_text: str
     development_type: DevelopmentType
+    domain: str = ""  # Optional, defaults to module if not provided (P0 spec line 250)
     rules: List[str] = field(default_factory=list)
     invariants: List[str] = field(default_factory=list)
     split_suggestion: SplitSuggestion = field(default_factory=SplitSuggestion)

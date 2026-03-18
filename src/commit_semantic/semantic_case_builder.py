@@ -116,9 +116,9 @@ def _merge_groups_into_case(
         case_id=case_id,
         commit_id=commit_id,
         module=main_group.theme,
-        domain=main_group.theme,  # Use module as domain for now
         files=all_files,
         diff_chunks=all_diff_chunks,
+        domain=main_group.theme,  # Set domain to module by default
         related_tests=related_tests,
         bugfix_evidence=bugfix_evidence,
         split_hints=split_hints
@@ -147,9 +147,9 @@ def _create_case_from_group(
         case_id=case_id,
         commit_id=commit_id,
         module=group.theme,
-        domain=group.theme,  # Use module as domain for now
         files=group.files,
         diff_chunks=group.diff_chunks,
+        domain=group.theme,  # Set domain to module by default
         related_tests=related_tests,
         bugfix_evidence=bugfix_evidence,
         split_hints=split_hints
