@@ -77,8 +77,9 @@ def extract_yaml_from_response(response: str) -> str:
     if match:
         return match.group(1)
 
-    # Assume the entire response is YAML
-    return response.strip()
+    # Strip markdown bold markers (**key**: → key:) before treating as raw YAML
+    cleaned = re.sub(r'\*\*([^*]+)\*\*', r'\1', response.strip())
+    return cleaned
 
 
 def generate_commit_log(case_input: Dict[str, Any], executor: Optional[Callable[[str], str]] = None) -> str:
