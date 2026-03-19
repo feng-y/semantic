@@ -9,13 +9,35 @@ Classifies semantic cases as high/medium/low value based on:
 """
 
 from typing import List
+from dataclasses import dataclass, field
 from src.types import RawCommit, ChangeGroup, SemanticCaseInput
+
+
+@dataclass
+class ValueClassifierConfig:
+    """Configurable thresholds for semantic value classification."""
+    # Minimum diff size (chars) for a focused change to be high-value
+    high_value_focused_min_diff: int = 100
+    # Minimum diff size (chars) for a multi-file new implementation to be high-value
+    high_value_impl_min_diff: int = 500
+    # Max files for a "focused" change
+    high_value_max_files: int = 10
+    # Max groups for a "focused" change
+    high_value_max_groups: int = 5
+    # Min code files for multi-file new implementation path
+    high_value_impl_min_code_files: int = 2
+    # Min files to trigger multi-file implementation check
+    high_value_impl_min_files: int = 3
+
+
+_DEFAULT_CONFIG = ValueClassifierConfig()
 
 
 def classify_semantic_value(
     commit: RawCommit,
     groups: List[ChangeGroup],
-    case: SemanticCaseInput
+    case: SemanticCaseInput,
+    config: ValueClassifierConfig = _DEFAULT_CONFIG,
 ) -> str:
     """
     Classify semantic value: high/medium/low
@@ -28,7 +50,7 @@ def classify_semantic_value(
         return "low"
 
     # Check high value indicators
-    if _is_high_value(commit, groups, case):
+    if _is_high_value(commit, groups, case, config):
         return "high"
 
     # Default to medium
@@ -61,29 +83,33 @@ def _is_low_value(commit: RawCommit, groups: List[ChangeGroup], case: SemanticCa
     return False
 
 
-def _is_high_value(commit: RawCommit, groups: List[ChangeGroup], case: SemanticCaseInput) -> bool:
+def _is_high_value(
+    commit: RawCommit,
+    groups: List[ChangeGroup],
+    case: SemanticCaseInput,
+    config: ValueClassifierConfig = _DEFAULT_CONFIG,
+) -> bool:
     """Check if case has high semantic value."""
 
     # Has clear main object and action
     if len(groups) > 0 and len(case.files) > 0:
         # Has focused change (not too scattered)
-        if len(case.files) <= 10 and len(groups) <= 5:
+        if len(case.files) <= config.high_value_max_files and len(groups) <= config.high_value_max_groups:
             # Has meaningful module
             if case.module and case.module != "unknown":
                 # Has substantial diff
                 total_diff_size = sum(len(chunk) for chunk in case.diff_chunks)
-                if total_diff_size > 100:  # More than trivial change
+                if total_diff_size > config.high_value_focused_min_diff:
                     return True
 
     # New feature implementation (many new files with code)
-    if len(case.files) >= 3:
+    if len(case.files) >= config.high_value_impl_min_files:
         code_extensions = {'.py', '.js', '.ts', '.tsx', '.go', '.rs', '.java', '.c', '.cpp'}
         code_files = [f for f in case.files if any(f.endswith(ext) for ext in code_extensions)]
 
-        if len(code_files) >= 2:
-            # Check if substantial new code
+        if len(code_files) >= config.high_value_impl_min_code_files:
             total_diff_size = sum(len(chunk) for chunk in case.diff_chunks)
-            if total_diff_size > 500:  # Substantial new implementation
+            if total_diff_size > config.high_value_impl_min_diff:
                 return True
 
     return False

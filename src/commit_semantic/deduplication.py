@@ -1,8 +1,8 @@
 """
-Deduplication wrapper for backward compatibility.
+Deduplication — Dict-based interface over dedup.py (P4 dataclass core).
 
-This module provides Dict-based interface while using the new P4 architecture
-(dedup.py with dataclasses) internally.
+Kept as the single public entry point for export skill code that works with
+plain dicts.  All logic lives in dedup.py; this module is a thin adapter.
 """
 
 from typing import Dict, List, Tuple

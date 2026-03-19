@@ -1,7 +1,8 @@
 """
-Pattern extraction for semantic cases.
+Pattern extraction — Dict-based interface over patterning.py (P4 dataclass core).
 
-Identifies high-frequency patterns and extracts canonical samples.
+Kept for export skill code that works with plain dicts.
+All logic lives in patterning.py; this module is a thin adapter.
 """
 
 import hashlib

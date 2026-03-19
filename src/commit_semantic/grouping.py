@@ -48,10 +48,13 @@ def extract_change_groups(commit: RawCommit) -> List[ChangeGroup]:
 
     # If we have primary files, group by semantic coherence
     if primary_files:
-        # Group primary files by theme/module
+        # Group primary files by qualified theme (dir-aware) to avoid merging
+        # same-named files from different directories (e.g. src/parser/handler.py
+        # vs src/utils/handler.py).  The group's .theme is set to the plain stem
+        # for downstream compatibility.
         theme_groups: Dict[str, List[str]] = {}
         for primary_file in primary_files:
-            theme = extract_theme_from_file(primary_file)
+            theme = _qualified_theme(primary_file)
             if theme not in theme_groups:
                 theme_groups[theme] = []
             theme_groups[theme].append(primary_file)
@@ -137,10 +140,13 @@ def _filter_diff_chunks_for_files(diff_chunks: List[str], files: List[str]) -> L
 
     for chunk in diff_chunks:
         if chunk.startswith('diff --git'):
-            # New file section — check if it belongs to our set
+            # New file section — check if it belongs to our set.
+            # Use exact path segment matching to avoid substring false-positives
+            # (e.g. "a.py" matching inside "ba.py").
             current_file = None
             for file_path in files:
-                if file_path in chunk:
+                # Match against the full path token in the diff header
+                if f'a/{file_path}' in chunk or f'b/{file_path}' in chunk:
                     current_file = file_path
                     break
             if current_file is not None:
@@ -179,6 +185,25 @@ def extract_theme_from_file(file_path: str) -> str:
     return stem
 
 
+def _qualified_theme(file_path: str) -> str:
+    """Return a directory-qualified theme to disambiguate same-named files.
+
+    Used internally by extract_change_groups to avoid merging unrelated files
+    that happen to share a filename (e.g. src/parser/handler.py vs
+    src/utils/handler.py).  The public extract_theme_from_file keeps its
+    original stem-only contract for backward compatibility.
+    """
+    stem = extract_theme_from_file(file_path)
+    parts = file_path.split('/')
+    _SKIP_DIRS = {'src', 'lib', 'app', 'tests', 'test', ''}
+    for part in parts[:-1]:
+        if part not in _SKIP_DIRS:
+            if part != stem:
+                return f"{part}/{stem}"
+            break
+    return stem
+
+
 def find_related_files(primary_file: str, supporting_files: List[str]) -> List[str]:
     """Find supporting files related to a primary file."""
     related = []
@@ -200,7 +225,18 @@ def detect_bugfix_evidence(commit: RawCommit, diff_text: str) -> BugfixEvidence:
     """
     evidence = BugfixEvidence()
 
-    diff_lower = diff_text.lower()
+    # Strip diff markers (+/-/space prefix) so keywords in added/removed lines
+    # are matched on content only, not accidentally on the marker character.
+    import re as _re
+    cleaned_lines = []
+    for line in diff_text.splitlines():
+        if line.startswith(('+++ ', '--- ', 'diff ', 'index ', '@@ ')):
+            continue
+        if line.startswith(('+', '-', ' ')):
+            cleaned_lines.append(line[1:])
+        else:
+            cleaned_lines.append(line)
+    diff_lower = '\n'.join(cleaned_lines).lower()
 
     # Weak evidence
     if 'if ' in diff_lower and ('else' in diff_lower or 'elif' in diff_lower):
