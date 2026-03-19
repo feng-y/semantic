@@ -6,6 +6,7 @@ Generates semantic fields for semantic cases using Claude prompts.
 """
 
 import sys
+import time
 import argparse
 from pathlib import Path
 
@@ -20,6 +21,22 @@ from src.commit_semantic.prompt_runner import (
 )
 from src.validators import validate_semantic_case, ValidationError
 from src.commit_semantic.executor_bridge import get_executor
+
+
+def _with_retry(fn, max_retries: int = 3, base_delay: float = 5.0):
+    """Call fn(), retrying on rate-limit (429) errors with exponential backoff."""
+    for attempt in range(max_retries):
+        try:
+            return fn()
+        except Exception as e:
+            msg = str(e).lower()
+            is_rate_limit = "429" in msg or "rate_limit" in msg or "concurrency" in msg
+            if is_rate_limit and attempt < max_retries - 1:
+                delay = base_delay * (2 ** attempt)
+                print(f"  ⚠ Rate limit hit, retrying in {delay:.0f}s ({attempt+1}/{max_retries-1})...")
+                time.sleep(delay)
+            else:
+                raise
 
 
 def generate_semantics_for_case(case_input_path: str, output_dir: str, invalid_dir: str, executor=None):
@@ -43,21 +60,22 @@ def generate_semantics_for_case(case_input_path: str, output_dir: str, invalid_d
 
         # Step 1: Generate commit_log
         print("  Generating commit_log...")
-        commit_log = generate_commit_log(case_input, executor)
+        commit_log = _with_retry(lambda: generate_commit_log(case_input, executor))
+        print(f"  commit_log: {commit_log[:120]}{'...' if len(commit_log) > 120 else ''}")
 
         # Step 2: Generate rules and invariants
         print("  Generating rules and invariants...")
-        rules_invariants = generate_rules_invariants(case_input, commit_log, executor)
+        rules_invariants = _with_retry(lambda: generate_rules_invariants(case_input, commit_log, executor))
 
         # Step 3: Generate issue_text, development_type, split_suggestion
         print("  Generating issue_text...")
-        issue_result = generate_issue_text(
+        issue_result = _with_retry(lambda: generate_issue_text(
             case_input,
             commit_log,
             rules_invariants['rules'],
             rules_invariants['invariants'],
             executor
-        )
+        ))
 
         # Assemble final output
         case_output = {
