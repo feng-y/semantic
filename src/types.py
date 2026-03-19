@@ -69,6 +69,7 @@ class SemanticCaseInput:
     bugfix_evidence: BugfixEvidence = field(default_factory=BugfixEvidence)
     split_hints: SplitHints = field(default_factory=SplitHints)
     semantic_value: str = "medium"  # high/medium/low
+    commit_message: str = ""  # raw git commit message, used as hint for generate stage
 
 
 @dataclass

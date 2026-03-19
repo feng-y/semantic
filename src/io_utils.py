@@ -70,7 +70,8 @@ def semantic_case_input_to_dict(case: SemanticCaseInput) -> Dict[str, Any]:
             'mixed_feature_and_bugfix': case.split_hints.mixed_feature_and_bugfix,
             'unrelated_objects_detected': case.split_hints.unrelated_objects_detected
         },
-        'semantic_value': case.semantic_value
+        'semantic_value': case.semantic_value,
+        'commit_message': case.commit_message
     }
 
 

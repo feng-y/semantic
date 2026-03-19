@@ -12,7 +12,7 @@ from pathlib import Path
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from src.commit_semantic.git_utils import get_commit_list, get_commit_list_incremental, get_commit_details
+from src.commit_semantic.git_utils import get_commit_list, get_commit_list_incremental, get_commit_details, get_commit_message
 from src.commit_semantic.grouping import extract_change_groups, detect_bugfix_evidence
 from src.commit_semantic.semantic_case_builder import build_semantic_cases
 from src.commit_semantic.value_classifier import classify_semantic_value
@@ -108,9 +108,16 @@ def collect_cases(
             # Build semantic cases
             cases = build_semantic_cases(commit_id, groups, bugfix_evidence)
 
+            # Attach commit message to each case (used as hint in generate stage)
+            try:
+                commit_msg = get_commit_message(repo_path, commit_id)
+            except Exception:
+                commit_msg = ""
+
             # Classify semantic value for each case
             case_ids = []
             for case in cases:
+                case.commit_message = commit_msg
                 semantic_value = classify_semantic_value(commit, groups, case)
                 case.semantic_value = semantic_value
 

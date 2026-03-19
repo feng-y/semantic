@@ -82,7 +82,34 @@ def extract_yaml_from_response(response: str) -> str:
 
 
 def generate_commit_log(case_input: Dict[str, Any], executor: Optional[Callable[[str], str]] = None) -> str:
-    """Generate commit_log using the generate_commit_log prompt."""
+    """Generate commit_log using the generate_commit_log prompt.
+
+    If commit_message is present and diff is small, use it directly without an LLM call.
+    If diff_chunks are very large, truncate them before sending to the LLM.
+    """
+    commit_message = case_input.get('commit_message', '').strip()
+    diff_chunks = case_input.get('diff_chunks', [])
+    total_diff_chars = sum(len(c) for c in diff_chunks)
+
+    # For simple/clean commits: use commit message directly if diff is small
+    SMALL_DIFF_THRESHOLD = 2000  # chars
+    if commit_message and total_diff_chars <= SMALL_DIFF_THRESHOLD:
+        return commit_message
+
+    # For large diffs: truncate before sending to LLM
+    MAX_DIFF_CHARS = 8000
+    if total_diff_chars > MAX_DIFF_CHARS:
+        truncated_chunks = []
+        budget = MAX_DIFF_CHARS
+        for chunk in diff_chunks:
+            if budget <= 0:
+                break
+            truncated_chunks.append(chunk[:budget])
+            budget -= len(chunk)
+        case_input = dict(case_input)
+        case_input['diff_chunks'] = truncated_chunks
+        case_input['diff_truncated'] = True
+
     prompt = load_prompt("generate_commit_log")
     result = run_prompt_with_claude(prompt, case_input, executor)
     return result['commit_log']
