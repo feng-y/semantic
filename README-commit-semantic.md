@@ -6,7 +6,7 @@ Extract structured semantic knowledge from git commit history.
 
 Transforms git commits into structured semantic cases with:
 - **commit_log**: What changed (code modification action)
-- **issue_text**: Compressed requirement description
+- **issue_text**: Compressed requirement description (e.g. `feat：HTTP 请求增加指数退避重试`)
 - **rules/invariants**: Object-specific semantic constraints
 - **development_type**: feature/bugfix/refactor/migration/optimize
 
@@ -17,7 +17,7 @@ Transforms git commits into structured semantic cases with:
 pip install -e .
 
 # Create data directories
-mkdir -p data/{raw_commits,semantic_case_inputs,semantic_cases,low_value_cases,invalid_cases,exports}
+mkdir -p data/{raw_commits,grouped_changes,semantic_case_inputs,semantic_cases,low_value_cases,invalid_cases,exports}
 
 # Verify installation
 python skills/commit-semantic-collect/run.py --help
@@ -25,73 +25,74 @@ python skills/commit-semantic-generate/run.py --help
 python skills/commit-semantic-export/run.py --help
 ```
 
-## Three-Step Pipeline
+## Usage
 
-**Command Format**: These are Python scripts that can be invoked as shell commands or as Claude Code skills (with `/` prefix).
+### Option A: Unified Pipeline Runner (one call)
 
-### 1. Collect Cases
+```python
+from src.commit_semantic.pipeline import run_pipeline
 
-Extract and group commits into semantic cases:
-
-```bash
-# Shell command
-python skills/commit-semantic-collect/run.py /path/to/repo --commit-range HEAD~50..HEAD
-
-# Or as Claude Code skill
-/commit-semantic-collect --repo-path /path/to/repo --commit-range HEAD~50..HEAD
+result = run_pipeline(
+    repo_path=".",
+    commit_range="HEAD~50..HEAD",
+    executor=my_llm_executor,   # callable(prompt: str) -> str
+    incremental=False,
+    exclude_paths=["config/", "docs/"],
+)
 ```
 
-**Output**: `data/semantic_case_inputs/*.yaml`
+Supports `resume=True` (default) to skip already-completed stages via checkpoint file.
+Supports `stages="collect,generate"` to run a subset of stages.
 
-**What it does**:
-- Groups related changes (main logic + tests + config)
-- Injects bugfix evidence (weak/medium/strong)
-- Filters low-value cases (format-only, trivial changes)
-- Outputs semantic_case units (not raw commits)
+### Option B: Three-Step Pipeline (shell / Claude Code skills)
 
-### 2. Generate Semantics
+**Command Format**: Python scripts invocable as shell commands or as Claude Code skills (with `/` prefix).
 
-Generate structured fields for each case:
+#### 1. Collect Cases
 
 ```bash
-# Shell command
-python skills/commit-semantic-generate/run.py --input-dir data/semantic_case_inputs
+# Shell
+python skills/commit-semantic-collect/run.py /path/to/repo \
+    --commit-range HEAD~50..HEAD \
+    --exclude-paths config/ docs/ \
+    --incremental --state-file data/.collect-state.json
 
-# Or as Claude Code skill
-/commit-semantic-generate --input-dir data/semantic_case_inputs
+# Claude Code skill
+/commit-semantic-collect 最近 50 个 commit，排除 config 和 docs 目录
+```
+
+**Output**: `data/semantic_case_inputs/*.yaml`, low-value cases → `data/low_value_cases/`
+
+#### 2. Generate Semantics
+
+```bash
+# Shell
+python skills/commit-semantic-generate/run.py \
+    --input-dir data/semantic_case_inputs
+
+# Claude Code skill
+/commit-semantic-generate
 ```
 
 **Output**: `data/semantic_cases/*.yaml` (valid) + `data/invalid_cases/*.yaml` (failed)
 
-**What it does**:
-- Generates commit_log (what changed)
-- Extracts rules/invariants (object-specific constraints)
-- Creates issue_text (single-subject requirement)
-- Validates consistency (prefix matching, no generic rules)
-
-### 3. Export & Deduplicate
-
-Deduplicate and aggregate patterns:
+#### 3. Export & Deduplicate
 
 ```bash
-# Shell command
-python skills/commit-semantic-export/run.py --input-dir data/semantic_cases
+# Shell
+python skills/commit-semantic-export/run.py \
+    --input-dir data/semantic_cases \
+    --incremental
 
-# Or as Claude Code skill
-/commit-semantic-export --input-dir data/semantic_cases
+# Claude Code skill
+/commit-semantic-export
 ```
 
 **Output**: `data/exports/`
-- `cases.jsonl` - Unique canonical cases
-- `duplicates.jsonl` - Duplicate groups
-- `patterns.jsonl` - High-frequency patterns
-- `summary.json` - Statistics and alerts
-
-**What it does**:
-- Strict deduplication (module + type + normalized issue_text)
-- Pattern aggregation (domain + action + object + constraint)
-- Canonical selection (highest semantic value + abstraction)
-- Pattern count monitoring (alerts if >20 per domain)
+- `cases.jsonl` — unique canonical cases
+- `duplicates.jsonl` — duplicate groups
+- `patterns.jsonl` — high-frequency patterns
+- `summary.json` — statistics and alerts
 
 ## Key Concepts
 
@@ -101,40 +102,54 @@ Not commits, not individual changes. A semantic_case is an independently viable 
 
 ### commit_log vs issue_text
 
-- **commit_log**: "Added retry logic to HTTP client with exponential backoff"
-- **issue_text**: "feat: add HTTP request retry with backoff"
+- **commit_log**: "在 HTTP 客户端中增加指数退避重试逻辑"
+- **issue_text**: `feat：HTTP 请求增加指数退避重试`
 
 commit_log expresses what changed. issue_text is the compressed requirement.
 
+### issue_text Prefix Format
+
+Prefixes use **full-width colon `：`** (not ASCII `:`):
+
+| development_type | prefix |
+|-----------------|--------|
+| feature | `feat：` |
+| bugfix | `bugfix：` |
+| refactor | `refactor：` |
+| migration | `migration：` |
+| optimize | `optimize：` |
+
 ### rules/invariants Must Be Object-Specific
 
-✓ Good: "legacy syntax compatibility must be preserved during repair"
-✗ Bad: "add null checks for safety" (generic guideline)
+✓ Good: `legacy syntax compatibility must be preserved during repair`
+✗ Bad: `add null checks for safety` (generic guideline)
 
 ### Validation Rules
 
-- development_type must match issue_text prefix
-- commit_log cannot use requirement prefixes (feat:, bugfix:, etc.)
-- needs_split=false requires empty split_reasons
-- rules/invariants cannot be generic development guidelines
+- `development_type` must match `issue_text` prefix
+- `commit_log` cannot use requirement prefixes (`feat：`, `bugfix：`, etc.)
+- `needs_split=false` requires empty `split_reasons`
+- `rules`/`invariants` cannot be generic development guidelines
 
 ## Testing
 
-Run the end-to-end test:
-
 ```bash
-pytest test_commit_semantic_e2e.py -v
-```
+# Run commit-semantic unit and logic tests
+pytest tests/test_commit_semantic_logic.py tests/test_grouping_boundaries.py -v
 
-This validates the full pipeline: collect → generate → export.
+# Run end-to-end pipeline test
+pytest tests/test_e2e_commit_semantic.py -v
+```
 
 ## Output Structure
 
 ```
 data/
+├── raw_commits/              # Raw git data
+├── grouped_changes/          # Intermediate grouping
 ├── semantic_case_inputs/     # After collect
 ├── semantic_cases/           # After generate (valid)
-├── low_value_cases/          # Low semantic value
+├── low_value_cases/          # Low semantic value (filtered)
 ├── invalid_cases/            # Failed validation
 └── exports/                  # After export
     ├── cases.jsonl           # Unique cases
@@ -154,105 +169,77 @@ python skills/commit-semantic-export/run.py --input-dir data/semantic_cases
 cat data/exports/summary.json
 ```
 
-### Full History Scan
+### Incremental Run (new commits only)
 
 ```bash
-python skills/commit-semantic-collect/run.py . --commit-range HEAD~500..HEAD
+python skills/commit-semantic-collect/run.py . \
+    --commit-range HEAD~10..HEAD \
+    --incremental --state-file data/.collect-state.json
 python skills/commit-semantic-generate/run.py --input-dir data/semantic_case_inputs
-python skills/commit-semantic-export/run.py --input-dir data/semantic_cases
+python skills/commit-semantic-export/run.py --input-dir data/semantic_cases --incremental
+```
+
+### Exclude Directories
+
+```bash
+python skills/commit-semantic-collect/run.py . \
+    --commit-range HEAD~50..HEAD \
+    --exclude-paths config/ deploy/ infra/
 ```
 
 ### Review Invalid Cases
 
 ```bash
 ls data/invalid_cases/
-# Check validation errors and adjust prompts if needed
+cat data/invalid_cases/case_*.yaml | grep -A 5 "validation_error"
 ```
 
 ### Monitor Pattern Quality
 
 ```bash
 jq '.pattern_stats' data/exports/summary.json
-# Check pattern_count per domain
-# Alert if >20 patterns (review abstraction level)
+# Alert if >20 patterns per domain (review abstraction level)
 ```
 
 ## Troubleshooting
 
 ### High invalid rate
 
-**Symptom**: Many cases in `invalid_cases/` directory.
+**Symptom**: Many cases in `invalid_cases/`.
 
-**Diagnosis**:
-```bash
-# Check validation errors
-ls data/invalid_cases/
-cat data/invalid_cases/case_*.yaml | grep -A 5 "validation_error"
-```
-
-**Common causes and fixes**:
-- **Prefix mismatch**: issue_text prefix doesn't match development_type
-  - Fix: Ensure issue_text starts with correct prefix (feat:, bugfix:, refactor:, migration:, optimize:)
-- **Generic rules/invariants**: Rules contain generic guidelines like "add null checks"
-  - Fix: Rewrite rules to be object-specific semantic constraints
-- **Missing required fields**: commit_log, issue_text, or development_type missing
-  - Fix: Check prompt outputs and ensure all fields are generated
+**Common causes**:
+- **Prefix mismatch**: `issue_text` prefix doesn't match `development_type`
+  - Fix: ensure `issue_text` starts with the correct full-width prefix (`feat：`, `bugfix：`, etc.)
+- **Generic rules/invariants**: rules contain guidelines like "add null checks"
+  - Fix: rewrite rules to be object-specific semantic constraints
+- **Missing required fields**: `commit_log`, `issue_text`, or `development_type` missing
 
 ### Pattern explosion (>30 patterns)
 
 **Symptom**: `summary.json` shows >30 patterns in a domain.
 
-**Diagnosis**:
-```bash
-# Check pattern count per domain
-jq '.pattern_stats' data/exports/summary.json
-jq '.alerts' data/exports/summary.json
-```
-
 **Fixes**:
-- Review object_class inference logic in `src/commit_semantic/p4/patterning.py`
+- Review `object_class` inference in `src/commit_semantic/patterning.py`
 - Consider broader object categories (merge similar classes)
-- Verify deduplication is working: check `duplicates.jsonl` for missed duplicates
+- Check `duplicates.jsonl` for missed duplicates
 - Adjust similarity threshold in export configuration
 
 ### Low semantic value cases
 
-**Symptom**: Many cases in `low_value_cases/` directory.
-
-**Diagnosis**:
-```bash
-# Review low value cases
-ls data/low_value_cases/ | wc -l
-cat data/low_value_cases/case_*.yaml | grep "semantic_value"
-```
-
-**Expected behavior**: Low-value filtering is working correctly for:
-- Format/lint/import/comment-only changes
-- Trivial test maintenance
-- Trivial config/flag wiring
-- Low-information parameter tweaks
-
-**Action**: This is expected for maintenance-heavy repositories. No fix needed unless filtering is too aggressive.
+**Expected behavior**: low-value filtering is working correctly for format/lint/import-only changes, trivial test maintenance, trivial config wiring, and low-information parameter tweaks. No fix needed unless filtering is too aggressive.
 
 ### Empty output directories
 
-**Symptom**: No files generated in expected output directories.
-
 **Diagnosis**:
 ```bash
-# Check if commits were found
+git log HEAD~10..HEAD --oneline   # verify commit range
 python skills/commit-semantic-collect/run.py . --commit-range HEAD~10..HEAD
-# Look for "Found N commits" message
 ```
-
-**Fixes**:
-- Verify commit range is valid: `git log HEAD~10..HEAD`
-- Check path filters aren't excluding all files
-- Verify repository path is correct
-- Check for errors in console output
 
 ## More Information
 
-- **Integration Guide**: `docs/commit-semantic-integration.md` (comprehensive)
-- **P0 Specification**: `docs/plan/git-semantic-p0.md` (design principles)
-- **E2E Test**: `test_commit_semantic_e2e.py` (example usage)
+- **User Guide**: `docs/commit-semantic/user-guide.md`
+- **Skills Reference**: `docs/commit-semantic/skills-reference.md`
+- **Integration Guide**: `docs/commit-semantic-integration.md`
+- **P0 Specification**: `docs/plan/git-semantic-p0.md`
+- **E2E Test**: `tests/test_e2e_commit_semantic.py`
