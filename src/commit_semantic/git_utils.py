@@ -29,7 +29,7 @@ def get_commit_list(repo_path: str, commit_range: str = None,
         raise RuntimeError(f"Git command failed: {' '.join(cmd)}\n{e.stderr}") from e
 
 
-def get_commit_details(repo_path: str, commit_id: str) -> RawCommit:
+def get_commit_details(repo_path: str, commit_id: str, exclude_paths: List[str] = None) -> RawCommit:
     """Extract detailed information for a single commit."""
     try:
         # Get commit metadata
@@ -44,6 +44,10 @@ def get_commit_details(repo_path: str, commit_id: str) -> RawCommit:
         files_result = subprocess.run(files_cmd, capture_output=True, text=True, check=True)
         files = [f.strip() for f in files_result.stdout.strip().split('\n') if f.strip()]
 
+        # Filter out excluded paths
+        if exclude_paths:
+            files = [f for f in files if not any(f.startswith(p) for p in exclude_paths)]
+
         # Get diff chunks
         diff_cmd = ["git", "-C", repo_path, "show", "--format=", commit_id]
         diff_result = subprocess.run(diff_cmd, capture_output=True, text=True, check=True)
@@ -51,6 +55,13 @@ def get_commit_details(repo_path: str, commit_id: str) -> RawCommit:
         # Split on "diff --git" boundaries, keeping the delimiter
         chunks = re.split(r'(?=^diff --git )', raw_diff, flags=re.MULTILINE)
         diff_chunks = [c for c in chunks if c.strip()]
+
+        # Filter diff chunks for excluded paths
+        if exclude_paths:
+            def _chunk_path(chunk: str) -> str:
+                m = re.match(r'^diff --git a/(\S+)', chunk)
+                return m.group(1) if m else ''
+            diff_chunks = [c for c in diff_chunks if not any(_chunk_path(c).startswith(p) for p in exclude_paths)]
 
         # Identify test files
         related_tests = [f for f in files if 'test' in f.lower() or f.endswith('_test.py') or f.endswith('.test.ts')]

@@ -30,7 +30,8 @@ def collect_cases(
     low_value_dir: str = "data/low_value_cases",
     incremental: bool = False,
     force: bool = False,
-    state_file: str = "data/.commit-semantic-state.json"
+    state_file: str = "data/.commit-semantic-state.json",
+    exclude_paths: list = None,
 ):
     """
     Main function to collect semantic cases from git history.
@@ -91,7 +92,11 @@ def collect_cases(
 
         try:
             # Get commit details
-            commit = get_commit_details(repo_path, commit_id)
+            commit = get_commit_details(repo_path, commit_id, exclude_paths=exclude_paths)
+
+            # Skip commits with no files after filtering
+            if not commit.files:
+                continue
 
             # Extract change groups
             groups = extract_change_groups(commit)

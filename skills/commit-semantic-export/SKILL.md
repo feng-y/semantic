@@ -9,6 +9,22 @@ description: Export validated semantic cases to disk
 
 将通过校验的 semantic case 落盘、汇总，并输出基础统计与 invalid bucket。
 
+## 调用方式
+
+在 Claude Code 对话框中直接调用，无需任何参数：
+
+```
+/commit-semantic-export
+```
+
+默认读取 `data/semantic_cases/`，即 generate 的输出目录。支持增量模式：
+
+```
+/commit-semantic-export 增量模式
+```
+
+Claude 会在对话中汇报导出统计，包括 case 总数、development_type 分布、invalid 数量及告警。
+
 ## Input
 
 validated semantic cases:

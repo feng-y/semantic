@@ -16,6 +16,16 @@ description: Generate semantic fields for a semantic case
 - `development_type`
 - `split_suggestion`
 
+## 调用方式
+
+在 Claude Code 对话框中直接调用，无需任何参数：
+
+```
+/commit-semantic-generate
+```
+
+默认读取 `data/semantic_case_inputs/`，即 collect 的输出目录。Claude 会自动处理所有待生成的 case，并在对话中汇报成功/失败数量及失败原因。
+
 ## Input
 
 ```yaml

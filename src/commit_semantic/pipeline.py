@@ -9,7 +9,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
 from pathlib import Path
-from typing import Optional, Callable
+from typing import Optional, Callable, List
 
 repo_root = Path(__file__).parent.parent.parent
 
@@ -36,6 +36,7 @@ class PipelineContext:
     executor: Optional[Callable] = None
     incremental: bool = False
     checkpoint_file: str = "data/.pipeline-checkpoint.json"
+    exclude_paths: Optional[List[str]] = None
 
 
 @dataclass
@@ -81,6 +82,7 @@ def _run_collect(ctx: PipelineContext) -> StageResult:
         low_value_dir=low_value_dir,
         incremental=ctx.incremental,
         state_file=state_file,
+        exclude_paths=ctx.exclude_paths,
     )
     duration = time.monotonic() - start
     _write_checkpoint(ctx, PipelineStage.COLLECT)
@@ -144,6 +146,7 @@ def run_pipeline(
     data_dir: str = "data",
     executor: Optional[Callable] = None,
     incremental: bool = False,
+    exclude_paths: Optional[List[str]] = None,
 ) -> dict:
     ctx = PipelineContext(
         repo_path=repo_path,
@@ -152,6 +155,7 @@ def run_pipeline(
         executor=executor,
         incremental=incremental,
         checkpoint_file=str(Path(data_dir) / ".pipeline-checkpoint.json"),
+        exclude_paths=exclude_paths,
     )
 
     requested = _parse_stages(stages)

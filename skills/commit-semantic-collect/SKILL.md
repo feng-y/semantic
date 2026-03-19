@@ -9,12 +9,46 @@ description: Extract semantic cases from git history
 
 从仓库历史 commit 中提取原始变更，构造细粒度 `change_group`，再归并为可独立成立的 `semantic_case`，并补充 bugfix 证据与 split hints。
 
+## 调用方式
+
+在 Claude Code 对话框中用自然语言描述范围，Claude 自动解析为参数并调用。
+
+**示例：**
+```
+/commit-semantic-collect 最近 10 个 commit
+/commit-semantic-collect 最近一个月的 commit
+/commit-semantic-collect 2026-01-01 到 2026-03-01 的 commit
+/commit-semantic-collect 张三提交的最近 50 个 commit
+/commit-semantic-collect 最近 10 个 commit，增量模式
+```
+
+**自然语言 → 参数映射规则：**
+
+| 用户描述 | 转换参数 |
+|---------|---------|
+| 最近 N 个 commit | `commit_range="HEAD~N..HEAD"` |
+| 最近一周 / 一个月 / N 天 | `since="N days ago"` / `since="1 week ago"` / `since="1 month ago"` |
+| YYYY-MM-DD 到 YYYY-MM-DD | `since="YYYY-MM-DD"`, `until="YYYY-MM-DD"` |
+| 某人的 commit | `author="姓名"` |
+| 增量模式 | `incremental=True` |
+| 排除 X 目录 / 不分析 X 目录 / 忽略 X 目录 | `exclude_paths=["X/"]` |
+| 排除 X 和 Y 目录 | `exclude_paths=["X/", "Y/"]` |
+
+`repo_path` 默认为当前工作目录，无需用户指定。
+
+**排除目录示例：**
+```
+/commit-semantic-collect 最近 10 个 commit，排除 config 目录
+/commit-semantic-collect 最近一个月，不分析 deploy 和 infra 目录
+/commit-semantic-collect 最近 50 个 commit，忽略 scripts、docs 目录
+```
+
 ## Input
 
-- repo_path
-- commit_range 或 commit_list
-- 可选 path include/exclude
-- 可选 author / time window
+- repo_path（默认当前目录）
+- commit_range 或 since/until 时间窗口
+- 可选 author
+- 可选 incremental
 
 ## Output
 
