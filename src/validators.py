@@ -112,7 +112,7 @@ def validate_consistency(case_dict: Dict) -> None:
 
     all_rules_invariants = case_dict['rules'] + case_dict['invariants']
     for item in all_rules_invariants:
-        item_lower = item.lower()
+        item_lower = str(item).lower()
         if any(pattern in item_lower for pattern in generic_patterns):
             raise ValidationError(
                 f"Generic development rule/invariant detected: {item}"
