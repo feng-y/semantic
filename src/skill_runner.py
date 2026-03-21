@@ -41,6 +41,10 @@ class SkillRunner(ABC):
     def get_artifacts(self, state: HarnessState) -> list[str]:
         return state.metadata.get("artifacts_written", [])
 
+    def add_artifact(self, state: HarnessState, path: str) -> None:
+        """Add an artifact path to state. Modifies in-place."""
+        self.get_artifacts(state).append(path)
+
     @abstractmethod
     def run_stage(self, stage: str, state: HarnessState) -> bool:
         """Run a single stage. Subclasses implement this."""
@@ -121,9 +125,8 @@ class SkillRunner(ABC):
         try:
             success = self.run_stage(next_stage, state)
             if success:
-                completed = self.get_completed(state)
-                completed.append(next_stage)
-                state.metadata["completed_stages"] = completed
+                # Append directly - get_completed returns the list reference
+                self.get_completed(state).append(next_stage)
                 state.metadata["current_stage"] = None
                 state.stage = next_stage
             return success, f"Stage {next_stage} failed"
@@ -145,10 +148,12 @@ class SkillRunner(ABC):
         success, error = self._advance(state)
 
         if success:
+            # Cache completed count to avoid repeated lookups
+            completed_count = len(self.get_completed(state))
             state.metadata["status"] = "breakpoint"
-            remaining = [s for s in self.STAGES if s not in self.get_completed(state)]
-            next_remaining = remaining[0] if remaining else "done"
-            state.metadata["resume_token"] = f"step{len(self.get_completed(state))}_{next_remaining}"
+            remaining_count = len(self.STAGES) - completed_count
+            next_remaining = self.STAGES[completed_count] if remaining_count > 0 else "done"
+            state.metadata["resume_token"] = f"step{completed_count}_{next_remaining}"
             state.metadata["breakpoint_reason"] = f"Stage {next_stage} complete. Run step to continue or resume for all."
         else:
             state.metadata["status"] = "error"

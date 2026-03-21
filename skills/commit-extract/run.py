@@ -22,22 +22,19 @@ class CommitExtractRunner(SkillRunner):
         """Execute a single stage."""
         print(f"[{self.PIPELINE}] Running stage: {stage}")
 
-        artifacts = self.get_artifacts(state)
-
         if stage == "collect":
             print("  → Collecting commits from git history")
-            artifacts.append("commits/commits.jsonl")
+            self.add_artifact(state, "commits/commits.jsonl")
 
         elif stage == "extract":
             print("  → Extracting rules and invariants")
-            artifacts.append("rules/rules.yaml")
-            artifacts.append("invariants/invariants.yaml")
+            self.add_artifact(state, "rules/rules.yaml")
+            self.add_artifact(state, "invariants/invariants.yaml")
 
         elif stage == "pattern":
             print("  → Identifying patterns")
-            artifacts.append("patterns/patterns.yaml")
+            self.add_artifact(state, "patterns/patterns.yaml")
 
-        state.metadata["artifacts_written"] = artifacts
         return True
 
 

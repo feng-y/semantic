@@ -45,14 +45,12 @@ class SemanticFactRunner(SkillRunner):
                 if result.get("status") != "ok":
                     state.metadata["error"] = result.get("error", "discover failed")
                     return False
-                artifacts = self.get_artifacts(state)
-                artifacts.append("discovery/repo-facts.yaml")
+                self.add_artifact(state, "discovery/repo-facts.yaml")
 
             elif stage == "review":
                 print("  → Reviewing extracted facts")
                 # Review is human-in-the-loop, set breakpoint
-                artifacts = self.get_artifacts(state)
-                artifacts.append("review/architect-feedback.md")
+                self.add_artifact(state, "review/architect-feedback.md")
 
             elif stage == "refine":
                 print("  → Refining based on feedback")
@@ -60,15 +58,12 @@ class SemanticFactRunner(SkillRunner):
                 if result.get("status") != "ok":
                     state.metadata["error"] = result.get("error", "refine failed")
                     return False
-                artifacts = self.get_artifacts(state)
-                artifacts.append("refine/repo-understanding.patch")
+                self.add_artifact(state, "refine/repo-understanding.patch")
 
             elif stage == "baseline":
                 print("  → Accepting baseline")
-                artifacts = self.get_artifacts(state)
-                artifacts.append("baseline/accepted-baseline.md")
+                self.add_artifact(state, "baseline/accepted-baseline.md")
 
-            state.metadata["artifacts_written"] = artifacts
             state.metadata["dispatcher_result"] = {"stage": stage, "status": "ok"}
             return True
 

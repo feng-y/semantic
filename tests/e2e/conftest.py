@@ -12,14 +12,12 @@ import pytest
 
 @pytest.fixture
 def workspace(tmp_path: Path) -> Path:
-    """Create isolated workspace with .harness structure."""
+    """Create isolated workspace with .harness structure (no outputs)."""
     harness = tmp_path / ".harness"
     (harness / "state/commit-extract").mkdir(parents=True)
     (harness / "state/commit-semantic").mkdir(parents=True)
     (harness / "state/semantic-fact").mkdir(parents=True)
-    (harness / "outputs/commit-extract/commits").mkdir(parents=True)
-    (harness / "outputs/commit-semantic/patterns").mkdir(parents=True)
-    (harness / "outputs/semantic-fact/discovery").mkdir(parents=True)
+    # Note: outputs are created by specific fixtures as needed
     return tmp_path
 
 
@@ -37,6 +35,22 @@ def workspace_with_fact_baseline(tmp_path: Path) -> Path:
     harness = tmp_path / ".harness"
     (harness / "state/semantic-fact").mkdir(parents=True)
     (harness / "outputs/semantic-fact/discovery").mkdir(parents=True)
+
+    return tmp_path
+
+
+@pytest.fixture
+def workspace_with_extract_output(tmp_path: Path) -> Path:
+    """Create workspace with mock commit-extract output for commit-semantic tests."""
+    # Create .harness structure
+    harness = tmp_path / ".harness"
+    (harness / "state/commit-extract").mkdir(parents=True)
+    (harness / "state/commit-semantic").mkdir(parents=True)
+
+    # Create mock commit-extract output directory
+    (harness / "outputs/commit-extract").mkdir(parents=True)
+    # Create a mock patterns file
+    (harness / "outputs/commit-extract/patterns.yaml").write_text("# Mock patterns\n")
 
     return tmp_path
 

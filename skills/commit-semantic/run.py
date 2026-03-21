@@ -30,21 +30,18 @@ class CommitSemanticRunner(SkillRunner):
         """Execute a single stage."""
         print(f"[{self.PIPELINE}] Running stage: {stage}")
 
-        artifacts = self.get_artifacts(state)
-
         if stage == "analyze":
             print("  → Analyzing commit patterns")
-            artifacts.append("patterns/pattern-analysis.yaml")
+            self.add_artifact(state, "patterns/pattern-analysis.yaml")
 
         elif stage == "domain-map":
             print("  → Mapping patterns to semantic domains")
-            artifacts.append("domains/domain-mapping.yaml")
+            self.add_artifact(state, "domains/domain-mapping.yaml")
 
         elif stage == "feed":
             print("  → Preparing demand pipeline feed")
-            artifacts.append("domains/demand-feed.yaml")
+            self.add_artifact(state, "domains/demand-feed.yaml")
 
-        state.metadata["artifacts_written"] = artifacts
         return True
 
     def handle_step(self) -> int:
