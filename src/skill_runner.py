@@ -189,7 +189,7 @@ class SkillRunner(ABC):
         save_state(self.PIPELINE, state)
         return 0
 
-    def handle_run(self) -> int:
+    def handle_run(self, remaining: list[str] | None = None) -> int:
         state = self.init_state()
         save_state(self.PIPELINE, state)
         return self.handle_resume()
