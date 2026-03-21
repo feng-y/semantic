@@ -2,14 +2,15 @@
 
 Claude Code skill repository for extracting structured semantic knowledge from a codebase and its git history.
 
-## Four Capabilities
+## Five Capabilities
 
-| # | Capability | Pipeline | Status |
-|---|-----------|----------|--------|
+| # | Capability | Command | Status |
+|---|-----------|---------|--------|
 | 1 | **fact** — repo structure discovery | `/semantic-fact-pipeline` | stable |
 | 2 | **semantic** — domain extraction | `/semantic-pipeline` | stable |
 | 3 | **demand** — requirement mapping | `/demand-pipeline` | in progress |
 | 4 | **commit-semantic** — git history → domain cases | `/commit-semantic-pipeline` | stable |
+| 5 | **semantic-extract** — commit + rules/invariants | `/semantic-extract` | stable |
 
 Each capability is independent. Use them in order for a full picture, or run any one standalone.
 
@@ -112,6 +113,20 @@ run_pipeline(repo_path=".", commit_range="HEAD~50..HEAD", executor=my_llm)
 
 ---
 
+### 5. semantic-extract — Commit + Rules/Invariants
+
+统一提取 commit 功能语义和工程化约束，通过 SHA 关联。
+
+```
+/semantic-extract --last 10 --view both
+```
+
+Output: `data/commit_refine/` + `data/rules_invariants/`
+
+详见 `docs/plan/rule.md`。
+
+---
+
 ## Repository Layout
 
 ```
@@ -120,6 +135,7 @@ skills/                    # skill definitions (SKILL.md per skill)
   semantic-pipeline/       # capability 2 pipeline
   demand-pipeline/         # capability 3 pipeline
   commit-semantic-pipeline/# capability 4 pipeline
+  semantic-extract/        # capability 5: commit + rules extraction
   semantic-*/              # fact + semantic individual skills
   commit-semantic-*/       # git history individual skills
 
@@ -151,3 +167,4 @@ data/                      # runtime output (gitignored)
 - `docs/commit-semantic/skills-reference.md` — skill interface contracts
 - `docs/semantic-design/` — architecture decision records
 - `docs/demand/` — demand pipeline design docs
+- `docs/plan/rule.md` — rules/invariants 规范定义
