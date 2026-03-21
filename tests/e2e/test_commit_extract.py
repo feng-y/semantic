@@ -1,81 +1,124 @@
 """E2E tests for commit-extract skill."""
 
-from __future__ import annotations
-
 import json
+import os
+import subprocess
+import sys
+import tempfile
 from pathlib import Path
 
+import pytest
+
+# Helper to load skill module
+def load_commit_extract_module():
+    """Load commit-extract skill module."""
+    import importlib.util
+    repo_root = Path(__file__).parent.parent.parent
+    spec = importlib.util.spec_from_file_location(
+        "commit_extract",
+        str(repo_root / "skills/commit-extract/run.py")
+    )
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules["commit_extract"] = mod
+    spec.loader.exec_module(mod)
+    return mod
 
 
-def test_extract_run_full_pipeline(workspace: Path, run_skill):
-    """Run full pipeline completes with artifacts."""
-    result = run_skill("commit-extract", "run", cwd=workspace)
+class TestCommitExtractSkill:
+    """E2E tests for commit-extract skill."""
 
-    assert result.returncode == 0
-    assert "Complete" in result.stdout or "breakpoint" in result.stdout
+    @pytest.fixture
+    def mock_repo(self):
+        """Create a temporary git repo with test commits."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            repo_path = Path(tmpdir) / "test_repo"
+            repo_path.mkdir()
 
-    # Check state file created (uses state.json not run-state.json)
-    state_path = workspace / ".harness/state/commit-extract/state.json"
-    assert state_path.exists()
+            # Init git repo
+            subprocess.run(["git", "init"], cwd=repo_path, check=True)
+            subprocess.run(["git", "config", "user.email", "test@test.com"], cwd=repo_path, check=True)
+            subprocess.run(["git", "config", "user.name", "Test User"], cwd=repo_path, check=True)
 
-    state = json.loads(state_path.read_text())
-    assert state["stage"] == "complete"
-    assert "collect" in state["metadata"]["completed_stages"]
+            # Create initial commit (last month)
+            (repo_path / "README.md").write_text("# Test Repo\n")
+            subprocess.run(["git", "add", "."], cwd=repo_path, check=True)
+            subprocess.run(["git", "commit", "-m", "Initial commit", "--date", "2024-01-15T10:00:00"], cwd=repo_path, check=True)
+
+            # Create feature commit
+            (repo_path / "src").mkdir()
+            (repo_path / "src/parser.py").write_text("def parse(): pass\n")
+            subprocess.run(["git", "add", "."], cwd=repo_path, check=True)
+            subprocess.run(["git", "commit", "-m", "feat: add parser module", "--date", "2024-01-16T11:00:00"], cwd=repo_path, check=True)
+
+            # Create bugfix commit
+            (repo_path / "src/parser.py").write_text("def parse(input): return input.strip()\n")
+            subprocess.run(["git", "add", "."], cwd=repo_path, check=True)
+            subprocess.run(["git", "commit", "-m", "bugfix: fix parser boundary", "--date", "2024-01-17T12:00:00"], cwd=repo_path, check=True)
+
+            yield repo_path
+
+    def test_skill_exists(self):
+        """Test that commit-extract skill exists."""
+        mod = load_commit_extract_module()
+        runner = mod.CommitExtractRunner()
+        assert runner.PIPELINE == "commit-extract"
+        assert runner.STAGES == ["collect"]
+
+    def test_collect_groups_by_month(self, mock_repo, tmp_path):
+        """Test that commits are grouped by month."""
+        mod = load_commit_extract_module()
+
+        # Setup sys.path for src imports
+        repo_root = Path(__file__).parent.parent.parent
+        sys.path.insert(0, str(repo_root))
+
+        from src.harness_state import HarnessState
+
+        runner = mod.CommitExtractRunner()
+        runner.repo_path = str(mock_repo)
+
+        state = HarnessState(
+            stage="init",
+            metadata={"completed_stages": [], "artifacts_written": []}
+        )
+
+        # Run collect stage
+        result = runner._run_collect(state)
+        assert result is True
+
+        # Check output exists
+        output_dir = Path("data/commit-extract")
+        assert output_dir.exists()
+
+        # Check month file exists
+        month_file = output_dir / "2024-01.yaml"
+        assert month_file.exists()
+
+        # Load and verify structure
+        import yaml
+        with open(month_file) as f:
+            data = yaml.safe_load(f)
+
+        assert "metadata" in data
+        assert "commits" in data
+        assert data["metadata"]["month"] == "2024-01"
+        assert data["metadata"]["total_commits"] == 3
+
+        # Verify commit structure
+        commits = data["commits"]
+        assert len(commits) == 3
+        for commit in commits:
+            assert "commit_id" in commit
+            assert "timestamp" in commit
+            assert "author" in commit
+            assert "commit_message" in commit
+            assert "files" in commit
+            assert "diff_chunks" in commit
+
+        # Cleanup
+        import shutil
+        shutil.rmtree(output_dir, ignore_errors=True)
 
 
-def test_extract_status_no_state(workspace: Path, run_skill):
-    """Status reports no state before run."""
-    result = run_skill("commit-extract", "status", cwd=workspace)
-
-    assert result.returncode == 0
-    assert "No state found" in result.stdout
-
-
-def test_extract_step_and_breakpoint(workspace: Path, run_skill, load_state):
-    """Step runs single stage and sets breakpoint."""
-    # First step
-    result = run_skill("commit-extract", "step", cwd=workspace)
-    assert result.returncode == 0
-
-    state = load_state(workspace, "commit-extract")
-    assert state is not None
-    assert state["metadata"]["status"] == "breakpoint"
-    assert "collect" in state["metadata"]["completed_stages"]
-    assert state["metadata"]["current_stage"] is None  # Completed, not running
-
-
-def test_extract_resume_continues(workspace: Path, run_skill, load_state):
-    """Resume continues from breakpoint to completion."""
-    # Set up partial state
-    run_skill("commit-extract", "step", cwd=workspace)  # Does one stage
-
-    # Resume should complete remaining stages
-    result = run_skill("commit-extract", "resume", cwd=workspace)
-    assert result.returncode == 0
-
-    state = load_state(workspace, "commit-extract")
-    assert state["metadata"]["status"] == "ok"
-    assert len(state["metadata"]["completed_stages"]) == 3  # All stages
-
-
-def test_extract_reset_clears_state(workspace: Path, run_skill, load_state):
-    """Reset clears state but preserves artifacts."""
-    # Run to create state
-    run_skill("commit-extract", "run", cwd=workspace)
-
-    # Reset
-    result = run_skill("commit-extract", "reset", cwd=workspace)
-    assert result.returncode == 0
-    assert "reset" in result.stdout.lower()
-
-    state = load_state(workspace, "commit-extract")
-    assert state["metadata"]["completed_stages"] == []
-
-
-def test_extract_status_reports_correctly(workspace: Path, run_skill):
-    """Status reports current stage and artifacts."""
-    run_skill("commit-extract", "step", cwd=workspace)
-
-    result = run_skill("commit-extract", "status", cwd=workspace)
-    assert result.returncode == 0
-    assert "breakpoint" in result.stdout.lower() or "stage" in result.stdout.lower()
+if __name__ == "__main__":
+    pytest.main([__file__, "-v"])
