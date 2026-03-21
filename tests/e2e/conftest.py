@@ -16,8 +16,28 @@ def workspace(tmp_path: Path) -> Path:
     harness = tmp_path / ".harness"
     (harness / "state/commit-extract").mkdir(parents=True)
     (harness / "state/commit-semantic").mkdir(parents=True)
+    (harness / "state/semantic-fact").mkdir(parents=True)
     (harness / "outputs/commit-extract/commits").mkdir(parents=True)
     (harness / "outputs/commit-semantic/patterns").mkdir(parents=True)
+    (harness / "outputs/semantic-fact/discovery").mkdir(parents=True)
+    return tmp_path
+
+
+@pytest.fixture
+def workspace_with_fact_baseline(tmp_path: Path) -> Path:
+    """Create workspace with mock fact baseline."""
+    # Create baseline directory
+    baseline_dir = tmp_path / "docs" / "fact" / "baseline"
+    baseline_dir.mkdir(parents=True)
+
+    # Create mock baseline file
+    (baseline_dir / "repo-facts.v1.md").write_text("# Mock Baseline\n\nTest content.\n")
+
+    # Create .harness structure
+    harness = tmp_path / ".harness"
+    (harness / "state/semantic-fact").mkdir(parents=True)
+    (harness / "outputs/semantic-fact/discovery").mkdir(parents=True)
+
     return tmp_path
 
 
