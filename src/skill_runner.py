@@ -151,8 +151,7 @@ class SkillRunner(ABC):
             # Cache completed count to avoid repeated lookups
             completed_count = len(self.get_completed(state))
             state.metadata["status"] = "breakpoint"
-            remaining_count = len(self.STAGES) - completed_count
-            next_remaining = self.STAGES[completed_count] if remaining_count > 0 else "done"
+            next_remaining = self.STAGES[completed_count] if completed_count < len(self.STAGES) else "done"
             state.metadata["resume_token"] = f"step{completed_count}_{next_remaining}"
             state.metadata["breakpoint_reason"] = f"Stage {next_stage} complete. Run step to continue or resume for all."
         else:
