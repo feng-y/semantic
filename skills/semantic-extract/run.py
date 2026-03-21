@@ -14,6 +14,7 @@ from typing import Optional
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
+from src.commit_semantic.executor_bridge import get_executor
 from src.commit_semantic.git_utils import get_commit_list, get_commit_details, get_commit_message
 from src.semantic_extract.writer import (
     load_all_existing_shas,
@@ -136,12 +137,11 @@ def main():
 
     print(f"Found {len(commit_ids)} commits to process")
 
-    # TODO: Wire up executor (injected by Claude Code)
-    def default_executor(prompt: str) -> str:
+    # Get executor from bridge (set by Claude Code host)
+    executor_fn = get_executor()
+    if executor_fn is None:
         print("ERROR: No executor configured. Please run via Claude Code with executor injection.")
         sys.exit(1)
-
-    executor_fn = default_executor  # Will be replaced with actual executor
 
     start_time = time.time()
 
