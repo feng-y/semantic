@@ -55,42 +55,38 @@ Now generate the refined commit:"""
     return prompt
 
 
-def parse_rules_response(response: str) -> Tuple[List[str], List[str]]:
-    """Parse LLM response for rules/invariants."""
-    # Try to extract JSON from markdown code block
-    json_match = re.search(r"```json\s*(\{.*?\})\s*```", response, re.DOTALL)
+def _extract_json(text: str) -> dict | None:
+    """Extract JSON object from text, handling nested braces."""
+    # Try markdown code block first
+    json_match = re.search(r"```json\s*(\{[\s\S]*?\})\s*```", text)
     if json_match:
         try:
-            data = json.loads(json_match.group(1))
-            rules = data.get("rules", [])
-            invariants = data.get("invariants", [])
-            return rules, invariants
+            return json.loads(json_match.group(1))
         except json.JSONDecodeError:
             pass
+    # Try direct JSON - find first { to last }
+    json_match = re.search(r"\{[\s\S]*\}", text)
+    if json_match:
+        try:
+            return json.loads(json_match.group())
+        except json.JSONDecodeError:
+            pass
+    return None
 
-    # Fallback: try direct JSON
-    try:
-        data = json.loads(response)
+
+def parse_rules_response(response: str) -> Tuple[List[str], List[str]]:
+    """Parse LLM response for rules/invariants."""
+    data = _extract_json(response)
+    if data:
         return data.get("rules", []), data.get("invariants", [])
-    except json.JSONDecodeError:
-        return [], []
+    return [], []
 
 
 def parse_commit_response(response: str) -> Tuple[str, str, List[str]]:
     """Parse LLM response for commit refinement."""
-    # Try to extract JSON from markdown code block
-    json_match = re.search(r"```json\s*(\{.*?\})\s*```", response, re.DOTALL)
-    if json_match:
-        try:
-            data = json.loads(json_match.group(1))
-            title = data.get("title", "")
-            body = data.get("body", "")
-            commit_log = data.get("commit_log", [])
-            return title, body, commit_log
-        except json.JSONDecodeError:
-            pass
-
-    # Fallback
+    data = _extract_json(response)
+    if data:
+        return data.get("title", ""), data.get("body", ""), data.get("commit_log", [])
     return "", "", []
 
 
