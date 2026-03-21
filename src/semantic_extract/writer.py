@@ -1,24 +1,30 @@
 """JSONL writer for semantic extract outputs."""
 
 import json
-import os
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import List, Set
 
 
+def _year_month(commit_date: str) -> str:
+    """Extract YYYY-MM from commit date."""
+    date_part = commit_date[:10]
+    return "-".join(date_part.split("-")[:2])
+
+
+def _filename(prefix: str, commit_date: str) -> str:
+    """Generate {prefix}_YYYY-MM.jsonl filename."""
+    return f"{prefix}_{_year_month(commit_date)}.jsonl"
+
+
 def get_commit_filename(commit_date: str) -> str:
     """Generate commits_YYYY-MM.jsonl filename."""
-    date_part = commit_date[:10] if "T" in commit_date else commit_date[:10]
-    year_month = "-".join(date_part.split("-")[:2])
-    return f"commits_{year_month}.jsonl"
+    return _filename("commits", commit_date)
 
 
 def get_rules_filename(commit_date: str) -> str:
     """Generate rules_YYYY-MM.jsonl filename."""
-    date_part = commit_date[:10] if "T" in commit_date else commit_date[:10]
-    year_month = "-".join(date_part.split("-")[:2])
-    return f"rules_{year_month}.jsonl"
+    return _filename("rules", commit_date)
 
 
 def load_existing_shas(output_dir: str, prefix: str) -> Set[str]:
@@ -34,7 +40,8 @@ def load_existing_shas(output_dir: str, prefix: str) -> Set[str]:
                 if line.strip():
                     try:
                         record = json.loads(line)
-                        shas.add(record.get("sha", ""))
+                        if sha := record.get("sha"):
+                            shas.add(sha)
                     except json.JSONDecodeError:
                         continue
     return shas
@@ -52,15 +59,14 @@ def append_commit(sha: str, title: str, body: str, commit_log: List[str], commit
     output_dir = Path("data/commit_refine")
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    filename = get_commit_filename(commit_date)
-    filepath = output_dir / filename
+    filepath = output_dir / get_commit_filename(commit_date)
 
     record = {
         "sha": sha,
         "title": title,
         "body": body,
         "commit_log": commit_log,
-        "generated_at": datetime.utcnow().isoformat() + "Z"
+        "generated_at": datetime.now(timezone.utc).isoformat()
     }
 
     with open(filepath, "a") as f:
@@ -72,14 +78,13 @@ def append_rules_invariants(sha: str, rules: List[str], invariants: List[str], c
     output_dir = Path("data/rules_invariants")
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    filename = get_rules_filename(commit_date)
-    filepath = output_dir / filename
+    filepath = output_dir / get_rules_filename(commit_date)
 
     record = {
         "sha": sha,
         "rules": rules,
         "invariants": invariants,
-        "generated_at": datetime.utcnow().isoformat() + "Z"
+        "generated_at": datetime.now(timezone.utc).isoformat()
     }
 
     with open(filepath, "a") as f:

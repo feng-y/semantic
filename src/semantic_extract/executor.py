@@ -2,21 +2,31 @@
 
 import json
 import re
-from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import List, Tuple
+
+# Load prompts once at module level to avoid repeated disk reads
+_EXTRACT_PROMPT = None
+_REFINES_PROMPT = None
 
 
-def load_prompt(prompt_name: str) -> str:
-    """Load prompt template from prompts/commit-semantic directory."""
-    # Reuse existing prompt_loader from commit_semantic
-    from src.commit_semantic.prompt_runner import load_prompt as _load_prompt
-    return _load_prompt(prompt_name)
+def _get_extract_prompt() -> str:
+    global _EXTRACT_PROMPT
+    if _EXTRACT_PROMPT is None:
+        from src.commit_semantic.prompt_runner import load_prompt
+        _EXTRACT_PROMPT = load_prompt("extract")
+    return _EXTRACT_PROMPT
+
+
+def _get_refine_prompt() -> str:
+    global _REFINES_PROMPT
+    if _REFINES_PROMPT is None:
+        from src.commit_semantic.prompt_runner import load_prompt
+        _REFINES_PROMPT = load_prompt("refine")
+    return _REFINES_PROMPT
 
 
 def build_rules_prompt(diff: str, commit_msg: str = "") -> str:
     """Build prompt for rules/invariants extraction."""
-    template = load_prompt("extract")
-
     prompt = f"""## Git Commit Message
 ```
 {commit_msg}
@@ -27,17 +37,14 @@ def build_rules_prompt(diff: str, commit_msg: str = "") -> str:
 {diff[:15000]}
 ```
 
-{template}
+{_get_extract_prompt()}
 
 Now extract rules and invariants from this diff:"""
-
     return prompt
 
 
 def build_commit_prompt(diff: str, commit_msg: str = "") -> str:
     """Build prompt for commit semantic extraction."""
-    template = load_prompt("refine")
-
     prompt = f"""## Original Commit Message
 ```
 {commit_msg}
@@ -48,10 +55,9 @@ def build_commit_prompt(diff: str, commit_msg: str = "") -> str:
 {diff[:15000]}
 ```
 
-{template}
+{_get_refine_prompt()}
 
 Now generate the refined commit:"""
-
     return prompt
 
 
@@ -93,22 +99,12 @@ def parse_commit_response(response: str) -> Tuple[str, str, List[str]]:
 def extract_rules_invariants(diff: str, commit_msg: str, executor_fn) -> Tuple[List[str], List[str]]:
     """Extract rules/invariants using LLM."""
     prompt = build_rules_prompt(diff, commit_msg)
-
-    try:
-        response = executor_fn(prompt)
-        return parse_rules_response(response)
-    except Exception as e:
-        print(f"Error extracting rules: {e}")
-        return [], []
+    response = executor_fn(prompt)
+    return parse_rules_response(response)
 
 
 def extract_commit_semantics(diff: str, commit_msg: str, executor_fn) -> Tuple[str, str, List[str]]:
     """Extract commit semantics using LLM."""
     prompt = build_commit_prompt(diff, commit_msg)
-
-    try:
-        response = executor_fn(prompt)
-        return parse_commit_response(response)
-    except Exception as e:
-        print(f"Error extracting commit: {e}")
-        return "", "", []
+    response = executor_fn(prompt)
+    return parse_commit_response(response)
