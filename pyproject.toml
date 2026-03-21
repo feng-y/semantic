@@ -44,6 +44,8 @@ typecheck = [
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
+# Ignore renamed old test files (testing deprecated modules)
+ignore = ["**/*.old.py"]
 
 [tool.ruff]
 target-version = "py310"
