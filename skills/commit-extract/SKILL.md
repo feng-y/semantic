@@ -34,4 +34,4 @@ Extract structured knowledge from git commit history.
 - `.harness/outputs/commit-extract/commits/`
 - `.harness/outputs/commit-extract/rules/`
 - `.harness/outputs/commit-extract/invariants/`
-- `.harness/state/commit-extract/run-state.json`
+- `.harness/state/commit-extract/state.json`
