@@ -2,8 +2,26 @@
 
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 
+import pytest
+
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+
+
+def load_commit_semantic_module():
+    """Load commit-semantic skill module."""
+    import importlib.util
+    repo_root = Path(__file__).parent.parent.parent
+    spec = importlib.util.spec_from_file_location(
+        "commit_semantic",
+        str(repo_root / "skills/commit-semantic/run.py")
+    )
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules["commit_semantic"] = mod
+    spec.loader.exec_module(mod)
+    return mod
 
 
 def test_semantic_fails_without_extract_output(workspace: Path, run_skill):
@@ -51,3 +69,71 @@ def test_semantic_prerequisite_error_includes_helpful_message(workspace: Path, r
     # Should mention what user needs to do
     output = result.stdout + result.stderr
     assert "commit-extract" in output.lower() or "prerequisites" in output.lower()
+
+
+class TestCommitSemanticClassification:
+    """Tests for commit classification logic."""
+
+    def test_classify_type_functional(self):
+        """Test functional commit classification."""
+        mod = load_commit_semantic_module()
+        runner = mod.CommitSemanticRunner()
+
+        assert runner._classify_type("feat: add parser") == "functional"
+        assert runner._classify_type("bugfix: fix parser") == "functional"
+        assert runner._classify_type("optimize: improve perf") == "functional"
+        assert runner._classify_type("refactor+bugfix: fix and cleanup") == "functional"
+
+    def test_classify_type_non_functional(self):
+        """Test non-functional commit classification."""
+        mod = load_commit_semantic_module()
+        runner = mod.CommitSemanticRunner()
+
+        assert runner._classify_type("refactor: cleanup") == "non-functional"
+        assert runner._classify_type("test: add tests") == "non-functional"
+        assert runner._classify_type("config: update config") == "non-functional"
+
+    def test_detect_modules(self):
+        """Test module detection from commit message."""
+        mod = load_commit_semantic_module()
+        runner = mod.CommitSemanticRunner()
+
+        assert "parser" in runner._detect_modules("feat: add parser module")
+        assert "config" in runner._detect_modules("fix config loading")
+        assert "schedule" in runner._detect_modules("update schedule timer")
+
+
+class TestCommitSemanticScoring:
+    """Tests for commit scoring logic."""
+
+    def test_score_unit_with_module(self):
+        """Unit with identified module scores higher."""
+        mod = load_commit_semantic_module()
+        runner = mod.CommitSemanticRunner()
+
+        unit_with_module = {
+            "commit_log": "feat: add parser module with clear description",
+            "module": "parser"
+        }
+        unit_unknown = {
+            "commit_log": "feat: add parser module with clear description",
+            "module": "unknown"
+        }
+
+        score_with = runner._score_unit(unit_with_module, None)
+        score_without = runner._score_unit(unit_unknown, None)
+
+        assert score_with > score_without
+
+    def test_score_unit_clear_log(self):
+        """Clear commit log scores higher."""
+        mod = load_commit_semantic_module()
+        runner = mod.CommitSemanticRunner()
+
+        clear_unit = {
+            "commit_log": "feat: add parser module with proper description",
+            "module": "parser"
+        }
+
+        score = runner._score_unit(clear_unit, None)
+        assert 5 <= score <= 10  # Base 5 + bonuses
