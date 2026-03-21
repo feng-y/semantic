@@ -120,8 +120,8 @@ class TestCommitSemanticScoring:
             "module": "unknown"
         }
 
-        score_with = runner._score_unit(unit_with_module, None)
-        score_without = runner._score_unit(unit_unknown, None)
+        score_with = runner._score_unit(unit_with_module)
+        score_without = runner._score_unit(unit_unknown)
 
         assert score_with > score_without
 
@@ -135,5 +135,5 @@ class TestCommitSemanticScoring:
             "module": "parser"
         }
 
-        score = runner._score_unit(clear_unit, None)
+        score = runner._score_unit(clear_unit)
         assert 5 <= score <= 10  # Base 5 + bonuses

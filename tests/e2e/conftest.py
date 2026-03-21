@@ -42,15 +42,16 @@ def workspace_with_fact_baseline(tmp_path: Path) -> Path:
 @pytest.fixture
 def workspace_with_extract_output(tmp_path: Path) -> Path:
     """Create workspace with mock commit-extract output for commit-semantic tests."""
-    # Create .harness structure
     harness = tmp_path / ".harness"
     (harness / "state/commit-extract").mkdir(parents=True)
     (harness / "state/commit-semantic").mkdir(parents=True)
 
-    # Create mock commit-extract output directory
-    (harness / "outputs/commit-extract").mkdir(parents=True)
-    # Create a mock patterns file
-    (harness / "outputs/commit-extract/patterns.yaml").write_text("# Mock patterns\n")
+    # Create mock commit-extract output where the skill expects it
+    extract_dir = tmp_path / "data" / "commit-extract"
+    extract_dir.mkdir(parents=True)
+    (extract_dir / "2024-01.yaml").write_text(
+        "metadata:\n  month: '2024-01'\n  total_commits: 1\ncommits: []\n"
+    )
 
     return tmp_path
 
