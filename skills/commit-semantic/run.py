@@ -15,6 +15,7 @@ Output: data/commit-semantic/
 
 from __future__ import annotations
 
+import argparse
 import os
 import sys
 from collections import defaultdict
@@ -363,6 +364,29 @@ class CommitSemanticRunner(SkillRunner):
         if not self._require_prerequisites():
             return 1
         return super().handle_resume()
+
+
+    def handle_run(self, remaining: list[str] | None = None) -> int:
+        """Override to handle command-line args including --stage."""
+        argv = remaining or []
+        parser = argparse.ArgumentParser()
+        parser.add_argument("--stage", help="Run a specific stage instead of all")
+        args = parser.parse_args(argv)
+
+        if args.stage:
+            # Run single stage
+            if args.stage not in self.STAGES:
+                print(f"[{self.PIPELINE}] Unknown stage: {args.stage}. Available: {', '.join(self.STAGES)}")
+                return 1
+            if not self._require_prerequisites():
+                return 1
+            state = self.init_state()
+            from src.harness_state import save_state
+            save_state(self.PIPELINE, state)
+            success = self.run_stage(args.stage, state)
+            return 0 if success else 1
+
+        return super().handle_run()
 
 
 if __name__ == "__main__":

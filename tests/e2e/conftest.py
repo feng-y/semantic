@@ -72,6 +72,49 @@ def run_skill():
 
 
 @pytest.fixture
+def temp_git_repo(tmp_path: Path) -> Path:
+    """Create a temporary git repo with sample commits."""
+    repo_dir = tmp_path / "git-repo"
+    repo_dir.mkdir()
+
+    # Initialize git repo
+    subprocess.run(["git", "init"], cwd=repo_dir, capture_output=True)
+    subprocess.run(
+        ["git", "config", "user.email", "test@example.com"],
+        cwd=repo_dir, capture_output=True
+    )
+    subprocess.run(
+        ["git", "config", "user.name", "Test User"],
+        cwd=repo_dir, capture_output=True
+    )
+
+    # Create a sample file
+    (repo_dir / "README.md").write_text("# Test\n")
+
+    # Create commits with different types
+    commits = [
+        ("feat: add user authentication module", "feat: add user authentication module\n\nImplement login/logout with JWT."),
+        ("fix: correct parser edge case", "fix: correct parser edge case\n\nHandle empty input gracefully."),
+        ("refactor: simplify reader logic", "refactor: simplify reader logic\n\nExtract helper functions."),
+        ("test: add unit tests for client", "test: add unit tests for client\n\nCover happy and error paths."),
+        ("config: add CI pipeline", "config: add CI pipeline\n\nGitHub Actions workflow."),
+        ("feat: optimize database queries", "feat: optimize database queries\n\nAdd index on user_id."),
+        ("bugfix: fix memory leak in server", "bugfix: fix memory leak in server\n\nClose connections properly."),
+        ("cleanup: remove dead code", "cleanup: remove dead code\n\nDelete unused helper functions."),
+    ]
+
+    for msg, body in commits:
+        (repo_dir / "README.md").write_text((repo_dir / "README.md").read_text() + f"\n{msg[:10]}")
+        subprocess.run(["git", "add", "."], cwd=repo_dir, capture_output=True)
+        subprocess.run(
+            ["git", "commit", "-m", f"{msg}\n\n{body}"],
+            cwd=repo_dir, capture_output=True
+        )
+
+    return repo_dir
+
+
+@pytest.fixture
 def load_state():
     """Load state JSON from workspace."""
     def _load(workspace: Path, skill: str) -> dict | None:

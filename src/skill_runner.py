@@ -195,21 +195,32 @@ class SkillRunner(ABC):
         return self.handle_resume()
 
     def main(self, argv: list[str] | None = None) -> int:
+        import sys as _sys
+        # Normalize: ensure list-of-strings (not a single joined string).
+        if argv is None:
+            raw = _sys.argv[1:]
+        else:
+            raw = argv
+        if len(raw) == 1 and isinstance(raw[0], str) and " " in raw[0]:
+            raw = raw[0].split()
+
         parser = argparse.ArgumentParser(description=f"{self.PIPELINE} skill")
         parser.add_argument("intent", nargs="?", default="run")
-        args = parser.parse_args(argv)
+        # Consume known intent arg; leave skill-specific args for handler
+        args, extra = parser.parse_known_args(raw)
+        remaining = extra if extra else []
 
         intent = parse_intent([self.PIPELINE, args.intent])
 
-        handlers = {
+        handlers: dict[str, callable] = {
             "status": self.handle_status,
             "reset": self.handle_reset,
             "step": self.handle_step,
             "resume": self.handle_resume,
-            "run": self.handle_run,
+            "run": lambda: self.handle_run(remaining),
         }
 
-        handler = handlers.get(intent, self.handle_run)
+        handler = handlers.get(intent, handlers["run"])
         return handler()
 
 

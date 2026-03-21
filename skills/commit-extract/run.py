@@ -295,8 +295,9 @@ class CommitExtractRunner(SkillRunner):
         self.add_artifact(state, str(OUTPUT_BASE))
         return True
 
-    def handle_run(self, argv: list[str] | None = None) -> int:
+    def handle_run(self, remaining: list[str] | None = None) -> int:
         """Override to handle command-line args."""
+        argv = remaining or []
         parser = argparse.ArgumentParser()
         parser.add_argument("--repo", default=".")
         parser.add_argument("--range", help="Commit range")
