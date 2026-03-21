@@ -1,7 +1,12 @@
 ---
 name: commit-semantic-generate
 description: Generate semantic fields for a semantic case
+deprecated: true
+replacement: /commit-semantic --stage generate
 ---
+
+> **DEPRECATED**: This skill is deprecated and will be removed in a future version.
+> Use `/commit-semantic --stage generate` instead, which provides the same functionality in a unified interface.
 
 # commit-semantic-generate
 

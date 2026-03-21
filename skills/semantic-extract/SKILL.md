@@ -1,7 +1,12 @@
 ---
 name: semantic-extract
 description: Extract semantic information from git commits - both commit_log and rules/invariants
+deprecated: true
+replacement: /commit-extract (consolidated command)
 ---
+
+> **DEPRECATED**: This skill is deprecated and will be removed in a future version.
+> Use `/commit-extract` instead, which provides the same functionality in a unified interface.
 
 # semantic-extract
 

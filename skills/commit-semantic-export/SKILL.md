@@ -1,7 +1,12 @@
 ---
 name: commit-semantic-export
 description: Export validated semantic cases to disk
+deprecated: true
+replacement: /commit-semantic --stage export
 ---
+
+> **DEPRECATED**: This skill is deprecated and will be removed in a future version.
+> Use `/commit-semantic --stage export` instead, which provides the same functionality in a unified interface.
 
 # commit-semantic-export
 

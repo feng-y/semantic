@@ -1,7 +1,12 @@
 ---
 name: commit-semantic-collect
 description: Extract semantic cases from git history
+deprecated: true
+replacement: /commit-extract --stage collect
 ---
+
+> **DEPRECATED**: This skill is deprecated and will be removed in a future version.
+> Use `/commit-extract --stage collect` instead, which provides the same functionality in a unified interface.
 
 # commit-semantic-collect
 

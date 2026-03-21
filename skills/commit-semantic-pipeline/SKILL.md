@@ -1,11 +1,16 @@
 ---
 name: commit-semantic-pipeline
 description: "Run full commit-semantic pipeline: collect → generate → export"
+deprecated: true
+replacement: /commit-semantic (consolidated command)
 triggers:
   - commit-semantic-pipeline
   - run commit semantic pipeline
   - commit semantic all
 ---
+
+> **DEPRECATED**: This skill is deprecated and will be removed in a future version.
+> Use `/commit-semantic` (consolidated) instead, which provides the same functionality in a unified interface.
 
 # commit-semantic-pipeline
 
