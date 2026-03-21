@@ -1,5 +1,10 @@
 """
 Unified pipeline runner for commit-semantic stages: collect, generate, export.
+
+.. deprecated::
+   This module is deprecated. Use ``skills/commit-semantic/run.py`` instead,
+   which follows the Team Agent architecture (SKILL.md + prompts/*.md + Task tool).
+   See docs/superpowers/ARCHITECTURE.md for the architecture pattern.
 """
 
 import importlib.util
