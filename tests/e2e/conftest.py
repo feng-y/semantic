@@ -25,8 +25,9 @@ def workspace(tmp_path: Path) -> Path:
 @pytest.fixture
 def run_skill():
     """Factory for running skills in test workspace."""
+    repo_root = Path(__file__).parent.parent.parent
     def _run(skill: str, args: str, cwd: Path | None = None) -> subprocess.CompletedProcess:
-        cmd = [sys.executable, f"skills/{skill}/run.py"] + args.split()
+        cmd = [sys.executable, str(repo_root / f"skills/{skill}/run.py")] + args.split()
         return subprocess.run(
             cmd,
             capture_output=True,
@@ -40,7 +41,7 @@ def run_skill():
 def load_state():
     """Load state JSON from workspace."""
     def _load(workspace: Path, skill: str) -> dict | None:
-        path = workspace / ".harness" / "state" / skill / "run-state.json"
+        path = workspace / ".harness" / "state" / skill / "state.json"
         if not path.exists():
             return None
         return json.loads(path.read_text())

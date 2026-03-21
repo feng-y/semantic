@@ -15,13 +15,13 @@ def test_extract_run_full_pipeline(workspace: Path, run_skill):
     assert result.returncode == 0
     assert "Complete" in result.stdout or "breakpoint" in result.stdout
 
-    # Check state file created
-    state_path = workspace / ".harness/state/commit-extract/run-state.json"
+    # Check state file created (uses state.json not run-state.json)
+    state_path = workspace / ".harness/state/commit-extract/state.json"
     assert state_path.exists()
 
     state = json.loads(state_path.read_text())
-    assert state["command"] == "commit-extract"
-    assert "collect" in state["completed_stages"]
+    assert state["stage"] == "complete"
+    assert "collect" in state["metadata"]["completed_stages"]
 
 
 def test_extract_status_no_state(workspace: Path, run_skill):
@@ -40,9 +40,9 @@ def test_extract_step_and_breakpoint(workspace: Path, run_skill, load_state):
 
     state = load_state(workspace, "commit-extract")
     assert state is not None
-    assert state["status"] == "breakpoint"
-    assert "collect" in state["completed_stages"]
-    assert state["current_stage"] is None  # Completed, not running
+    assert state["metadata"]["status"] == "breakpoint"
+    assert "collect" in state["metadata"]["completed_stages"]
+    assert state["metadata"]["current_stage"] is None  # Completed, not running
 
 
 def test_extract_resume_continues(workspace: Path, run_skill, load_state):
@@ -55,8 +55,8 @@ def test_extract_resume_continues(workspace: Path, run_skill, load_state):
     assert result.returncode == 0
 
     state = load_state(workspace, "commit-extract")
-    assert state["status"] == "ok"
-    assert len(state["completed_stages"]) == 3  # All stages
+    assert state["metadata"]["status"] == "ok"
+    assert len(state["metadata"]["completed_stages"]) == 3  # All stages
 
 
 def test_extract_reset_clears_state(workspace: Path, run_skill, load_state):
@@ -70,7 +70,7 @@ def test_extract_reset_clears_state(workspace: Path, run_skill, load_state):
     assert "reset" in result.stdout.lower()
 
     state = load_state(workspace, "commit-extract")
-    assert state["completed_stages"] == []
+    assert state["metadata"]["completed_stages"] == []
 
 
 def test_extract_status_reports_correctly(workspace: Path, run_skill):

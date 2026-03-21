@@ -4,75 +4,100 @@
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from src.harness_state import HarnessState, load_state, save_state, get_next_stage
+from src.harness_state import HarnessState, load_state, save_state
 from src.intent_router import parse_intent
 
 # Stages in order
 STAGES = ["collect", "extract", "pattern"]
 
-STATE_PATH = Path(".harness/state/commit-extract/run-state.json")
-OUTPUT_DIR = Path(".harness/outputs/commit-extract")
+PIPELINE = "commit-extract"
+
+
+def get_completed_stages(state: HarnessState) -> list[str]:
+    """Get completed stages from state metadata."""
+    return state.metadata.get("completed_stages", [])
+
+
+def get_status(state: HarnessState) -> str:
+    """Get status from state metadata."""
+    return state.metadata.get("status", "ok")
+
+
+def get_current_stage(state: HarnessState) -> str | None:
+    """Get current stage from state metadata."""
+    return state.metadata.get("current_stage")
+
+
+def get_artifacts_written(state: HarnessState) -> list[str]:
+    """Get artifacts written from state metadata."""
+    return state.metadata.get("artifacts_written", [])
 
 
 def summary(state: HarnessState) -> str:
     """Generate human-readable summary."""
-    stage_num = len(state.completed_stages)
+    completed = get_completed_stages(state)
+    stage_num = len(completed)
     total = len(STAGES)
+    status = get_status(state)
+    current = get_current_stage(state)
 
-    if state.status == "breakpoint":
+    if status == "breakpoint":
         return (
-            f"[commit-extract] Breakpoint at stage {stage_num+1}/{total} ({state.current_stage}).\n"
-            f"Done: {', '.join(state.completed_stages) or 'none'}\n"
+            f"[commit-extract] Breakpoint at stage {stage_num+1}/{total} ({current}).\n"
+            f"Done: {', '.join(completed) or 'none'}\n"
             f"Next: /commit-extract step or /commit-extract resume"
         )
-    elif state.status == "ok":
+    elif status == "ok":
         return (
             f"[commit-extract] Complete. All {total} stages done.\n"
-            f"Artifacts: {len(state.artifacts_written)} written."
+            f"Artifacts: {len(get_artifacts_written(state))} written."
         )
-    elif state.status == "error":
-        return f"[commit-extract] Error at {state.current_stage}: {state.breakpoint_reason}"
+    elif status == "error":
+        reason = state.metadata.get("breakpoint_reason", "unknown error")
+        return f"[commit-extract] Error at {current}: {reason}"
     else:
-        return f"[commit-extract] Status: {state.status}"
+        return f"[commit-extract] Status: {status}, Stage: {state.stage}"
 
 
 def init_state() -> HarnessState:
     """Create fresh state."""
     return HarnessState(
-        command="commit-extract",
-        status="ok",
-        completed_stages=[],
-        artifacts_written=[],
-        timestamp=datetime.now(timezone.utc).isoformat(),
+        stage="init",
+        metadata={
+            "completed_stages": [],
+            "artifacts_written": [],
+            "status": "ok",
+        },
     )
 
 
 def handle_status() -> int:
     """Handle status intent."""
-    state = load_state(STATE_PATH)
-    if state is None:
+    state = load_state(PIPELINE)
+    if state.stage == "init" and not get_completed_stages(state):
         print("[commit-extract] No state found. Run /commit-extract run to start.")
         return 0
 
     print(summary(state))
-    save_state(state, STATE_PATH)
     return 0
 
 
 def handle_reset() -> int:
     """Handle reset intent."""
-    state = load_state(STATE_PATH)
-    if state:
-        # Keep artifacts, clear state
+    state = load_state(PIPELINE)
+    if state.stage != "init" or get_completed_stages(state):
+        # Preserve artifacts, clear progress
+        old_artifacts = get_artifacts_written(state)
         new_state = init_state()
-        new_state.artifacts_written = state.artifacts_written  # Preserve artifact list
-        save_state(new_state, STATE_PATH)
+        new_state.metadata["artifacts_written"] = old_artifacts
+        save_state(PIPELINE, new_state)
         print("[commit-extract] State reset. Artifacts preserved.")
     else:
         print("[commit-extract] No state to reset.")
@@ -83,92 +108,107 @@ def run_stage(stage: str, state: HarnessState) -> bool:
     """Run a single stage. Returns True on success."""
     print(f"[commit-extract] Running stage: {stage}")
 
+    artifacts = get_artifacts_written(state)
+
     if stage == "collect":
         print("  → Collecting commits from git history")
-        state.artifacts_written.append("commits/commits.jsonl")
+        artifacts.append("commits/commits.jsonl")
 
     elif stage == "extract":
         print("  → Extracting rules and invariants")
-        state.artifacts_written.append("rules/rules.yaml")
-        state.artifacts_written.append("invariants/invariants.yaml")
+        artifacts.append("rules/rules.yaml")
+        artifacts.append("invariants/invariants.yaml")
 
     elif stage == "pattern":
         print("  → Identifying patterns")
-        state.artifacts_written.append("patterns/patterns.yaml")
+        artifacts.append("patterns/patterns.yaml")
 
-    state.completed_stages.append(stage)
-    state.current_stage = None
-    state.timestamp = datetime.now(timezone.utc).isoformat()
+    completed = get_completed_stages(state)
+    completed.append(stage)
+    state.metadata["completed_stages"] = completed
+    state.metadata["artifacts_written"] = artifacts
+    state.metadata["current_stage"] = None
+    state.stage = stage
 
     return True
 
 
+def get_next_stage_from_state(state: HarnessState) -> str | None:
+    """Get next uncompleted stage."""
+    completed = get_completed_stages(state)
+    for s in STAGES:
+        if s not in completed:
+            return s
+    return None
+
+
 def handle_step() -> int:
     """Handle step intent - run single next stage."""
-    state = load_state(STATE_PATH)
-    if state is None:
+    state = load_state(PIPELINE)
+    if state.stage == "init" and not get_completed_stages(state):
         state = init_state()
 
-    next_stage = get_next_stage(STAGES, state.completed_stages)
+    next_stage = get_next_stage_from_state(state)
     if next_stage is None:
-        state.status = "ok"
+        state.metadata["status"] = "ok"
         print(summary(state))
-        save_state(state, STATE_PATH)
+        save_state(PIPELINE, state)
         return 0
 
-    state.current_stage = next_stage
+    state.metadata["current_stage"] = next_stage
     success = run_stage(next_stage, state)
 
     if success:
-        # Set breakpoint after each step
-        state.status = "breakpoint"
-        state.resume_token = f"step{len(state.completed_stages)+1}_{get_next_stage(STAGES, state.completed_stages) or 'done'}"
-        state.breakpoint_reason = f"Stage {next_stage} complete. Run step to continue or resume for all."
+        state.metadata["status"] = "breakpoint"
+        remaining = [s for s in STAGES if s not in get_completed_stages(state)]
+        next_remaining = remaining[0] if remaining else "done"
+        state.metadata["resume_token"] = f"step{len(get_completed_stages(state))}_{next_remaining}"
+        state.metadata["breakpoint_reason"] = f"Stage {next_stage} complete. Run step to continue or resume for all."
     else:
-        state.status = "error"
-        state.breakpoint_reason = f"Stage {next_stage} failed"
+        state.metadata["status"] = "error"
+        state.metadata["breakpoint_reason"] = f"Stage {next_stage} failed"
 
     print(summary(state))
-    save_state(state, STATE_PATH)
+    save_state(PIPELINE, state)
     return 0 if success else 1
 
 
 def handle_resume() -> int:
     """Handle resume intent - run all remaining stages."""
-    state = load_state(STATE_PATH)
-    if state is None:
+    state = load_state(PIPELINE)
+    if state.stage == "init" and not get_completed_stages(state):
         state = init_state()
 
     while True:
-        next_stage = get_next_stage(STAGES, state.completed_stages)
+        next_stage = get_next_stage_from_state(state)
         if next_stage is None:
             break
 
-        state.current_stage = next_stage
+        state.metadata["current_stage"] = next_stage
         success = run_stage(next_stage, state)
 
         if not success:
-            state.status = "error"
-            state.breakpoint_reason = f"Stage {next_stage} failed"
+            state.metadata["status"] = "error"
+            state.metadata["breakpoint_reason"] = f"Stage {next_stage} failed"
             print(summary(state))
-            save_state(state, STATE_PATH)
+            save_state(PIPELINE, state)
             return 1
 
-    state.status = "ok"
-    state.current_stage = None
-    state.resume_token = None
-    state.breakpoint_reason = None
+    state.metadata["status"] = "ok"
+    state.metadata["current_stage"] = None
+    state.metadata["resume_token"] = None
+    state.metadata["breakpoint_reason"] = None
+    state.stage = "complete"
 
     print(summary(state))
-    save_state(state, STATE_PATH)
+    save_state(PIPELINE, state)
     return 0
 
 
 def handle_run() -> int:
     """Handle run intent - full pipeline."""
-    # Reset state for fresh run
     state = init_state()
-    save_state(state, STATE_PATH)
+    save_state(PIPELINE, state)
     return handle_resume()
 
 
