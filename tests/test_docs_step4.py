@@ -11,7 +11,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 REQUIRED_DOCS = ["README.md", "INSTALL.md", "USER_GUIDE.md", "CHANGELOG.md"]
 
 README_SECTIONS = [
-    "Four Capabilities",
+    "Five Capabilities",
     "Quick Start",
     "Capabilities",
     "Repository Layout",

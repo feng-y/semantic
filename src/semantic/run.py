@@ -25,7 +25,7 @@ def load_state(path: Path, mode: str) -> RunState:
     if path.exists():
         data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
         # Validate mode is a known Literal value; fallback to param if not
-        loaded_mode = data.get("mode", mode)
+        loaded_mode = data.pop("mode", mode)
         if loaded_mode not in ("next", "all", "resume", "reset"):
             loaded_mode = mode
         return RunState(**data, mode=loaded_mode)
