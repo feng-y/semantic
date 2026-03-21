@@ -1,9 +1,9 @@
 """Tests for src/semantic/status.py"""
-import pytest
 from pathlib import Path
+
 import yaml
 
-from src.semantic.status import get_status, StatusReport
+from src.semantic.status import get_status
 
 
 def write_state(tmp_path: Path, data: dict) -> None:

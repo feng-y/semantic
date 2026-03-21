@@ -1,11 +1,10 @@
 """Tests for discovery pipeline error propagation."""
 
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
 
-from src.discovery_executor import DiscoveryResult, StepResult, run_discovery
+from src.discovery_executor import StepResult, run_discovery
 
 
 @pytest.fixture

@@ -12,17 +12,15 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+from src.commit_semantic.model_optimizer import ModelOptimizerConfig
 from src.commit_semantic.patterning import (
     PatternInput,
-    select_canonical_pattern_case,
     _filter_pattern_by_semantic_value,
-    _select_pattern_by_rules,
-    pair_similarity,
     cluster_within_bucket,
     group_patterns,
+    pair_similarity,
+    select_canonical_pattern_case,
 )
-from src.commit_semantic.model_optimizer import ModelOptimizerConfig
-
 
 # ---------------------------------------------------------------------------
 # Fixtures

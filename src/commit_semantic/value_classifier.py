@@ -8,9 +8,9 @@ Classifies semantic cases as high/medium/low value based on:
 - Ability to form stable semantic package
 """
 
-from typing import List
-from dataclasses import dataclass, field
-from src.types import RawCommit, ChangeGroup, SemanticCaseInput
+from dataclasses import dataclass
+
+from src.types import ChangeGroup, RawCommit, SemanticCaseInput
 
 
 @dataclass
@@ -35,7 +35,7 @@ _DEFAULT_CONFIG = ValueClassifierConfig()
 
 def classify_semantic_value(
     commit: RawCommit,
-    groups: List[ChangeGroup],
+    groups: list[ChangeGroup],
     case: SemanticCaseInput,
     config: ValueClassifierConfig = _DEFAULT_CONFIG,
 ) -> str:
@@ -57,7 +57,7 @@ def classify_semantic_value(
     return "medium"
 
 
-def _is_low_value(commit: RawCommit, groups: List[ChangeGroup], case: SemanticCaseInput) -> bool:
+def _is_low_value(commit: RawCommit, groups: list[ChangeGroup], case: SemanticCaseInput) -> bool:
     """Check if case has low semantic value."""
 
     # A. Format/lint/doc only
@@ -85,7 +85,7 @@ def _is_low_value(commit: RawCommit, groups: List[ChangeGroup], case: SemanticCa
 
 def _is_high_value(
     commit: RawCommit,
-    groups: List[ChangeGroup],
+    groups: list[ChangeGroup],
     case: SemanticCaseInput,
     config: ValueClassifierConfig = _DEFAULT_CONFIG,
 ) -> bool:
@@ -227,7 +227,7 @@ def _is_pure_threshold_tweak(commit: RawCommit, case: SemanticCaseInput) -> bool
     return False
 
 
-def _cannot_form_stable_semantic(groups: List[ChangeGroup], case: SemanticCaseInput) -> bool:
+def _cannot_form_stable_semantic(groups: list[ChangeGroup], case: SemanticCaseInput) -> bool:
     """Check if case cannot form stable semantic package."""
 
     # Too scattered (very high threshold)

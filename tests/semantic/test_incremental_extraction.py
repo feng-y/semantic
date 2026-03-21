@@ -2,24 +2,24 @@
 Integration tests for incremental signals extraction
 """
 
-import pytest
-from pathlib import Path
-import json
-import yaml
 import sys
 import time
+from pathlib import Path
+
+import pytest
+import yaml
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
 from semantic.change_detector import ChangeDetector
-from semantic.signal_cache import SignalCache
 from semantic.extract_signals import (
-    extract_domain_signals,
     extract_concept_signals,
+    extract_demand_pattern_signals,
+    extract_domain_signals,
     extract_rule_signals,
-    extract_demand_pattern_signals
 )
+from semantic.signal_cache import SignalCache
 
 
 @pytest.fixture
@@ -98,11 +98,11 @@ def test_first_run_full_extraction(tmp_path, fact_files):
 
     # Load and extract signals
     canonical_path = fact_files / "fact_canonical_sample.yaml"
-    with open(canonical_path, 'r') as f:
+    with open(canonical_path) as f:
         canonical = yaml.safe_load(f)
 
     working_path = fact_files / "fact_working_summary_sample.yaml"
-    with open(working_path, 'r') as f:
+    with open(working_path) as f:
         working = yaml.safe_load(f)
 
     signals = extract_all_signals(canonical, working)
@@ -134,7 +134,7 @@ def test_second_run_no_changes_all_cached(tmp_path, fact_files):
     changes1 = detector1.detect_changes()
 
     canonical_path = fact_files / "fact_canonical_sample.yaml"
-    with open(canonical_path, 'r') as f:
+    with open(canonical_path) as f:
         canonical = yaml.safe_load(f)
 
     signals = extract_all_signals(canonical, None)
@@ -171,9 +171,9 @@ def test_partial_file_change_incremental(tmp_path, fact_files):
     canonical_path = fact_files / "fact_canonical_sample.yaml"
     working_path = fact_files / "fact_working_summary_sample.yaml"
 
-    with open(canonical_path, 'r') as f:
+    with open(canonical_path) as f:
         canonical = yaml.safe_load(f)
-    with open(working_path, 'r') as f:
+    with open(working_path) as f:
         working = yaml.safe_load(f)
 
     canonical_signals = extract_all_signals(canonical, None)
@@ -228,7 +228,7 @@ def test_cache_clear_forces_full_extraction(tmp_path, fact_files):
     changes = detector.detect_changes()
 
     canonical_path = fact_files / "fact_canonical_sample.yaml"
-    with open(canonical_path, 'r') as f:
+    with open(canonical_path) as f:
         canonical = yaml.safe_load(f)
 
     signals = extract_all_signals(canonical, None)
@@ -255,7 +255,7 @@ def test_performance_cache_vs_extraction(tmp_path, fact_files):
     cache = SignalCache(cache_dir)
 
     canonical_path = fact_files / "fact_canonical_sample.yaml"
-    with open(canonical_path, 'r') as f:
+    with open(canonical_path) as f:
         canonical = yaml.safe_load(f)
 
     # Measure extraction time
@@ -551,7 +551,7 @@ def test_incremental_extraction_complete_workflow(tmp_path, fact_data):
     assert len(changes1['added']) == 2
 
     # Extract and cache
-    with open(canonical_path, 'r') as f:
+    with open(canonical_path) as f:
         canonical = yaml.safe_load(f)
     signals1 = extract_all_signals(canonical, None)
 
@@ -578,7 +578,7 @@ def test_incremental_extraction_complete_workflow(tmp_path, fact_data):
     assert len(changes3['unchanged']) == 1
 
     # Re-extract changed file
-    with open(canonical_path, 'r') as f:
+    with open(canonical_path) as f:
         canonical_new = yaml.safe_load(f)
     signals3 = extract_all_signals(canonical_new, None)
 

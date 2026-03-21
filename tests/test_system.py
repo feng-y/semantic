@@ -7,18 +7,15 @@ helpers; others add new coverage for gaps.
 from __future__ import annotations
 
 import json
-import re
 import shutil
-import subprocess
 import sys
 from pathlib import Path
-from typing import Any
 
 import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from src import artifact_writer, context_builder
+from src import context_builder
 from src.artifact_writer import (
     check_semantic_snapshot,
     commit_staged,
@@ -30,21 +27,16 @@ from src.artifact_writer import (
     write_baseline,
     write_semantic_snapshot,
 )
+from src.discovery_executor import validate_artifact_content
 from src.refine_executor import (
     BASELINE_SECTIONS,
-    KNOWLEDGE_CONFIDENCE_SECTIONS,
-    REPO_UNDERSTANDING_SECTIONS,
     _check_acceptance,
-    _has_any_section_heading,
     evaluate_acceptance,
     parse_baseline_output,
     run_refine,
-    validate_baseline_artifact,
     validate_refined_artifact,
 )
-from src.discovery_executor import validate_artifact_content
 from tests.fake_executors import stub_executor
-
 
 # ---------------------------------------------------------------------------
 # Fixtures & Helpers

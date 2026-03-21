@@ -1,8 +1,9 @@
 """Tests for src/semantic/validate.py"""
+
 import pytest
 import yaml
-from pathlib import Path
-from src.semantic.validate import validate_stage, ValidationResult
+
+from src.semantic.validate import validate_stage
 
 
 @pytest.fixture

@@ -4,20 +4,25 @@ End-to-end golden fixture tests for the semantic pipeline.
 These tests verify the full chain works without LLM calls,
 using pre-built fixture data to catch regressions.
 """
+import shutil
+import sys
+from pathlib import Path
+
 import pytest
 import yaml
-import shutil
-from pathlib import Path
-import sys
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
-from semantic.extract_signals import extract_signals_from_files, load_fact_canonical, load_fact_working_summary
-from semantic.signal_cache import SignalCache
-from semantic.change_detector import ChangeDetector
-from semantic.validate import validate_stage
-from semantic.status import get_status
 from semantic.build_candidates import synthesize_domain_candidates
+from semantic.change_detector import ChangeDetector
+from semantic.extract_signals import (
+    extract_signals_from_files,
+    load_fact_canonical,
+    load_fact_working_summary,
+)
+from semantic.signal_cache import SignalCache
+from semantic.status import get_status
+from semantic.validate import validate_stage
 
 FIXTURES_DIR = Path(__file__).parent.parent / "fixtures" / "semantic"
 

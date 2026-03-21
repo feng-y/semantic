@@ -17,7 +17,6 @@ from src.discovery_executor import run_discovery
 from src.refine_executor import run_refine
 from tests.fake_executors import stub_executor
 
-
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
 

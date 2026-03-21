@@ -1,6 +1,8 @@
 from __future__ import annotations
-from typing import List, Optional, Literal, Dict, Any
+
 from enum import Enum
+from typing import Any, Literal
+
 from pydantic import BaseModel, Field, model_validator
 
 CandidateType = Literal["domain", "concept", "rule", "demand_model"]
@@ -17,7 +19,7 @@ class Signal(BaseModel):
     source: str
     evidence: str
     confidence: ConfidenceLevel
-    summary: Optional[str] = None
+    summary: str | None = None
 
 class DomainSignal(Signal):
     """Domain boundary indicator signal"""
@@ -37,10 +39,10 @@ class DemandPatternSignal(Signal):
 
 class SignalsOutput(BaseModel):
     """Complete signals output structure"""
-    domain_signals: List[DomainSignal] = Field(default_factory=list)
-    concept_signals: List[ConceptSignal] = Field(default_factory=list)
-    rule_signals: List[RuleSignal] = Field(default_factory=list)
-    demand_pattern_signals: List[DemandPatternSignal] = Field(default_factory=list)
+    domain_signals: list[DomainSignal] = Field(default_factory=list)
+    concept_signals: list[ConceptSignal] = Field(default_factory=list)
+    rule_signals: list[RuleSignal] = Field(default_factory=list)
+    demand_pattern_signals: list[DemandPatternSignal] = Field(default_factory=list)
 
     class Config:
         extra = "allow"
@@ -54,9 +56,9 @@ class DomainCandidate(BaseModel):
     id: str
     name: str
     summary: str
-    boundary: Dict[str, Any]
-    source_signal_ids: List[str] = Field(default_factory=list)
-    evidence_refs: List[str] = Field(default_factory=list)
+    boundary: dict[str, Any]
+    source_signal_ids: list[str] = Field(default_factory=list)
+    evidence_refs: list[str] = Field(default_factory=list)
     confidence: ConfidenceLevel
 
 class ConceptCandidate(BaseModel):
@@ -64,9 +66,9 @@ class ConceptCandidate(BaseModel):
     id: str
     name: str
     summary: str
-    relationships: List[str] = Field(default_factory=list)
-    source_signal_ids: List[str] = Field(default_factory=list)
-    evidence_refs: List[str] = Field(default_factory=list)
+    relationships: list[str] = Field(default_factory=list)
+    source_signal_ids: list[str] = Field(default_factory=list)
+    evidence_refs: list[str] = Field(default_factory=list)
     confidence: ConfidenceLevel
 
 class RuleCandidate(BaseModel):
@@ -74,8 +76,8 @@ class RuleCandidate(BaseModel):
     id: str
     name: str
     summary: str
-    source_signal_ids: List[str] = Field(default_factory=list)
-    evidence_refs: List[str] = Field(default_factory=list)
+    source_signal_ids: list[str] = Field(default_factory=list)
+    evidence_refs: list[str] = Field(default_factory=list)
     confidence: ConfidenceLevel
 
 class DemandModelCandidate(BaseModel):
@@ -83,16 +85,16 @@ class DemandModelCandidate(BaseModel):
     id: str
     name: str
     summary: str
-    source_signal_ids: List[str] = Field(default_factory=list)
-    evidence_refs: List[str] = Field(default_factory=list)
+    source_signal_ids: list[str] = Field(default_factory=list)
+    evidence_refs: list[str] = Field(default_factory=list)
     confidence: ConfidenceLevel
 
 class CandidatesOutput(BaseModel):
     """Complete candidates output structure"""
-    domains: List[DomainCandidate] = Field(default_factory=list)
-    concepts: List[ConceptCandidate] = Field(default_factory=list)
-    rules: List[RuleCandidate] = Field(default_factory=list)
-    demand_models: List[DemandModelCandidate] = Field(default_factory=list)
+    domains: list[DomainCandidate] = Field(default_factory=list)
+    concepts: list[ConceptCandidate] = Field(default_factory=list)
+    rules: list[RuleCandidate] = Field(default_factory=list)
+    demand_models: list[DemandModelCandidate] = Field(default_factory=list)
 
     class Config:
         extra = "allow"
@@ -133,13 +135,13 @@ class RecommendationItem(BaseModel):
     value_score: float = Field(ge=1.0, le=10.0)
     priority: float = Field(ge=1.0, le=10.0)
     recommendation: RecommendationBody
-    recommended_reasons: List[str]
-    not_recommended_reasons: List[str]
+    recommended_reasons: list[str]
+    not_recommended_reasons: list[str]
     needs_evidence_check: bool = False
-    evidence_gap: Optional[str] = None
-    merge_target: Optional[str] = None
-    source_candidate_ids: List[str] = Field(default_factory=list)
-    evidence_refs: List[str] = Field(default_factory=list)
+    evidence_gap: str | None = None
+    merge_target: str | None = None
+    source_candidate_ids: list[str] = Field(default_factory=list)
+    evidence_refs: list[str] = Field(default_factory=list)
 
     @model_validator(mode="after")
     def check_priority(self):
@@ -170,10 +172,10 @@ class DemandModelRecommendation(RecommendationItem):
 
 class RecommendationsOutput(BaseModel):
     """Complete recommendations output structure"""
-    domains: List[DomainRecommendation] = Field(default_factory=list)
-    concepts: List[ConceptRecommendation] = Field(default_factory=list)
-    rules: List[RuleRecommendation] = Field(default_factory=list)
-    demand_models: List[DemandModelRecommendation] = Field(default_factory=list)
+    domains: list[DomainRecommendation] = Field(default_factory=list)
+    concepts: list[ConceptRecommendation] = Field(default_factory=list)
+    rules: list[RuleRecommendation] = Field(default_factory=list)
+    demand_models: list[DemandModelRecommendation] = Field(default_factory=list)
 
     class Config:
         extra = "allow"

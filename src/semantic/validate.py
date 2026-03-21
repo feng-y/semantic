@@ -4,7 +4,7 @@ Validates that each stage produced the expected output artifacts.
 """
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import List
+
 import yaml
 
 
@@ -12,10 +12,10 @@ import yaml
 class ValidationResult:
     stage: str
     passed: bool
-    errors: List[str] = field(default_factory=list)
+    errors: list[str] = field(default_factory=list)
 
 
-def _load_yaml(path: Path, errors: List[str]):
+def _load_yaml(path: Path, errors: list[str]):
     """Load a YAML file, appending to errors on failure. Returns None on error."""
     if not path.exists():
         errors.append(f"{path.name} not found")
@@ -28,7 +28,7 @@ def _load_yaml(path: Path, errors: List[str]):
         return None
 
 
-def _check_key(data: dict, key: str, filename: str, errors: List[str]) -> bool:
+def _check_key(data: dict, key: str, filename: str, errors: list[str]) -> bool:
     if key not in data:
         errors.append(f"{filename} missing required key '{key}'")
         return False
@@ -37,7 +37,7 @@ def _check_key(data: dict, key: str, filename: str, errors: List[str]) -> bool:
 
 def validate_stage(stage_name: str, workspace: Path) -> ValidationResult:
     """Validate that a stage produced its expected output artifacts."""
-    errors: List[str] = []
+    errors: list[str] = []
 
     if stage_name == "step1_signals":
         data = _load_yaml(workspace / "signals.yaml", errors)

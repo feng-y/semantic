@@ -1,6 +1,8 @@
 from __future__ import annotations
+
 from enum import Enum
-from typing import Literal, Optional
+from typing import Literal
+
 from pydantic import BaseModel, model_validator
 
 CandidateType = Literal["domain", "concept", "rule", "demand_model"]
@@ -17,7 +19,7 @@ class ReviewDecision(BaseModel):
     candidate_type: CandidateType
     final_action: FinalAction
     final_reason: str
-    merge_target: Optional[str] = None
+    merge_target: str | None = None
 
     @model_validator(mode="after")
     def check_merge(self):

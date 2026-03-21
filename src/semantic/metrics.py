@@ -14,13 +14,12 @@ Usage:
 """
 import time
 from contextlib import contextmanager
-from typing import Dict, List
 
 
 class MetricsCollector:
     def __init__(self, enabled: bool = False):
         self.enabled = enabled
-        self._timings: Dict[str, List[float]] = {}  # phase -> list of durations (ms)
+        self._timings: dict[str, list[float]] = {}  # phase -> list of durations (ms)
 
     @contextmanager
     def time(self, phase: str):
@@ -45,6 +44,6 @@ class MetricsCollector:
             parts.append(f"{phase}: {total_ms:.1f}ms")
         return "[metrics] " + ", ".join(parts)
 
-    def get_timings(self) -> Dict[str, float]:
+    def get_timings(self) -> dict[str, float]:
         """Return dict of phase -> total_ms for testing."""
         return {phase: sum(durations) for phase, durations in self._timings.items()}

@@ -2,7 +2,6 @@
 
 import json
 import re
-from typing import List, Tuple
 
 # Load prompts once at module level to avoid repeated disk reads
 _EXTRACT_PROMPT = None
@@ -80,7 +79,7 @@ def _extract_json(text: str) -> dict | None:
     return None
 
 
-def parse_rules_response(response: str) -> Tuple[List[str], List[str]]:
+def parse_rules_response(response: str) -> tuple[list[str], list[str]]:
     """Parse LLM response for rules/invariants."""
     data = _extract_json(response)
     if data:
@@ -88,7 +87,7 @@ def parse_rules_response(response: str) -> Tuple[List[str], List[str]]:
     return [], []
 
 
-def parse_commit_response(response: str) -> Tuple[str, str, List[str]]:
+def parse_commit_response(response: str) -> tuple[str, str, list[str]]:
     """Parse LLM response for commit refinement."""
     data = _extract_json(response)
     if data:
@@ -96,14 +95,14 @@ def parse_commit_response(response: str) -> Tuple[str, str, List[str]]:
     return "", "", []
 
 
-def extract_rules_invariants(diff: str, commit_msg: str, executor_fn) -> Tuple[List[str], List[str]]:
+def extract_rules_invariants(diff: str, commit_msg: str, executor_fn) -> tuple[list[str], list[str]]:
     """Extract rules/invariants using LLM."""
     prompt = build_rules_prompt(diff, commit_msg)
     response = executor_fn(prompt)
     return parse_rules_response(response)
 
 
-def extract_commit_semantics(diff: str, commit_msg: str, executor_fn) -> Tuple[str, str, List[str]]:
+def extract_commit_semantics(diff: str, commit_msg: str, executor_fn) -> tuple[str, str, list[str]]:
     """Extract commit semantics using LLM."""
     prompt = build_commit_prompt(diff, commit_msg)
     response = executor_fn(prompt)

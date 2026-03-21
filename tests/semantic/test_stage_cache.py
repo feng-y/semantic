@@ -2,11 +2,10 @@
 Tests for StageCache module
 """
 
-import pytest
-from pathlib import Path
 import json
 import sys
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
@@ -37,7 +36,7 @@ def test_cache_ttl_expiry(tmp_path):
     cache.put('build_candidates', 'abc123', data)
     # Force expiry by backdating the index entry
     index_file = tmp_path / "cache" / "stage_index.json"
-    with open(index_file, 'r', encoding='utf-8') as f:
+    with open(index_file, encoding='utf-8') as f:
         index = json.load(f)
     entry_key = 'build_candidates:abc123'
     index[entry_key]['cached_at'] = (

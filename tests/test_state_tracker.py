@@ -5,6 +5,7 @@ Tests for state_tracker module.
 import json
 import tempfile
 from pathlib import Path
+
 import pytest
 
 from src.commit_semantic.state_tracker import StateTracker
@@ -106,7 +107,7 @@ def test_atomic_write():
         assert not state_path.with_suffix('.json.tmp').exists()
 
         # Verify content is valid JSON
-        with open(state_path, 'r') as f:
+        with open(state_path) as f:
             state = json.load(f)
             assert state['version'] == '1.0'
             assert 'abc123' in state['processed_commits']

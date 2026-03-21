@@ -2,20 +2,22 @@
 Tests for semantic review decision generation
 """
 
-import pytest
-from pathlib import Path
-import yaml
 import sys
+from pathlib import Path
+
+import pytest
+import yaml
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
 from semantic.apply_review import (
-    load_recommendations,
     convert_to_review_decision,
     generate_review_decisions,
     generate_stable_id,
-    main
+    load_recommendations,
+    main,
 )
+
 
 def test_load_recommendations():
     """Test loading recommendations.yaml"""
@@ -35,10 +37,10 @@ def test_generate_stable_id():
     """Test stable ID generation"""
     id1 = generate_stable_id("test_name", "domain")
     id2 = generate_stable_id("test_name", "domain")
-    
+
     assert id1 == id2
     assert id1.startswith("review_domain_")
-    
+
     id3 = generate_stable_id("different_name", "domain")
     assert id1 != id3
 
@@ -54,9 +56,9 @@ def test_convert_to_review_decision_keep():
         },
         'evidence_refs': ['evidence1']
     }
-    
+
     decision = convert_to_review_decision(rec, 'domain')
-    
+
     assert decision['id'].startswith('review_domain_')
     assert decision['name'] == 'Test Domain'
     assert decision['final_action'] == 'keep'
@@ -77,9 +79,9 @@ def test_convert_to_review_decision_verify_first():
         },
         'evidence_refs': []
     }
-    
+
     decision = convert_to_review_decision(rec, 'concept')
-    
+
     assert decision['final_action'] == 'verify_first'
     assert 'verification' in decision['final_reason'].lower() or 'pending' in decision['final_reason'].lower()
 
@@ -95,9 +97,9 @@ def test_convert_to_review_decision_drop():
         },
         'evidence_refs': []
     }
-    
+
     decision = convert_to_review_decision(rec, 'rule')
-    
+
     assert decision['final_action'] == 'drop'
 
 def test_generate_review_decisions():
@@ -116,9 +118,9 @@ def test_generate_review_decisions():
         'rules': [],
         'demand_models': []
     }
-    
+
     decisions = generate_review_decisions(recs)
-    
+
     assert 'domains' in decisions
     assert 'concepts' in decisions
     assert 'rules' in decisions
@@ -131,11 +133,11 @@ def test_review_decisions_yaml_structure(tmp_path):
     recs_path = Path("docs/fact/recommendations.yaml")
     if not recs_path.exists():
         pytest.skip("recommendations.yaml not found")
-    
+
     output_decisions = tmp_path / "review-decisions.yaml"
     output_checks = tmp_path / "evidence-checks.yaml"
     md_file = tmp_path / "review-note.md"
-    
+
     sys.argv = [
         'apply_review.py',
         '--recommendations', str(recs_path),
@@ -143,17 +145,17 @@ def test_review_decisions_yaml_structure(tmp_path):
         '--output-checks', str(output_checks),
         '--render-md', str(md_file)
     ]
-    
+
     try:
         main()
     except SystemExit:
         pass
-    
+
     assert output_decisions.exists()
-    
-    with open(output_decisions, 'r') as f:
+
+    with open(output_decisions) as f:
         data = yaml.safe_load(f)
-    
+
     assert 'domains' in data
     assert 'concepts' in data
     assert 'rules' in data
@@ -165,17 +167,17 @@ def test_review_decisions_yaml_structure(tmp_path):
 def test_allowed_final_actions():
     """Test that only allowed final actions are used"""
     allowed_actions = {'keep', 'merge', 'drop', 'backlog', 'verify_first'}
-    
+
     recs_path = Path("docs/fact/recommendations.yaml")
     if not recs_path.exists():
         pytest.skip("recommendations.yaml not found")
-    
+
     recs = load_recommendations(recs_path)
     if not recs:
         pytest.skip("Could not load recommendations")
-    
+
     decisions = generate_review_decisions(recs)
-    
+
     for group in ['domains', 'concepts', 'rules', 'demand_models']:
         for decision in decisions.get(group, []):
             assert decision['final_action'] in allowed_actions
@@ -189,9 +191,9 @@ def test_traceability_preservation():
         'recommendation': {'status': 'recommend', 'action': 'keep'},
         'evidence_refs': ['ev1', 'ev2']
     }
-    
+
     decision = convert_to_review_decision(rec, 'domain')
-    
+
     assert decision['source_recommendation_id'] == rec['id']
     assert decision['source_candidate_id'] == rec['candidate_id']
     assert decision['evidence_refs'] == rec['evidence_refs']
@@ -206,8 +208,8 @@ def test_merge_target_preservation():
         'merge_target': 'concept_target_123',
         'evidence_refs': []
     }
-    
+
     decision = convert_to_review_decision(rec, 'concept')
-    
+
     assert decision['final_action'] == 'merge'
     assert decision['merge_target'] == 'concept_target_123'

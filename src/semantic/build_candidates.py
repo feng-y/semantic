@@ -5,26 +5,28 @@ Synthesizes semantic candidates from signal inputs.
 This is the second stage of the semantic layer.
 """
 
-from pathlib import Path
 import argparse
-import yaml
-from typing import Dict, List, Any, Optional
-from datetime import datetime
 import hashlib
+from datetime import datetime
+from pathlib import Path
+from typing import Any
 
-def load_signals(signals_path: Path) -> Optional[Dict[str, Any]]:
+import yaml
+
+
+def load_signals(signals_path: Path) -> dict[str, Any] | None:
     """Load signals.yaml (primary input)"""
     if not signals_path.exists():
         return None
-    with open(signals_path, 'r', encoding='utf-8') as f:
+    with open(signals_path, encoding='utf-8') as f:
         return yaml.safe_load(f)
 
 def generate_stable_id(name: str, type_prefix: str) -> str:
     """Generate a stable ID from name and type prefix"""
-    content = f"{type_prefix}:{name}".encode('utf-8')
+    content = f"{type_prefix}:{name}".encode()
     return f"{type_prefix}_{hashlib.sha256(content).hexdigest()[:12]}"
 
-def synthesize_domain_candidates(domain_signals: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+def synthesize_domain_candidates(domain_signals: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Synthesize domain candidates from domain signals"""
     candidates = []
 
@@ -64,7 +66,7 @@ def synthesize_domain_candidates(domain_signals: List[Dict[str, Any]]) -> List[D
 
     return candidates
 
-def synthesize_concept_candidates(concept_signals: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+def synthesize_concept_candidates(concept_signals: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Synthesize concept candidates from concept signals"""
     candidates = []
 
@@ -100,7 +102,7 @@ def synthesize_concept_candidates(concept_signals: List[Dict[str, Any]]) -> List
 
     return candidates
 
-def synthesize_rule_candidates(rule_signals: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+def synthesize_rule_candidates(rule_signals: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Synthesize rule candidates from rule signals"""
     candidates = []
 
@@ -119,7 +121,7 @@ def synthesize_rule_candidates(rule_signals: List[Dict[str, Any]]) -> List[Dict[
 
     return candidates
 
-def synthesize_demand_model_candidates(demand_signals: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+def synthesize_demand_model_candidates(demand_signals: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Synthesize demand model candidates from demand pattern signals"""
     candidates = []
 
@@ -138,7 +140,7 @@ def synthesize_demand_model_candidates(demand_signals: List[Dict[str, Any]]) -> 
 
     return candidates
 
-def render_candidates_markdown(candidates_data: Dict[str, Any], output_path: Path):
+def render_candidates_markdown(candidates_data: dict[str, Any], output_path: Path):
     """Render candidates as markdown view"""
     lines = ["# Semantic Candidates", ""]
     lines.append(f"**Generated**: {candidates_data.get('metadata', {}).get('generated_at', 'unknown')}")
@@ -197,9 +199,9 @@ def main():
         from stage_cache import StageCache
 
     try:
-        from semantic.export import export_json, export_graphql
+        from semantic.export import export_graphql, export_json
     except ImportError:
-        from export import export_json, export_graphql
+        from export import export_graphql, export_json
 
     # Load signals
     signals_path = Path(args.signals)

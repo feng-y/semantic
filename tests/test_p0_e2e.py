@@ -10,12 +10,10 @@ Tests the complete flow using synthetic fixtures — no git repo or API calls ne
 6. canonical selection respects semantic_value ranking
 """
 
-import sys
 import json
+import sys
 import tempfile
 from pathlib import Path
-
-import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
@@ -25,14 +23,13 @@ from src.commit_semantic.dedup import (
     group_strict_duplicates,
     select_canonical_duplicate,
 )
-from src.commit_semantic.deduplication import deduplicate_cases, generate_dedup_key
+from src.commit_semantic.deduplication import deduplicate_cases
+from src.commit_semantic.pattern_extraction_v2 import extract_patterns_v2
 from src.commit_semantic.patterning import (
     PatternInput,
     build_pattern_fingerprint,
     group_patterns,
 )
-from src.commit_semantic.pattern_extraction_v2 import extract_patterns_v2
-
 
 # ---------------------------------------------------------------------------
 # Helpers

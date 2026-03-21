@@ -4,15 +4,17 @@ Test P0 implementation: semantic value classification, deduplication, and patter
 """
 
 import sys
-import tempfile
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 
-from src.types import RawCommit, ChangeGroup, SemanticCaseInput, BugfixEvidence, SplitHints
+from src.commit_semantic.deduplication import deduplicate_cases, generate_dedup_key
+from src.commit_semantic.pattern_extraction import (
+    extract_patterns,
+    generate_pattern_fingerprint,
+)
 from src.commit_semantic.value_classifier import classify_semantic_value
-from src.commit_semantic.deduplication import generate_dedup_key, deduplicate_cases
-from src.commit_semantic.pattern_extraction import generate_pattern_fingerprint, extract_patterns
+from src.types import ChangeGroup, RawCommit, SemanticCaseInput
 
 
 def test_value_classifier():

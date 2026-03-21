@@ -1,9 +1,9 @@
 import os
-from typing import List, Dict
-from src.types import RawCommit, ChangeGroup, ChangeRole, BugfixEvidence
+
+from src.types import BugfixEvidence, ChangeGroup, ChangeRole, RawCommit
 
 
-def analyze_file_role(file_path: str, all_files: List[str]) -> ChangeRole:
+def analyze_file_role(file_path: str, all_files: list[str]) -> ChangeRole:
     """Determine the role of a file in the change."""
     file_lower = file_path.lower()
 
@@ -28,7 +28,7 @@ def analyze_file_role(file_path: str, all_files: List[str]) -> ChangeRole:
     return ChangeRole.PRIMARY
 
 
-def extract_change_groups(commit: RawCommit) -> List[ChangeGroup]:
+def extract_change_groups(commit: RawCommit) -> list[ChangeGroup]:
     """
     Extract change groups from a commit.
     Groups related changes together based on semantic coherence.
@@ -52,7 +52,7 @@ def extract_change_groups(commit: RawCommit) -> List[ChangeGroup]:
         # same-named files from different directories (e.g. src/parser/handler.py
         # vs src/utils/handler.py).  The group's .theme is set to the plain stem
         # for downstream compatibility.
-        theme_groups: Dict[str, List[str]] = {}
+        theme_groups: dict[str, list[str]] = {}
         for primary_file in primary_files:
             theme = _qualified_theme(primary_file)
             if theme not in theme_groups:
@@ -119,7 +119,7 @@ def extract_change_groups(commit: RawCommit) -> List[ChangeGroup]:
     return groups
 
 
-def _filter_diff_chunks_for_files(diff_chunks: List[str], files: List[str]) -> List[str]:
+def _filter_diff_chunks_for_files(diff_chunks: list[str], files: list[str]) -> list[str]:
     """
     Filter diff chunks to only include those relevant to the specified files.
 
@@ -204,7 +204,7 @@ def _qualified_theme(file_path: str) -> str:
     return stem
 
 
-def find_related_files(primary_file: str, supporting_files: List[str]) -> List[str]:
+def find_related_files(primary_file: str, supporting_files: list[str]) -> list[str]:
     """Find supporting files related to a primary file."""
     related = []
     primary_base = primary_file.split('/')[-1].split('.')[0]
@@ -227,7 +227,6 @@ def detect_bugfix_evidence(commit: RawCommit, diff_text: str) -> BugfixEvidence:
 
     # Strip diff markers (+/-/space prefix) so keywords in added/removed lines
     # are matched on content only, not accidentally on the marker character.
-    import re as _re
     cleaned_lines = []
     for line in diff_text.splitlines():
         if line.startswith(('+++ ', '--- ', 'diff ', 'index ', '@@ ')):

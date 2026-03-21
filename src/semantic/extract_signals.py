@@ -9,11 +9,12 @@ Supports both full and incremental extraction modes:
 - Incremental mode (--incremental): Only re-extracts signals from changed files
 """
 
-from pathlib import Path
 import argparse
-import yaml
-from typing import Dict, List, Any, Optional
 from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any
+
+import yaml
 
 try:
     from .change_detector import ChangeDetector
@@ -27,7 +28,7 @@ try:
     LSP_AVAILABLE = True
 except ImportError:
     try:
-        from lsp_extractor import extract_lsp_signals_from_dir
+        from lsp_extractor import extract_lsp_signals_from_dir as _extract_lsp  # noqa: F401
         LSP_AVAILABLE = True
     except ImportError:
         LSP_AVAILABLE = False
@@ -35,32 +36,34 @@ except ImportError:
 try:
     from .metrics import MetricsCollector
 except ImportError:
-    from metrics import MetricsCollector
+    from metrics import MetricsCollector as _MetricsCollector  # noqa: F401
 
 try:
-    from .logger import get_logger, configure_logging
+    from .logger import configure_logging
+    from .logger import get_logger
 except ImportError:
-    from logger import get_logger, configure_logging
+    from logger import configure_logging  # type: ignore[misc,no-redef]
+    from logger import get_logger  # type: ignore[misc,no-redef]
 
 logger = get_logger(__name__)
 
-def load_fact_canonical(fact_root: Path) -> Optional[Dict[str, Any]]:
+def load_fact_canonical(fact_root: Path) -> dict[str, Any] | None:
     """Load FACT canonical YAML (primary hard input)"""
     canonical_path = fact_root / "fact_canonical_sample.yaml"
     if not canonical_path.exists():
         return None
-    with open(canonical_path, 'r', encoding='utf-8') as f:
+    with open(canonical_path, encoding='utf-8') as f:
         return yaml.safe_load(f)
 
-def load_fact_working_summary(fact_root: Path) -> Optional[Dict[str, Any]]:
+def load_fact_working_summary(fact_root: Path) -> dict[str, Any] | None:
     """Load FACT working summary YAML (auxiliary soft input)"""
     working_path = fact_root / "fact_working_summary_sample.yaml"
     if not working_path.exists():
         return None
-    with open(working_path, 'r', encoding='utf-8') as f:
+    with open(working_path, encoding='utf-8') as f:
         return yaml.safe_load(f)
 
-def extract_domain_signals(canonical: Dict[str, Any], working: Optional[Dict[str, Any]]) -> List[Dict[str, Any]]:
+def extract_domain_signals(canonical: dict[str, Any], working: dict[str, Any] | None) -> list[dict[str, Any]]:
     """Extract domain boundary indicator signals"""
     signals = []
 
@@ -90,7 +93,7 @@ def extract_domain_signals(canonical: Dict[str, Any], working: Optional[Dict[str
 
     return signals
 
-def extract_concept_signals(canonical: Dict[str, Any], working: Optional[Dict[str, Any]]) -> List[Dict[str, Any]]:
+def extract_concept_signals(canonical: dict[str, Any], working: dict[str, Any] | None) -> list[dict[str, Any]]:
     """Extract concept definition indicator signals"""
     signals = []
 
@@ -120,7 +123,7 @@ def extract_concept_signals(canonical: Dict[str, Any], working: Optional[Dict[st
 
     return signals
 
-def extract_rule_signals(canonical: Dict[str, Any], working: Optional[Dict[str, Any]]) -> List[Dict[str, Any]]:
+def extract_rule_signals(canonical: dict[str, Any], working: dict[str, Any] | None) -> list[dict[str, Any]]:
     """Extract rule/constraint indicator signals"""
     signals = []
 
@@ -151,7 +154,7 @@ def extract_rule_signals(canonical: Dict[str, Any], working: Optional[Dict[str, 
 
     return signals
 
-def extract_demand_pattern_signals(canonical: Dict[str, Any], working: Optional[Dict[str, Any]]) -> List[Dict[str, Any]]:
+def extract_demand_pattern_signals(canonical: dict[str, Any], working: dict[str, Any] | None) -> list[dict[str, Any]]:
     """Extract demand pattern indicator signals"""
     signals = []
 
@@ -182,7 +185,7 @@ def extract_demand_pattern_signals(canonical: Dict[str, Any], working: Optional[
 
     return signals
 
-def render_signals_markdown(signals_data: Dict[str, Any], output_path: Path):
+def render_signals_markdown(signals_data: dict[str, Any], output_path: Path):
     """Render signals as markdown for human review"""
     lines = ["# Semantic Signals\n"]
     lines.append(f"Generated: {signals_data['metadata']['generated_at']}\n")
@@ -204,7 +207,7 @@ def render_signals_markdown(signals_data: Dict[str, Any], output_path: Path):
         f.writelines(lines)
 
 
-def extract_signals_from_files(canonical: Dict[str, Any], working: Optional[Dict[str, Any]]) -> Dict[str, List[Dict[str, Any]]]:
+def extract_signals_from_files(canonical: dict[str, Any], working: dict[str, Any] | None) -> dict[str, list[dict[str, Any]]]:
     """Extract all signal categories from FACT data"""
     return {
         'domain_signals': extract_domain_signals(canonical, working),
@@ -214,7 +217,7 @@ def extract_signals_from_files(canonical: Dict[str, Any], working: Optional[Dict
     }
 
 
-def run_incremental_extraction(fact_root: Path, cache_dir: Path, max_entries: int = 100, ttl_hours: float = 24.0, compress: bool = False) -> Dict[str, List[Dict[str, Any]]]:
+def run_incremental_extraction(fact_root: Path, cache_dir: Path, max_entries: int = 100, ttl_hours: float = 24.0, compress: bool = False) -> dict[str, list[dict[str, Any]]]:
     """
     Run incremental extraction using change detection and caching.
 

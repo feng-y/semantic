@@ -5,12 +5,12 @@ Kept as the single public entry point for export skill code that works with
 plain dicts.  All logic lives in dedup.py; this module is a thin adapter.
 """
 
-from typing import Dict, List, Tuple
 
-from .dedup import DedupInput, build_dedup_key as _build_dedup_key, group_strict_duplicates
+from .dedup import DedupInput, group_strict_duplicates
+from .dedup import build_dedup_key as _build_dedup_key
 
 
-def generate_dedup_key(case: Dict) -> str:
+def generate_dedup_key(case: dict) -> str:
     """
     Generate deduplication key based on:
     - module
@@ -32,9 +32,9 @@ def generate_dedup_key(case: Dict) -> str:
 
 
 def deduplicate_cases(
-    cases: List[Dict],
+    cases: list[dict],
     use_model_optimization: bool = False
-) -> Tuple[List[Dict], List[Dict]]:
+) -> tuple[list[dict], list[dict]]:
     """
     Deduplicate cases based on dedup_key.
 

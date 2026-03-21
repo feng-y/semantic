@@ -1,14 +1,19 @@
 """Semantic Finalization - Generate final semantic asset maps"""
-from pathlib import Path
-import argparse, yaml, hashlib, sys
-from typing import Dict, List, Any
+import argparse
+import hashlib
+import sys
 from datetime import datetime
+from pathlib import Path
+from typing import Any
 
-def load_yaml(path: Path) -> Dict[str, Any]:
-    with open(path, 'r', encoding='utf-8') as f:
+import yaml
+
+
+def load_yaml(path: Path) -> dict[str, Any]:
+    with open(path, encoding='utf-8') as f:
         return yaml.safe_load(f)
 
-def check_unresolved_verifications(checks: Dict) -> List[str]:
+def check_unresolved_verifications(checks: dict) -> list[str]:
     """Return list of unresolved verify_first items"""
     unresolved = []
     for check in checks.get('evidence_checks', []):
@@ -24,10 +29,10 @@ _SINGULAR = {
 }
 
 def generate_final_id(name: str, type_prefix: str) -> str:
-    content = f"{type_prefix}:{name}".encode('utf-8')
+    content = f"{type_prefix}:{name}".encode()
     return f"{type_prefix}_{hashlib.sha256(content).hexdigest()[:12]}"
 
-def finalize_domain(decision: Dict) -> Dict:
+def finalize_domain(decision: dict) -> dict:
     return {
         'id': generate_final_id(decision['name'], 'domain'),
         'name': decision['name'],
@@ -36,7 +41,7 @@ def finalize_domain(decision: Dict) -> Dict:
         'source_decision_id': decision['id']
     }
 
-def finalize_concept(decision: Dict) -> Dict:
+def finalize_concept(decision: dict) -> dict:
     return {
         'id': generate_final_id(decision['name'], 'concept'),
         'name': decision['name'],
@@ -46,7 +51,7 @@ def finalize_concept(decision: Dict) -> Dict:
         'source_decision_id': decision['id']
     }
 
-def finalize_rule(decision: Dict) -> Dict:
+def finalize_rule(decision: dict) -> dict:
     return {
         'id': generate_final_id(decision['name'], 'rule'),
         'name': decision['name'],
@@ -56,7 +61,7 @@ def finalize_rule(decision: Dict) -> Dict:
         'source_decision_id': decision['id']
     }
 
-def finalize_demand_model(decision: Dict) -> Dict:
+def finalize_demand_model(decision: dict) -> dict:
     return {
         'id': generate_final_id(decision['name'], 'demand_model'),
         'name': decision['name'],
@@ -68,32 +73,36 @@ def finalize_demand_model(decision: Dict) -> Dict:
         'source_decision_id': decision['id']
     }
 
-def build_change_log(decisions: Dict) -> Dict:
+def build_change_log(decisions: dict) -> dict:
     added, merged, dropped, deferred = [], [], [], []
-    
+
     for group in ['domains', 'concepts', 'rules', 'demand_models']:
         for dec in decisions.get(group, []):
             action = dec['final_action']
             entry = {'name': dec['name'], 'type': _SINGULAR.get(group, group.rstrip('s')), 'reason': dec['final_reason']}
-            if action == 'keep': added.append(entry)
-            elif action == 'merge': merged.append({**entry, 'target': dec.get('merge_target')})
-            elif action == 'drop': dropped.append(entry)
-            elif action in ['backlog', 'verify_first']: deferred.append(entry)
-    
+            if action == 'keep':
+                added.append(entry)
+            elif action == 'merge':
+                merged.append({**entry, 'target': dec.get('merge_target')})
+            elif action == 'drop':
+                dropped.append(entry)
+            elif action in ['backlog', 'verify_first']:
+                deferred.append(entry)
+
     return {
         'added': added, 'merged': merged, 'dropped': dropped, 'deferred': deferred,
         'metadata': {'generated_at': datetime.now().isoformat(), 'total_changes': len(added)+len(merged)+len(dropped)+len(deferred)}
     }
 
-def render_markdown(data: Dict, title: str, output_path: Path):
+def render_markdown(data: dict, title: str, output_path: Path):
     lines = [f"# {title}\n", f"**Generated**: {data.get('metadata', {}).get('generated_at', 'N/A')}\n"]
-    
+
     items_key = 'domains' if 'domains' in data else 'concepts' if 'concepts' in data else 'rules' if 'rules' in data else 'demand_models' if 'demand_models' in data else None
     if items_key:
         lines.append(f"**Total**: {len(data.get(items_key, []))}\n")
         for item in data.get(items_key, []):
             lines.append(f"## {item['name']}\n- **ID**: `{item['id']}`\n")
-    
+
     output_path.write_text('\n'.join(lines))
 
 def main():

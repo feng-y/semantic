@@ -1,7 +1,4 @@
-import pytest
 from pathlib import Path
-from unittest.mock import patch
-import sys
 
 
 def test_stats_command(tmp_path, capsys):

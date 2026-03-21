@@ -7,25 +7,21 @@ audit logging, metrics, and convenience functions.
 
 import json
 import sys
-import tempfile
 from pathlib import Path
-from unittest.mock import patch, MagicMock
 
 import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+from src.commit_semantic.dedup import DedupInput
 from src.commit_semantic.model_optimizer import (
     ModelOptimizer,
     ModelOptimizerConfig,
-    ModelMetrics,
-    SemanticDuplicateResult,
     QualityScore,
+    SemanticDuplicateResult,
     check_semantic_duplicates,
     score_abstraction_quality,
 )
-from src.commit_semantic.dedup import DedupInput
-
 
 # ---------------------------------------------------------------------------
 # Fixtures

@@ -7,11 +7,10 @@ All logic lives in patterning.py; this module is a thin adapter.
 
 import hashlib
 import re
-from typing import Dict, List
 from collections import defaultdict
 
 
-def generate_pattern_fingerprint(case: Dict) -> str:
+def generate_pattern_fingerprint(case: dict) -> str:
     """
     Generate pattern fingerprint based on:
     - module
@@ -65,7 +64,7 @@ def extract_issue_template(issue_text: str) -> str:
     return text
 
 
-def extract_object_class(files: List[str]) -> str:
+def extract_object_class(files: list[str]) -> str:
     """
     Extract object class from file paths.
 
@@ -95,7 +94,7 @@ def extract_object_class(files: List[str]) -> str:
     return sorted(dirs)[0]
 
 
-def generate_rules_signature(rules: List[str], invariants: List[str]) -> str:
+def generate_rules_signature(rules: list[str], invariants: list[str]) -> str:
     """
     Generate signature from rules and invariants.
 
@@ -128,7 +127,7 @@ def generate_rules_signature(rules: List[str], invariants: List[str]) -> str:
     return '+'.join(sorted(categories))
 
 
-def extract_patterns(cases: List[Dict]) -> List[Dict]:
+def extract_patterns(cases: list[dict]) -> list[dict]:
     """
     Extract patterns from cases.
 
@@ -173,7 +172,7 @@ def extract_patterns(cases: List[Dict]) -> List[Dict]:
     return patterns
 
 
-def select_canonical_case(cases: List[Dict]) -> Dict:
+def select_canonical_case(cases: list[dict]) -> dict:
     """
     Select canonical case from a group.
 
@@ -189,7 +188,7 @@ def select_canonical_case(cases: List[Dict]) -> Dict:
     scored_cases = []
 
     for case in cases:
-        score = 0
+        score: float = 0
 
         # More rules/invariants is better
         score += len(case.get("rules", []))

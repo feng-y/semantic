@@ -1,17 +1,16 @@
 """
 Tests for LSP-inspired symbol extractor
 """
-import pytest
-from pathlib import Path
 import sys
+from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
 from semantic.lsp_extractor import (
     SymbolInfo,
+    extract_lsp_signals_from_dir,
     extract_symbols,
     symbols_to_signals,
-    extract_lsp_signals_from_dir,
 )
 
 

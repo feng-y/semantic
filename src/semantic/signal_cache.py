@@ -5,18 +5,18 @@ Manages caching of extracted signals at the file level.
 Enables incremental extraction by reusing signals from unchanged files.
 """
 
-from pathlib import Path
-from typing import Dict, List, Any, Optional
-import json
 import hashlib
+import json
 import os
 import tempfile
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
+from typing import Any
 
 try:
     from .signal_schema import validate_signals
 except ImportError:
-    from signal_schema import validate_signals
+    from signal_schema import validate_signals as _validate_signals  # noqa: F401
 
 
 class SignalCache:
@@ -45,18 +45,18 @@ class SignalCache:
         ext = ".json.gz" if self.compress else ".json"
         return self.signals_dir / f"{cache_key}{ext}"
 
-    def load_index(self) -> Dict[str, Any]:
+    def load_index(self) -> dict[str, Any]:
         """Load cache index"""
         if not self.index_file.exists():
             return {}
 
         try:
-            with open(self.index_file, 'r', encoding='utf-8') as f:
+            with open(self.index_file, encoding='utf-8') as f:
                 return json.load(f)
-        except (json.JSONDecodeError, IOError):
+        except (OSError, json.JSONDecodeError):
             return {}
 
-    def save_index(self, index: Dict[str, Any]):
+    def save_index(self, index: dict[str, Any]):
         """Save cache index (atomic write)"""
         with tempfile.NamedTemporaryFile('w', dir=self.cache_dir, delete=False,
                                          suffix='.tmp', encoding='utf-8') as tmp:
@@ -64,7 +64,7 @@ class SignalCache:
             tmp_path = tmp.name
         os.replace(tmp_path, self.index_file)
 
-    def get_cached_signals(self, file_path: Path, file_hash: str) -> Optional[Dict[str, List[Dict[str, Any]]]]:
+    def get_cached_signals(self, file_path: Path, file_hash: str) -> dict[str, list[dict[str, Any]]] | None:
         """
         Retrieve cached signals for a file.
 
@@ -112,15 +112,15 @@ class SignalCache:
                 with gzip.open(signal_file, 'rt', encoding='utf-8') as f:
                     data = json.load(f)
             else:
-                with open(signal_file, 'r', encoding='utf-8') as f:
+                with open(signal_file, encoding='utf-8') as f:
                     data = json.load(f)
             self._hits += 1
             return data
-        except (json.JSONDecodeError, IOError):
+        except (OSError, json.JSONDecodeError):
             self._misses += 1
             return None
 
-    def store_signals(self, file_path: Path, file_hash: str, signals: Dict[str, List[Dict[str, Any]]]):
+    def store_signals(self, file_path: Path, file_hash: str, signals: dict[str, list[dict[str, Any]]]):
         """
         Store signals for a file in cache.
 
@@ -200,7 +200,7 @@ class SignalCache:
         if self.index_file.exists():
             self.index_file.unlink()
 
-    def get_cache_stats(self) -> Dict[str, Any]:
+    def get_cache_stats(self) -> dict[str, Any]:
         """Get cache statistics"""
         index = self.load_index()
         signal_files = list(self.signals_dir.glob("*.json")) + list(self.signals_dir.glob("*.json.gz"))
@@ -224,7 +224,7 @@ class SignalCache:
         self._hits = 0
         self._misses = 0
 
-    def validate_consistency(self, repair: bool = False) -> Dict[str, Any]:
+    def validate_consistency(self, repair: bool = False) -> dict[str, Any]:
         """
         Validate consistency between cache index and signal files on disk.
 
@@ -276,7 +276,7 @@ class SignalCache:
                     with _gzip.open(signal_path, 'rt', encoding='utf-8') as f:
                         json.load(f)
                 else:
-                    with open(signal_path, 'r', encoding='utf-8') as f:
+                    with open(signal_path, encoding='utf-8') as f:
                         json.load(f)
             except Exception:
                 corrupt_files.append(file_key)
@@ -285,8 +285,8 @@ class SignalCache:
         repaired = False
 
         if repair and not is_consistent:
-            for f in orphaned_files:
-                f.unlink(missing_ok=True)
+            for sf in orphaned_files:
+                sf.unlink(missing_ok=True)
             broken_keys = set(missing_files) | set(corrupt_files)
             for key in broken_keys:
                 index.pop(key, None)
@@ -301,7 +301,7 @@ class SignalCache:
             'is_consistent': is_consistent,
         }
 
-    def merge_signals(self, *signal_dicts: Dict[str, List[Dict[str, Any]]]) -> Dict[str, List[Dict[str, Any]]]:
+    def merge_signals(self, *signal_dicts: dict[str, list[dict[str, Any]]]) -> dict[str, list[dict[str, Any]]]:
         """
         Merge multiple signal dictionaries.
 
@@ -311,7 +311,7 @@ class SignalCache:
         Returns:
             Merged signal dictionary with all categories combined
         """
-        merged = {
+        merged: dict[str, list[Any]] = {
             'domain_signals': [],
             'concept_signals': [],
             'rule_signals': [],
@@ -322,7 +322,7 @@ class SignalCache:
             if not signals:
                 continue
 
-            for category in merged.keys():
+            for category in merged:
                 if category in signals:
                     merged[category].extend(signals[category])
 

@@ -5,9 +5,10 @@ High-confidence items are auto-accepted with an audit log entry.
 Medium and low confidence items require manual review.
 """
 from dataclasses import dataclass, field
-from pathlib import Path
-from typing import List, Dict, Any, Optional
 from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any
+
 import yaml
 
 CONFIDENCE_LEVELS = {"high": 3, "medium": 2, "low": 1}
@@ -22,8 +23,8 @@ class AutoAcceptResult:
 
 @dataclass
 class AutoAcceptReport:
-    accepted: List[AutoAcceptResult] = field(default_factory=list)
-    pending_review: List[AutoAcceptResult] = field(default_factory=list)
+    accepted: list[AutoAcceptResult] = field(default_factory=list)
+    pending_review: list[AutoAcceptResult] = field(default_factory=list)
 
     @property
     def total(self) -> int:
@@ -35,7 +36,7 @@ class AutoAcceptReport:
             return 0.0
         return len(self.accepted) / self.total * 100
 
-def should_auto_accept(item: Dict[str, Any], threshold: str = "high") -> tuple[bool, str]:
+def should_auto_accept(item: dict[str, Any], threshold: str = "high") -> tuple[bool, str]:
     """
     Determine if an item should be auto-accepted based on confidence.
 
@@ -55,9 +56,9 @@ def should_auto_accept(item: Dict[str, Any], threshold: str = "high") -> tuple[b
     return False, f"Requires review: confidence={confidence} below threshold={threshold}"
 
 def process_recommendations(
-    recommendations: List[Dict[str, Any]],
+    recommendations: list[dict[str, Any]],
     threshold: str = "high",
-    audit_log_path: Optional[Path] = None,
+    audit_log_path: Path | None = None,
 ) -> AutoAcceptReport:
     """
     Process a list of recommendations and auto-accept high-confidence ones.

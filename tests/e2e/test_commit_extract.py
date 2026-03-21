@@ -5,7 +5,6 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-import pytest
 
 
 def test_extract_run_full_pipeline(workspace: Path, run_skill):

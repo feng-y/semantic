@@ -2,23 +2,25 @@
 Tests for semantic signals extraction
 """
 
-import pytest
-from pathlib import Path
-import yaml
 import sys
+from pathlib import Path
+
+import pytest
+import yaml
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
 from semantic.extract_signals import (
+    extract_concept_signals,
+    extract_demand_pattern_signals,
+    extract_domain_signals,
+    extract_rule_signals,
     load_fact_canonical,
     load_fact_working_summary,
-    extract_domain_signals,
-    extract_concept_signals,
-    extract_rule_signals,
-    extract_demand_pattern_signals,
-    main
+    main,
 )
+
 
 def test_load_fact_canonical():
     """Test loading FACT canonical YAML"""
@@ -137,7 +139,7 @@ def test_signals_yaml_structure(tmp_path):
     # Verify output
     assert output_file.exists()
 
-    with open(output_file, 'r') as f:
+    with open(output_file) as f:
         data = yaml.safe_load(f)
 
     # Check structure

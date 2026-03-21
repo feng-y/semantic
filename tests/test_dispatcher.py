@@ -1,6 +1,5 @@
 """Tests for dispatcher executor forwarding and CLI exit codes."""
 
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest

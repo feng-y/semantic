@@ -4,10 +4,8 @@ Semantic Evidence Check Generation
 Generates evidence check tasks from recommendations that need verification.
 """
 
-from pathlib import Path
-import yaml
-from typing import Dict, List, Any
 import hashlib
+from typing import Any
 
 _SINGULAR = {
     'domains': 'domain',
@@ -21,7 +19,7 @@ def generate_check_id(target_id: str) -> str:
     hash_suffix = hashlib.sha256(target_id.encode()).hexdigest()[:12]
     return f"check_{hash_suffix}"
 
-def create_evidence_check(recommendation: Dict[str, Any], rec_type: str) -> Dict[str, Any]:
+def create_evidence_check(recommendation: dict[str, Any], rec_type: str) -> dict[str, Any]:
     """
     Create an evidence check entry for a recommendation that needs verification.
     
@@ -51,10 +49,10 @@ def create_evidence_check(recommendation: Dict[str, Any], rec_type: str) -> Dict
         'source_recommendation_id': recommendation['id'],
         'source_candidate_id': recommendation.get('candidate_id')
     }
-    
+
     return check
 
-def generate_evidence_checks(recommendations: Dict[str, Any]) -> List[Dict[str, Any]]:
+def generate_evidence_checks(recommendations: dict[str, Any]) -> list[dict[str, Any]]:
     """
     Generate evidence checks for recommendations that need verification.
     
@@ -63,30 +61,30 @@ def generate_evidence_checks(recommendations: Dict[str, Any]) -> List[Dict[str, 
     - action: verify_first
     """
     checks = []
-    
+
     # Process each recommendation group
     for group_name in ['domains', 'concepts', 'rules', 'demand_models']:
         recs = recommendations.get(group_name, [])
         rec_type = _SINGULAR.get(group_name, group_name.rstrip('s'))
-        
+
         for rec in recs:
             # Check if verification is needed
             needs_check = rec.get('needs_evidence_check', False)
             action = rec.get('recommendation', {}).get('action')
-            
+
             if needs_check or action == 'verify_first':
                 check = create_evidence_check(rec, rec_type)
                 checks.append(check)
-    
+
     return checks
 
-def generate_evidence_checks_with_metadata(recommendations: Dict[str, Any], decisions_data: Dict[str, Any]) -> Dict[str, Any]:
+def generate_evidence_checks_with_metadata(recommendations: dict[str, Any], decisions_data: dict[str, Any]) -> dict[str, Any]:
     """
     Generate evidence checks with metadata structure.
     Wrapper that adds metadata to the checks list.
     """
     checks = generate_evidence_checks(recommendations)
-    
+
     return {
         'evidence_checks': checks,
         'metadata': {

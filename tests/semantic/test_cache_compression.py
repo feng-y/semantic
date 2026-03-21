@@ -1,6 +1,5 @@
-import pytest
-import gzip
 from pathlib import Path
+
 from semantic.signal_cache import SignalCache
 
 SAMPLE_SIGNALS = {

@@ -4,7 +4,6 @@ The runtime requires exactly "acceptance: true" to proceed with baseline synthes
 These tests verify that the contract is enforced correctly.
 """
 
-import pytest
 from src.refine_executor import _check_acceptance
 
 

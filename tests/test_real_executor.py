@@ -10,9 +10,10 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 
-from src.io_utils import load_yaml
-from src.commit_semantic.prompt_runner import load_prompt
 import yaml
+
+from src.commit_semantic.prompt_runner import load_prompt
+from src.io_utils import load_yaml
 
 
 def test_real_prompt_execution():

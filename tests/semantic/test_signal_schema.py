@@ -1,7 +1,9 @@
-import pytest
 from pathlib import Path
-from semantic.signal_schema import validate_signals, KNOWN_CATEGORIES
+
+import pytest
+
 from semantic.signal_cache import SignalCache
+from semantic.signal_schema import validate_signals
 
 # --- validate_signals unit tests ---
 

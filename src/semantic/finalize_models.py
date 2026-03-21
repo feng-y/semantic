@@ -1,6 +1,7 @@
 from __future__ import annotations
-from typing import List
+
 from pydantic import BaseModel, Field, model_validator
+
 
 class RuleAsset(BaseModel):
     id: str
@@ -9,8 +10,8 @@ class RuleAsset(BaseModel):
     statement: str
     rule_type: str
     consequence: str
-    validation: List[str]
-    evidence: List[str]
+    validation: list[str]
+    evidence: list[str]
     business_impact: float = Field(ge=1.0, le=10.0)
     value_impact: float = Field(ge=1.0, le=10.0)
 

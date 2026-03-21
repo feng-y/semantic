@@ -144,9 +144,7 @@ def _rank_matches(issue_text: str, candidates: list[str], *, family: str) -> lis
         candidate_phrase = _normalize_phrase(candidate)
 
         score = 0
-        if candidate_lower in issue_text_lower:
-            score += 100
-        elif _contains_phrase(issue_phrase, candidate_phrase):
+        if candidate_lower in issue_text_lower or _contains_phrase(issue_phrase, candidate_phrase):
             score += 100
 
         alias_hit = False

@@ -2,11 +2,12 @@
 Feedback loop: records accept/reject outcomes for signals, candidates, and recommendations.
 Persists to a JSONL append log for later analysis.
 """
-from pathlib import Path
-from typing import Any, Dict, List, Optional
-from dataclasses import dataclass, asdict
-from datetime import datetime, timezone
 import json
+from dataclasses import asdict, dataclass
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any
+
 
 @dataclass
 class FeedbackEntry:
@@ -17,7 +18,7 @@ class FeedbackEntry:
     item_name: str
     outcome: str        # 'accepted' | 'rejected' | 'deferred' | 'needs_evidence'
     confidence: str     # original confidence level
-    reason: Optional[str] = None
+    reason: str | None = None
 
 class FeedbackCollector:
     """Appends feedback entries to a JSONL log file"""
@@ -28,7 +29,7 @@ class FeedbackCollector:
 
     def record(self, stage: str, item_type: str, item_id: str,
                item_name: str, outcome: str, confidence: str,
-               reason: Optional[str] = None) -> FeedbackEntry:
+               reason: str | None = None) -> FeedbackEntry:
         entry = FeedbackEntry(
             timestamp=datetime.now(timezone.utc).isoformat(),
             stage=stage,
@@ -43,11 +44,11 @@ class FeedbackCollector:
             f.write(json.dumps(asdict(entry)) + '\n')
         return entry
 
-    def load_all(self) -> List[FeedbackEntry]:
+    def load_all(self) -> list[FeedbackEntry]:
         if not self.log_path.exists():
             return []
         entries = []
-        with open(self.log_path, 'r', encoding='utf-8') as f:
+        with open(self.log_path, encoding='utf-8') as f:
             for line in f:
                 line = line.strip()
                 if line:
@@ -59,13 +60,13 @@ class FeedbackCollector:
                         continue
         return entries
 
-    def summary(self) -> Dict[str, Any]:
+    def summary(self) -> dict[str, Any]:
         entries = self.load_all()
         if not entries:
             return {'total': 0, 'accepted': 0, 'rejected': 0, 'acceptance_rate': 0.0}
         accepted = sum(1 for e in entries if e.outcome == 'accepted')
         rejected = sum(1 for e in entries if e.outcome == 'rejected')
-        by_confidence: Dict[str, Dict[str, int]] = {}
+        by_confidence: dict[str, dict[str, int]] = {}
         for e in entries:
             c = e.confidence
             if c not in by_confidence:

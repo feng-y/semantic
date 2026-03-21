@@ -11,7 +11,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 
-from src.io_utils import save_yaml, load_json, load_jsonl
+from src.io_utils import load_json, load_jsonl, save_yaml
 
 
 def create_test_cases(output_dir: Path):
@@ -188,7 +188,7 @@ def main():
         # Load and verify summary
         summary = load_json(str(summary_json))
 
-        print(f"\n=== Summary Statistics ===")
+        print("\n=== Summary Statistics ===")
         print(f"Total cases: {summary['total_cases']}")
         print(f"Unique cases: {summary['unique_cases']}")
         print(f"Duplicate cases: {summary['duplicate_cases']}")
@@ -203,19 +203,19 @@ def main():
         assert summary['pattern_count'] >= 1, f"Expected at least 1 pattern, got {summary['pattern_count']}"
 
         # Verify domain pattern stats
-        print(f"\n=== Domain Pattern Stats ===")
+        print("\n=== Domain Pattern Stats ===")
         domain_stats = summary['domain_pattern_stats']
         for domain, stats in domain_stats.items():
             print(f"{domain}: {stats['pattern_count']} patterns ({stats['status']})")
 
         # Verify high frequency patterns
-        print(f"\n=== High Frequency Patterns ===")
+        print("\n=== High Frequency Patterns ===")
         for i, pattern in enumerate(summary['high_frequency_patterns'], 1):
             print(f"{i}. [{pattern['domain']}] {pattern['representative_issue_text']} (count: {pattern['count']})")
 
         # Load and verify patterns
         patterns = load_jsonl(str(patterns_jsonl))
-        print(f"\n=== Pattern Details ===")
+        print("\n=== Pattern Details ===")
         for pattern in patterns:
             print(f"Pattern: {pattern['pattern_fingerprint']}")
             print(f"  Domain: {pattern['domain']}")
@@ -227,7 +227,7 @@ def main():
 
         # Load and verify duplicates
         duplicates = load_jsonl(str(duplicates_jsonl))
-        print(f"=== Duplicate Groups ===")
+        print("=== Duplicate Groups ===")
         for dup_group in duplicates:
             print(f"Dedup key: {dup_group['dedup_key']}")
             print(f"  Canonical: {dup_group['canonical_case_id']}")

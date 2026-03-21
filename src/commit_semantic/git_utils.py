@@ -1,6 +1,7 @@
 import re
 import subprocess
-from typing import List, Tuple, TYPE_CHECKING
+from typing import TYPE_CHECKING
+
 from src.types import RawCommit
 
 if TYPE_CHECKING:
@@ -9,7 +10,7 @@ if TYPE_CHECKING:
 
 def get_commit_list(repo_path: str, commit_range: str = None,
                    author: str = None, since: str = None,
-                   until: str = None) -> List[str]:
+                   until: str = None) -> list[str]:
     """Get list of commit IDs based on filters."""
     cmd = ["git", "-C", repo_path, "log", "--format=%H"]
 
@@ -29,7 +30,7 @@ def get_commit_list(repo_path: str, commit_range: str = None,
         raise RuntimeError(f"Git command failed: {' '.join(cmd)}\n{e.stderr}") from e
 
 
-def get_commit_details(repo_path: str, commit_id: str, exclude_paths: List[str] = None) -> RawCommit:
+def get_commit_details(repo_path: str, commit_id: str, exclude_paths: list[str] = None) -> RawCommit:
     """Extract detailed information for a single commit."""
     try:
         # Get commit metadata
@@ -96,7 +97,7 @@ def get_commit_list_incremental(
     since: str = None,
     until: str = None,
     force_reprocess: bool = False
-) -> List[str]:
+) -> list[str]:
     """
     Get list of unprocessed commits.
 

@@ -8,7 +8,7 @@ Claude Code skill repository for extracting structured semantic knowledge from a
 |---|-----------|---------|--------|
 | 1 | **fact** — repo structure discovery | `/semantic-fact-pipeline` | stable |
 | 2 | **semantic** — domain extraction | `/semantic-pipeline` | stable |
-| 3 | **demand** — requirement mapping | `/demand-pipeline` | in progress |
+| 3 | **demand** — requirement mapping | `/demand-pipeline` | stable |
 | 4 | **commit-semantic** — git history → domain cases | `/commit-semantic-pipeline` | stable |
 | 5 | **semantic-extract** — commit + rules/invariants | `/semantic-extract` | stable |
 
@@ -72,7 +72,7 @@ Requires: fact baseline accepted (`/semantic-baseline` completed).
 
 ---
 
-### 3. demand — Requirement Mapping *(in progress)*
+### 3. demand — Requirement Mapping
 
 Maps incoming issue text to semantic assets. Normalizes → maps → matches → builds demand card → validates.
 

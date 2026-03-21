@@ -1,8 +1,5 @@
 """Tests for SignalCache.validate_consistency()"""
-import json
 from pathlib import Path
-
-import pytest
 
 from semantic.signal_cache import SignalCache
 

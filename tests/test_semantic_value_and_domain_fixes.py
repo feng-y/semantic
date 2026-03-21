@@ -10,16 +10,15 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+from src.commit_semantic.pattern_extraction_v2 import (
+    extract_patterns_v2,
+    generate_pattern_fingerprint_v2,
+)
 from src.commit_semantic.patterning import (
     PatternInput,
     group_patterns,
     select_canonical_pattern_case,
 )
-from src.commit_semantic.pattern_extraction_v2 import (
-    extract_patterns_v2,
-    generate_pattern_fingerprint_v2,
-)
-
 
 # ---------------------------------------------------------------------------
 # Task #2: semantic_value propagation

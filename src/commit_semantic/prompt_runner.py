@@ -1,7 +1,9 @@
 import re
-import yaml
+from collections.abc import Callable
 from pathlib import Path
-from typing import Dict, Any, Callable, Optional
+from typing import Any
+
+import yaml
 
 # Compile regex patterns at module level
 YAML_BLOCK_PATTERN = re.compile(r'```yaml\s*\n(.*?)\n```', re.DOTALL)
@@ -13,15 +15,15 @@ def load_prompt(prompt_name: str) -> str:
     prompt_path = Path("prompts") / "commit-semantic" / f"{prompt_name}.md"
     if not prompt_path.exists():
         raise FileNotFoundError(f"Prompt template not found: {prompt_path}")
-    with open(prompt_path, 'r', encoding='utf-8') as f:
+    with open(prompt_path, encoding='utf-8') as f:
         return f.read()
 
 
 def run_prompt_with_claude(
     prompt_template: str,
-    input_data: Dict[str, Any],
-    executor: Optional[Callable[[str], str]] = None
-) -> Dict[str, Any]:
+    input_data: dict[str, Any],
+    executor: Callable[[str], str] | None = None
+) -> dict[str, Any]:
     """
     Run a prompt with Claude via host executor.
 
@@ -82,7 +84,7 @@ def extract_yaml_from_response(response: str) -> str:
     return cleaned
 
 
-def generate_commit_log(case_input: Dict[str, Any], executor: Optional[Callable[[str], str]] = None) -> str:
+def generate_commit_log(case_input: dict[str, Any], executor: Callable[[str], str] | None = None) -> str:
     """Generate commit_log using the generate_commit_log prompt.
 
     If commit_message is present and diff is small, use it directly without an LLM call.
@@ -117,10 +119,10 @@ def generate_commit_log(case_input: Dict[str, Any], executor: Optional[Callable[
 
 
 def generate_rules_invariants(
-    case_input: Dict[str, Any],
+    case_input: dict[str, Any],
     commit_log: str,
-    executor: Optional[Callable[[str], str]] = None
-) -> Dict[str, Any]:
+    executor: Callable[[str], str] | None = None
+) -> dict[str, Any]:
     """Generate rules and invariants using the generate_rules_invariants prompt."""
     prompt = load_prompt("generate_rules_invariants")
 
@@ -136,12 +138,12 @@ def generate_rules_invariants(
 
 
 def generate_issue_text(
-    case_input: Dict[str, Any],
+    case_input: dict[str, Any],
     commit_log: str,
     rules: list,
     invariants: list,
-    executor: Optional[Callable[[str], str]] = None
-) -> Dict[str, Any]:
+    executor: Callable[[str], str] | None = None
+) -> dict[str, Any]:
     """Generate issue_text, development_type, and split_suggestion."""
     prompt = load_prompt("generate_issue_text")
 

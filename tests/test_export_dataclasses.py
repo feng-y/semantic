@@ -3,12 +3,9 @@ import dataclasses
 import sys
 from pathlib import Path
 
-import pytest
-
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from src.types import CaseRecord, ExportSummary, DomainPatternStat, HighFrequencyPattern
-
+from src.types import CaseRecord, ExportSummary
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -163,7 +160,7 @@ class TestGenerateStatistics:
     def _run(self, unique_cases, duplicate_groups=None, patterns=None,
              pattern_count_status=None, tmp_path=None):
         # Import here so sys.path manipulation above takes effect
-        import importlib, types as _types
+        import importlib
         # We need to import the skill module; add its parent to path
         skill_path = Path(__file__).parent.parent / "skills" / "commit-semantic-export"
         sys.path.insert(0, str(skill_path))

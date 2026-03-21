@@ -14,8 +14,8 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from src.artifact_writer import get_latest_valid_version_path, get_latest_version_path
-from src.discovery_executor import validate_artifact_content
 from src.context_builder import _read_latest_working_artifact
+from src.discovery_executor import validate_artifact_content
 from tests.fake_executors import stub_executor
 
 

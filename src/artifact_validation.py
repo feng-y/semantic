@@ -24,7 +24,6 @@ from __future__ import annotations
 
 import re
 
-
 # Schema-defined sections for each artifact type
 # Required sections (ALL must be present) - Use _has_required_sections with AND logic
 REPO_FACTS_REQUIRED = ("Repository", "Modules", "Entrypoints", "Core Entities", "Configuration")

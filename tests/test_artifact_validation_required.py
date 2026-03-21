@@ -9,17 +9,15 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-import pytest
-
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from src.artifact_validation import (
-    _has_required_sections,
-    _has_any_optional_section,
-    validate_repo_facts,
-    validate_repo_understanding,
     REPO_FACTS_REQUIRED,
     REPO_UNDERSTANDING_REQUIRED,
+    _has_any_optional_section,
+    _has_required_sections,
+    validate_repo_facts,
+    validate_repo_understanding,
 )
 
 

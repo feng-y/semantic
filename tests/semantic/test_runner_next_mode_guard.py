@@ -4,12 +4,13 @@ These tests verify that the verify_first guard works correctly in next mode,
 preventing the bypass that was possible before the fix.
 """
 
-from pathlib import Path
 import tempfile
-import yaml
-import pytest
+from pathlib import Path
 
-from src.semantic.run import main, load_state, save_state, next_stage
+import pytest
+import yaml
+
+from src.semantic.run import main
 
 
 def test_next_mode_blocks_when_verify_first_exists_no_evidence():

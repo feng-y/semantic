@@ -2,14 +2,21 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any
 
 import yaml
 
 from .map_semantics import load_semantic_foundation_assets, map_semantics
 from .match_development_type import match_development_type
-from .models import DemandCard, DemandCardBody, RequestSource, SemanticMapping, Uncertainties
+from .models import (
+    DemandCard,
+    DemandCardBody,
+    RequestSource,
+    SemanticMapping,
+    Uncertainties,
+)
 from .normalize_issue import normalize_issue
 from .validate_demand_card import validate_demand_card
 

@@ -1,7 +1,8 @@
-import pytest
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from datetime import datetime, timezone, timedelta
+
 from semantic.signal_cache import SignalCache
+
 
 def test_ttl_expired_returns_none(tmp_path):
     """Entry older than TTL returns None."""

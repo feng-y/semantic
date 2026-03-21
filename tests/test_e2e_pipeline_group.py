@@ -70,7 +70,7 @@ def tmpdata():
 @pytest.fixture()
 def real_commit():
     """First commit with files from HEAD~10..HEAD, or skip."""
-    from src.commit_semantic.git_utils import get_commit_list, get_commit_details
+    from src.commit_semantic.git_utils import get_commit_details, get_commit_list
     for cid in get_commit_list(".", commit_range="HEAD~10..HEAD"):
         c = get_commit_details(".", cid)
         if c.files:
@@ -84,8 +84,8 @@ def real_commit():
 
 def test_run_pipeline_produces_all_export_files(tmpdata):
     """run_pipeline() collect→generate→export creates all four export files."""
-    from src.commit_semantic.pipeline import run_pipeline
     from src.commit_semantic.executor_bridge import set_executor
+    from src.commit_semantic.pipeline import run_pipeline
 
     set_executor(_mock_feature)
     result = run_pipeline(
@@ -107,8 +107,8 @@ def test_run_pipeline_produces_all_export_files(tmpdata):
 
 def test_run_pipeline_stages_subset(tmpdata):
     """stages='collect' runs only collect, skips generate and export."""
-    from src.commit_semantic.pipeline import run_pipeline
     from src.commit_semantic.executor_bridge import set_executor
+    from src.commit_semantic.pipeline import run_pipeline
 
     set_executor(_mock_feature)
     result = run_pipeline(
@@ -130,8 +130,8 @@ def test_run_pipeline_stages_subset(tmpdata):
 
 def test_run_pipeline_resumes_from_checkpoint(tmpdata):
     """Second run with resume=True skips already-completed stages."""
-    from src.commit_semantic.pipeline import run_pipeline
     from src.commit_semantic.executor_bridge import set_executor
+    from src.commit_semantic.pipeline import run_pipeline
 
     set_executor(_mock_feature)
     # First run: collect only
@@ -198,8 +198,8 @@ def test_collect_exclude_paths_reduces_cases(tmpdata):
 
 def test_export_cases_jsonl_has_required_fields(tmpdata):
     """Every entry in cases.jsonl has the required semantic fields."""
-    from src.commit_semantic.pipeline import run_pipeline
     from src.commit_semantic.executor_bridge import set_executor
+    from src.commit_semantic.pipeline import run_pipeline
 
     set_executor(_mock_feature)
     run_pipeline(
@@ -222,8 +222,8 @@ def test_export_cases_jsonl_has_required_fields(tmpdata):
 
 def test_export_summary_json_has_required_keys(tmpdata):
     """summary.json contains expected top-level keys."""
-    from src.commit_semantic.pipeline import run_pipeline
     from src.commit_semantic.executor_bridge import set_executor
+    from src.commit_semantic.pipeline import run_pipeline
 
     set_executor(_mock_feature)
     run_pipeline(
@@ -245,6 +245,7 @@ def test_export_summary_json_has_required_keys(tmpdata):
 def test_dedup_identical_cases_produce_one_unique(tmpdata):
     """Two identical cases → one unique case + one duplicate group."""
     import importlib.util
+
     from src.io_utils import save_yaml
 
     def _load(name):
@@ -298,6 +299,7 @@ def test_dedup_identical_cases_produce_one_unique(tmpdata):
 def test_pattern_aggregation_groups_similar_cases(tmpdata):
     """Multiple similar cases produce at least one pattern entry."""
     import importlib.util
+
     from src.io_utils import save_yaml
 
     def _load(name):
@@ -347,8 +349,8 @@ def test_pattern_aggregation_groups_similar_cases(tmpdata):
 
 def test_same_named_files_in_different_dirs_get_separate_groups():
     """src/parser/handler.py and src/utils/handler.py must NOT merge into one group."""
-    from src.types import RawCommit
     from src.commit_semantic.grouping import extract_change_groups
+    from src.types import RawCommit
 
     commit = RawCommit(
         commit_id="test_qualified",
@@ -366,8 +368,8 @@ def test_same_named_files_in_different_dirs_get_separate_groups():
 
 def test_same_named_file_in_same_dir_stays_one_group():
     """src/parser/parser.py and its test should still merge (same object)."""
-    from src.types import RawCommit
     from src.commit_semantic.grouping import extract_change_groups
+    from src.types import RawCommit
 
     commit = RawCommit(
         commit_id="test_same",
@@ -388,8 +390,8 @@ def test_same_named_file_in_same_dir_stays_one_group():
 
 def test_bugfix_evidence_not_triggered_by_diff_markers():
     """A diff that only adds a '+boundary' marker line must not produce evidence."""
-    from src.types import RawCommit
     from src.commit_semantic.grouping import detect_bugfix_evidence
+    from src.types import RawCommit
 
     # The word 'boundary' appears only as part of a diff marker line header,
     # not in actual code content — should not trigger medium evidence.
@@ -412,8 +414,8 @@ def test_bugfix_evidence_not_triggered_by_diff_markers():
 
 def test_bugfix_evidence_detected_in_content_lines():
     """Actual 'regression' keyword in content lines triggers strong evidence."""
-    from src.types import RawCommit
     from src.commit_semantic.grouping import detect_bugfix_evidence
+    from src.types import RawCommit
 
     diff = "\n".join([
         "diff --git a/test_foo.py b/test_foo.py",
@@ -429,7 +431,7 @@ def test_bugfix_evidence_detected_in_content_lines():
         files=["test_foo.py"], diff_chunks=[diff],
     )
     evidence = detect_bugfix_evidence(commit, diff)
-    assert evidence.strong, f"Expected strong evidence for regression test, got none"
+    assert evidence.strong, "Expected strong evidence for regression test, got none"
 
 
 # ---------------------------------------------------------------------------
@@ -438,8 +440,8 @@ def test_bugfix_evidence_detected_in_content_lines():
 
 def test_run_pipeline_incremental_flag(tmpdata):
     """incremental=True runs without error (state file created)."""
-    from src.commit_semantic.pipeline import run_pipeline
     from src.commit_semantic.executor_bridge import set_executor
+    from src.commit_semantic.pipeline import run_pipeline
 
     set_executor(_mock_feature)
     result = run_pipeline(

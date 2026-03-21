@@ -5,26 +5,28 @@ Generates structured recommendations from semantic candidates.
 This is the third stage of the semantic layer.
 """
 
-from pathlib import Path
 import argparse
-import yaml
-from typing import Dict, List, Any, Optional, Tuple
-from datetime import datetime
 import hashlib
+from datetime import datetime
+from pathlib import Path
+from typing import Any
 
-def load_candidates(candidates_path: Path) -> Optional[Dict[str, Any]]:
+import yaml
+
+
+def load_candidates(candidates_path: Path) -> dict[str, Any] | None:
     """Load candidates.yaml (primary input)"""
     if not candidates_path.exists():
         return None
-    with open(candidates_path, 'r', encoding='utf-8') as f:
+    with open(candidates_path, encoding='utf-8') as f:
         return yaml.safe_load(f)
 
 def generate_stable_id(name: str, type_prefix: str) -> str:
     """Generate a stable ID from name and type prefix"""
-    content = f"{type_prefix}:{name}".encode('utf-8')
+    content = f"{type_prefix}:{name}".encode()
     return f"rec_{type_prefix}_{hashlib.sha256(content).hexdigest()[:12]}"
 
-def evaluate_semantic_validity(candidate: Dict[str, Any], candidate_type: str) -> Tuple[str, str]:
+def evaluate_semantic_validity(candidate: dict[str, Any], candidate_type: str) -> tuple[str, str]:
     """
     Evaluate semantic validity of a candidate.
     Returns (validity, reason)
@@ -55,7 +57,7 @@ def evaluate_semantic_validity(candidate: Dict[str, Any], candidate_type: str) -
     else:  # low confidence
         return 'fail', 'Low confidence, needs more evidence'
 
-def compute_scores(candidate: Dict[str, Any], candidate_type: str) -> Tuple[float, float]:
+def compute_scores(candidate: dict[str, Any], candidate_type: str) -> tuple[float, float]:
     """
     Compute business_score and value_score.
     Returns (business_score, value_score)
@@ -95,9 +97,9 @@ def determine_recommendation(
     validity: str,
     business_score: float,
     value_score: float,
-    candidate: Dict[str, Any],
+    candidate: dict[str, Any],
     candidate_type: str
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Determine recommendation status and action.
     Returns recommendation body dict.
@@ -153,9 +155,9 @@ def generate_reasons(
     validity: str,
     business_score: float,
     value_score: float,
-    candidate: Dict[str, Any],
-    recommendation: Dict[str, Any]
-) -> Tuple[List[str], List[str]]:
+    candidate: dict[str, Any],
+    recommendation: dict[str, Any]
+) -> tuple[list[str], list[str]]:
     """
     Generate recommended_reasons and not_recommended_reasons.
     Returns (recommended_reasons, not_recommended_reasons)
@@ -167,9 +169,9 @@ def generate_reasons(
     evidence_refs = candidate.get('evidence_refs', [])
 
     if validity == 'pass':
-        recommended.append(f"Semantic validity passed")
+        recommended.append("Semantic validity passed")
         if confidence == 'high':
-            recommended.append(f"High confidence level")
+            recommended.append("High confidence level")
         if evidence_refs:
             recommended.append(f"Strong evidence support ({len(evidence_refs)} refs)")
         if business_score >= 7.0:
@@ -177,18 +179,18 @@ def generate_reasons(
         if value_score >= 7.0:
             recommended.append(f"High technical value (score: {value_score})")
     else:
-        not_recommended.append(f"Semantic validity failed")
+        not_recommended.append("Semantic validity failed")
         if confidence == 'low':
-            not_recommended.append(f"Low confidence level")
+            not_recommended.append("Low confidence level")
         if not evidence_refs:
-            not_recommended.append(f"Insufficient evidence")
+            not_recommended.append("Insufficient evidence")
 
     return recommended, not_recommended
 
 def check_evidence_needs(
-    candidate: Dict[str, Any],
+    candidate: dict[str, Any],
     validity: str
-) -> Tuple[bool, Optional[str]]:
+) -> tuple[bool, str | None]:
     """
     Check if evidence verification is needed.
     Returns (needs_check, gap_description)
@@ -208,9 +210,9 @@ def check_evidence_needs(
     return False, None
 
 def generate_recommendation_item(
-    candidate: Dict[str, Any],
+    candidate: dict[str, Any],
     candidate_type: str
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Generate a single recommendation item from a candidate"""
 
     # Step 1: Evaluate validity
@@ -257,23 +259,23 @@ def generate_recommendation_item(
         'evidence_refs': candidate.get('evidence_refs', [])
     }
 
-def generate_domain_recommendations(domains: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+def generate_domain_recommendations(domains: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Generate recommendations for domain candidates"""
     return [generate_recommendation_item(d, 'domain') for d in domains]
 
-def generate_concept_recommendations(concepts: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+def generate_concept_recommendations(concepts: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Generate recommendations for concept candidates"""
     return [generate_recommendation_item(c, 'concept') for c in concepts]
 
-def generate_rule_recommendations(rules: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+def generate_rule_recommendations(rules: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Generate recommendations for rule candidates"""
     return [generate_recommendation_item(r, 'rule') for r in rules]
 
-def generate_demand_model_recommendations(demand_models: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+def generate_demand_model_recommendations(demand_models: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Generate recommendations for demand model candidates"""
     return [generate_recommendation_item(dm, 'demand_model') for dm in demand_models]
 
-def render_recommendations_markdown(recommendations_data: Dict[str, Any], output_path: Path):
+def render_recommendations_markdown(recommendations_data: dict[str, Any], output_path: Path):
     """Render recommendations as markdown"""
     lines = []
     lines.append("# Semantic Recommendations")

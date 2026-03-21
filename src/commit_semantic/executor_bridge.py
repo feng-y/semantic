@@ -5,11 +5,10 @@ This module provides the bridge between prompt_runner and the host
 environment's Claude API executor.
 """
 
-from typing import Callable, Optional
-
+from collections.abc import Callable
 
 # Global executor reference (set by host environment)
-_global_executor: Optional[Callable[[str], str]] = None
+_global_executor: Callable[[str], str] | None = None
 
 
 def set_executor(executor: Callable[[str], str]) -> None:
@@ -23,7 +22,7 @@ def set_executor(executor: Callable[[str], str]) -> None:
     _global_executor = executor
 
 
-def get_executor() -> Optional[Callable[[str], str]]:
+def get_executor() -> Callable[[str], str] | None:
     """Get the current global executor."""
     return _global_executor
 

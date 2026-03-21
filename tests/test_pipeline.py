@@ -3,20 +3,16 @@ Tests for src/commit_semantic/pipeline.py
 """
 
 import json
-import pytest
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 from src.commit_semantic.pipeline import (
     PipelineContext,
     PipelineStage,
-    StageResult,
-    run_pipeline,
     _run_collect,
-    _run_generate,
     _run_export,
-    _read_checkpoint,
-    _write_checkpoint,
+    _run_generate,
+    run_pipeline,
 )
 
 

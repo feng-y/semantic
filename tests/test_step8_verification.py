@@ -10,27 +10,23 @@ Part A of the Step 8 execution plan:
 
 from __future__ import annotations
 
-import hashlib
 import json
-import re
 import sys
 from pathlib import Path
-from typing import Any
 
 import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from src import artifact_writer, context_builder
+from src import context_builder
 from src.artifact_writer import (
-    commit_staged,
+    check_semantic_snapshot,
     get_latest_version_path,
     get_latest_working_version_path,
     prune_old_versions,
     stage_artifact,
     write_artifact,
     write_baseline,
-    check_semantic_snapshot,
     write_semantic_snapshot,
 )
 from src.refine_executor import (
@@ -39,15 +35,12 @@ from src.refine_executor import (
     REPO_UNDERSTANDING_SECTIONS,
     _check_acceptance,
     _has_any_section_heading,
-    evaluate_acceptance,
     parse_baseline_output,
     run_refine,
     validate_baseline_artifact,
     validate_refined_artifact,
 )
-from src.discovery_executor import validate_artifact_content
 from tests.fake_executors import stub_executor
-
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -481,12 +474,12 @@ class TestGlobalInvariants:
     def test_inv1_repo_understanding_sections_match_schema(self) -> None:
         """REPO_UNDERSTANDING_SECTIONS matches repo-understanding.schema.md."""
         expected = ("System Purpose", "Pipelines", "Concepts", "Candidate Domains")
-        assert REPO_UNDERSTANDING_SECTIONS == expected
+        assert expected == REPO_UNDERSTANDING_SECTIONS
 
     def test_inv1_knowledge_confidence_sections_match_schema(self) -> None:
         """KNOWLEDGE_CONFIDENCE_SECTIONS matches knowledge-confidence.schema.md."""
         expected = ("Confirmed Knowledge", "Inferred Knowledge", "Uncertain Knowledge")
-        assert KNOWLEDGE_CONFIDENCE_SECTIONS == expected
+        assert expected == KNOWLEDGE_CONFIDENCE_SECTIONS
 
     def test_inv1_baseline_sections_match_schemas(self) -> None:
         """BASELINE_SECTIONS keywords match purpose/domains/concepts/pipelines schemas."""

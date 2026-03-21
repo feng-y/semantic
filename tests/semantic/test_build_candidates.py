@@ -2,23 +2,25 @@
 Tests for semantic candidates synthesis
 """
 
-import pytest
-from pathlib import Path
-import yaml
 import sys
+from pathlib import Path
+
+import pytest
+import yaml
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
 from semantic.build_candidates import (
-    load_signals,
-    synthesize_domain_candidates,
-    synthesize_concept_candidates,
-    synthesize_rule_candidates,
-    synthesize_demand_model_candidates,
     generate_stable_id,
-    main
+    load_signals,
+    main,
+    synthesize_concept_candidates,
+    synthesize_demand_model_candidates,
+    synthesize_domain_candidates,
+    synthesize_rule_candidates,
 )
+
 
 def test_load_signals():
     """Test loading signals.yaml"""
@@ -162,7 +164,7 @@ def test_candidates_yaml_structure(tmp_path):
     # Verify output
     assert output_file.exists()
 
-    with open(output_file, 'r') as f:
+    with open(output_file) as f:
         data = yaml.safe_load(f)
 
     # Check structure

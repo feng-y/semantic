@@ -1,9 +1,9 @@
 """Tests for confidence-based auto-accept logic."""
+
 import pytest
 import yaml
-from pathlib import Path
 
-from semantic.auto_accept import should_auto_accept, process_recommendations
+from semantic.auto_accept import process_recommendations, should_auto_accept
 
 
 def test_high_confidence_auto_accepted():

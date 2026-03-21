@@ -16,15 +16,15 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
 
 from src.commit_semantic.pattern_extraction_v2 import (
-    extract_action_class,
-    extract_object_class,
-    extract_constraint_class,
-    generate_pattern_fingerprint_v2,
     calculate_similarity,
+    check_pattern_count,
+    extract_action_class,
+    extract_constraint_class,
+    extract_object_class,
+    extract_patterns_v2,
+    generate_pattern_fingerprint_v2,
     group_by_similarity,
     select_canonical_pattern_case,
-    extract_patterns_v2,
-    check_pattern_count
 )
 
 
@@ -348,7 +348,7 @@ def test_full_pattern_extraction():
         assert "count" in pattern
         assert "canonical_case_id" in pattern
         assert "variant_case_ids" in pattern
-        print(f"  ✓ Pattern structure valid")
+        print("  ✓ Pattern structure valid")
         print(f"  ✓ Pattern: {pattern['pattern_fingerprint']}")
         print(f"  ✓ Count: {pattern['count']}")
         print(f"  ✓ Canonical: {pattern['canonical_case_id']}")

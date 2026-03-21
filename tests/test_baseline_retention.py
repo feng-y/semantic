@@ -1,7 +1,6 @@
 """Tests for baseline version retention during pruning."""
 
 import json
-from pathlib import Path
 
 import pytest
 

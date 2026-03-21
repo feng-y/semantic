@@ -1,13 +1,21 @@
 """Tests for semantic finalization"""
-import pytest, sys, yaml
+import sys
 from pathlib import Path
+
+import yaml
+
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
 from semantic.finalize_assets import (
-    load_yaml, check_unresolved_verifications, generate_final_id,
-    finalize_domain, finalize_concept, finalize_rule, finalize_demand_model,
-    build_change_log, main
+    build_change_log,
+    check_unresolved_verifications,
+    finalize_concept,
+    finalize_domain,
+    finalize_rule,
+    generate_final_id,
+    main,
 )
+
 
 def test_generate_final_id():
     id1 = generate_final_id("Test", "domain")
@@ -53,22 +61,22 @@ def test_build_change_log():
 def test_finalize_execution(tmp_path):
     decisions_path = tmp_path / "decisions.yaml"
     checks_path = tmp_path / "checks.yaml"
-    
+
     decisions = {
         'domains': [{'id': 'r1', 'name': 'D1', 'final_action': 'keep', 'final_reason': 'OK', 'evidence_refs': []}],
         'concepts': [], 'rules': [], 'demand_models': []
     }
     checks = {'evidence_checks': [], 'metadata': {}}
-    
+
     decisions_path.write_text(yaml.dump(decisions))
     checks_path.write_text(yaml.dump(checks))
-    
+
     sys.argv = ['finalize_assets.py', '--decisions', str(decisions_path), '--checks', str(checks_path), '--output-dir', str(tmp_path)]
-    
+
     try:
         main()
     except SystemExit:
         pass
-    
+
     assert (tmp_path / "domain-map.yaml").exists()
     assert (tmp_path / "change-log.yaml").exists()

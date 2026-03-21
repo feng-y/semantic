@@ -7,8 +7,8 @@ from pathlib import Path
 import pytest
 
 from src.discovery_executor import run_discovery
-from src.refine_executor import run_refine
 from src.main import main
+from src.refine_executor import run_refine
 
 
 @pytest.fixture()

@@ -1,9 +1,10 @@
 """Tests for validate_stage integration in run.py all-mode pipeline."""
 
-from pathlib import Path
 import sys
 import tempfile
-from unittest.mock import patch, MagicMock
+from pathlib import Path
+from unittest.mock import patch
+
 import pytest
 
 from src.semantic.run import main

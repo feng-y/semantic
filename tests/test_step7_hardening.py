@@ -13,18 +13,17 @@ Covers:
 from __future__ import annotations
 
 import json
-import os
-import shutil
-from pathlib import Path
-from typing import Any
-
-import pytest
 
 # Ensure src is importable
 import sys
+from pathlib import Path
+
+import pytest
+
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from src import artifact_writer
+from src.discovery_executor import validate_artifact_content
 from src.refine_executor import (
     KNOWLEDGE_CONFIDENCE_SECTIONS,
     REPO_UNDERSTANDING_SECTIONS,
@@ -34,7 +33,6 @@ from src.refine_executor import (
     run_refine,
     validate_refined_artifact,
 )
-from src.discovery_executor import validate_artifact_content
 from tests.fake_executors import stub_executor
 
 

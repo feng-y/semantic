@@ -1,15 +1,18 @@
-from typing import List
+
 from src.types import (
-    ChangeGroup, SemanticCaseInput, BugfixEvidence,
-    SplitHints, ChangeRole
+    BugfixEvidence,
+    ChangeGroup,
+    ChangeRole,
+    SemanticCaseInput,
+    SplitHints,
 )
 
 
 def build_semantic_cases(
     commit_id: str,
-    groups: List[ChangeGroup],
+    groups: list[ChangeGroup],
     bugfix_evidence: BugfixEvidence
-) -> List[SemanticCaseInput]:
+) -> list[SemanticCaseInput]:
     """
     Build semantic cases from change groups.
     Groups are merged if they can be compressed into a single issue_text.
@@ -67,7 +70,7 @@ def build_semantic_cases(
     return []
 
 
-def _should_merge_groups(groups: List[ChangeGroup]) -> bool:
+def _should_merge_groups(groups: list[ChangeGroup]) -> bool:
     """
     Determine if multiple groups should be merged into one semantic case.
 
@@ -101,7 +104,7 @@ def _should_merge_groups(groups: List[ChangeGroup]) -> bool:
 def _merge_groups_into_case(
     commit_id: str,
     main_group: ChangeGroup,
-    other_groups: List[ChangeGroup],
+    other_groups: list[ChangeGroup],
     bugfix_evidence: BugfixEvidence
 ) -> SemanticCaseInput:
     """Merge multiple groups into a single semantic case."""

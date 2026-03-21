@@ -5,13 +5,12 @@ Detects which FACT input files have changed since the last extraction run.
 Uses file hashing to determine what needs re-processing.
 """
 
-from pathlib import Path
-from typing import Set, Optional, Dict, List
 import hashlib
 import json
 import os
 import tempfile
 from datetime import datetime, timezone
+from pathlib import Path
 
 
 class ChangeDetector:
@@ -23,7 +22,7 @@ class ChangeDetector:
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         self.state_file = cache_dir / "change_state.json"
 
-    def get_tracked_files(self) -> Set[Path]:
+    def get_tracked_files(self) -> set[Path]:
         """Get list of FACT files to track for changes"""
         tracked = set()
 
@@ -55,19 +54,19 @@ class ChangeDetector:
         except (FileNotFoundError, PermissionError):
             return ""
 
-    def load_state(self) -> Dict[str, str]:
+    def load_state(self) -> dict[str, str]:
         """Load previous file hashes from state file"""
         if not self.state_file.exists():
             return {}
 
         try:
-            with open(self.state_file, 'r') as f:
+            with open(self.state_file) as f:
                 data = json.load(f)
                 return data.get('file_hashes', {})
         except (json.JSONDecodeError, KeyError):
             return {}
 
-    def save_state(self, file_hashes: Dict[str, str]):
+    def save_state(self, file_hashes: dict[str, str]):
         """Save current file hashes to state file (atomic write)"""
         state = {
             'file_hashes': file_hashes,
@@ -79,7 +78,7 @@ class ChangeDetector:
             tmp_path = tmp.name
         os.replace(tmp_path, self.state_file)
 
-    def detect_changes(self, save: bool = True) -> Dict[str, List[Path]]:
+    def detect_changes(self, save: bool = True) -> dict[str, list[Path]]:
         """
         Detect which files have changed since last run.
 
@@ -90,7 +89,7 @@ class ChangeDetector:
         previous_hashes = self.load_state()
         current_hashes = {}
 
-        changes = {
+        changes: dict[str, list[Path]] = {
             'added': [],
             'changed': [],
             'removed': [],

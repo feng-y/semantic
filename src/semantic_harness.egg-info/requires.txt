@@ -1,4 +1,10 @@
 pyyaml>=6.0
 
+[lint]
+ruff>=0.9.0
+
 [test]
 pytest>=8.0
+
+[typecheck]
+mypy>=1.0

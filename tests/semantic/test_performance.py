@@ -4,18 +4,17 @@ Performance benchmark tests for the semantic extraction system.
 These tests verify that key operations complete within acceptable time bounds.
 All time limits are generous to avoid flakiness in CI environments.
 """
-import pytest
+import sys
 import time
 from pathlib import Path
-import tempfile
+
 import yaml
 
-import sys
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
-from semantic.signal_cache import SignalCache
 from semantic.change_detector import ChangeDetector
 from semantic.extract_signals import run_incremental_extraction
+from semantic.signal_cache import SignalCache
 
 
 def test_cache_lookup_fast(tmp_path):

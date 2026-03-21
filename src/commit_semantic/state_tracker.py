@@ -5,9 +5,8 @@ Manages a registry of processed commits to avoid reprocessing.
 """
 
 import json
-from pathlib import Path
 from datetime import datetime, timezone
-from typing import Dict, List, Optional
+from pathlib import Path
 
 
 class StateTracker:
@@ -29,19 +28,19 @@ class StateTracker:
             return self._empty_state()
 
         try:
-            with open(self.state_path, 'r', encoding='utf-8') as f:
+            with open(self.state_path, encoding='utf-8') as f:
                 state = json.load(f)
                 # Validate schema version
                 if state.get('version') != '1.0':
                     print(f"Warning: Unknown state version {state.get('version')}, treating as fresh state")
                     return self._empty_state()
                 return state
-        except (json.JSONDecodeError, IOError) as e:
+        except (OSError, json.JSONDecodeError) as e:
             print(f"Warning: Failed to load state file: {e}")
             print("Treating as fresh state")
             return self._empty_state()
 
-    def save_state(self, state: Optional[dict] = None) -> None:
+    def save_state(self, state: dict | None = None) -> None:
         """
         Atomically save state to disk.
 
@@ -68,7 +67,7 @@ class StateTracker:
     def mark_commit_processed(
         self,
         commit_id: str,
-        case_ids: List[str],
+        case_ids: list[str],
         status: str = 'completed'
     ) -> None:
         """
@@ -107,7 +106,7 @@ class StateTracker:
             return False
         return commit_data.get('status') == 'completed'
 
-    def get_unprocessed_commits(self, all_commits: List[str]) -> List[str]:
+    def get_unprocessed_commits(self, all_commits: list[str]) -> list[str]:
         """
         Filter out already processed commits.
 
@@ -122,7 +121,7 @@ class StateTracker:
             if not self.is_commit_processed(commit_id)
         ]
 
-    def get_failed_commits(self) -> List[str]:
+    def get_failed_commits(self) -> list[str]:
         """
         Get list of commits that failed processing.
 

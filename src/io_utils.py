@@ -1,24 +1,26 @@
-import yaml
 import json
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any
+
+import yaml
+
 from src.types import SemanticCaseInput, SemanticCaseOutput
 
 
-def save_yaml(data: Dict[str, Any], file_path: str) -> None:
+def save_yaml(data: dict[str, Any], file_path: str) -> None:
     """Save data as YAML file."""
     Path(file_path).parent.mkdir(parents=True, exist_ok=True)
     with open(file_path, 'w', encoding='utf-8') as f:
         yaml.dump(data, f, allow_unicode=True, default_flow_style=False, sort_keys=False)
 
 
-def load_yaml(file_path: str) -> Dict[str, Any]:
+def load_yaml(file_path: str) -> dict[str, Any]:
     """Load YAML file."""
-    with open(file_path, 'r', encoding='utf-8') as f:
+    with open(file_path, encoding='utf-8') as f:
         return yaml.safe_load(f)
 
 
-def save_jsonl(data: List[Dict[str, Any]], file_path: str) -> None:
+def save_jsonl(data: list[dict[str, Any]], file_path: str) -> None:
     """Save data as JSONL file."""
     Path(file_path).parent.mkdir(parents=True, exist_ok=True)
     with open(file_path, 'w', encoding='utf-8') as f:
@@ -26,30 +28,30 @@ def save_jsonl(data: List[Dict[str, Any]], file_path: str) -> None:
             f.write(json.dumps(item, ensure_ascii=False) + '\n')
 
 
-def load_jsonl(file_path: str) -> List[Dict[str, Any]]:
+def load_jsonl(file_path: str) -> list[dict[str, Any]]:
     """Load JSONL file."""
     data = []
-    with open(file_path, 'r', encoding='utf-8') as f:
+    with open(file_path, encoding='utf-8') as f:
         for line in f:
             if line.strip():
                 data.append(json.loads(line))
     return data
 
 
-def save_json(data: Dict[str, Any], file_path: str) -> None:
+def save_json(data: dict[str, Any], file_path: str) -> None:
     """Save data as JSON file."""
     Path(file_path).parent.mkdir(parents=True, exist_ok=True)
     with open(file_path, 'w', encoding='utf-8') as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
 
 
-def load_json(file_path: str) -> Dict[str, Any]:
+def load_json(file_path: str) -> dict[str, Any]:
     """Load JSON file."""
-    with open(file_path, 'r', encoding='utf-8') as f:
+    with open(file_path, encoding='utf-8') as f:
         return json.load(f)
 
 
-def semantic_case_input_to_dict(case: SemanticCaseInput) -> Dict[str, Any]:
+def semantic_case_input_to_dict(case: SemanticCaseInput) -> dict[str, Any]:
     """Convert SemanticCaseInput to dict for serialization."""
     return {
         'case_id': case.case_id,
@@ -75,7 +77,7 @@ def semantic_case_input_to_dict(case: SemanticCaseInput) -> Dict[str, Any]:
     }
 
 
-def semantic_case_output_to_dict(case: SemanticCaseOutput) -> Dict[str, Any]:
+def semantic_case_output_to_dict(case: SemanticCaseOutput) -> dict[str, Any]:
     """Convert SemanticCaseOutput to dict for serialization."""
     return {
         'case_id': case.case_id,

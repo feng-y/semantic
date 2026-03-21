@@ -2,10 +2,12 @@
 Tests for signal cache module
 """
 
-import pytest
-from pathlib import Path
-import tempfile
 import shutil
+import tempfile
+from pathlib import Path
+
+import pytest
+
 from src.semantic.signal_cache import SignalCache
 
 

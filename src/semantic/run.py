@@ -1,5 +1,8 @@
-from pathlib import Path
+from __future__ import annotations
+
 import argparse
+from pathlib import Path
+
 import yaml
 
 from src.semantic.runner_models import RunState
@@ -7,7 +10,7 @@ from src.semantic.runner_models import RunState
 try:
     from .validate import validate_stage
 except ImportError:
-    from validate import validate_stage
+    from validate import validate_stage as _validate_stage  # noqa: F401
 
 STAGES = [
     "step1_signals",
@@ -21,17 +24,12 @@ STAGES = [
 def load_state(path: Path, mode: str) -> RunState:
     if path.exists():
         data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
-        # mode in file may differ; keep file's mode unless overridden
-        return RunState(**data)
-    return RunState(
-        mode=mode,
-        current_stage=None,
-        completed_stages=[],
-        artifacts={},
-        errors=[],
-        warnings=[],
-        blocked_reason=None,
-    )
+        # Validate mode is a known Literal value; fallback to param if not
+        loaded_mode = data.get("mode", mode)
+        if loaded_mode not in ("next", "all", "resume", "reset"):
+            loaded_mode = mode
+        return RunState(**data, mode=loaded_mode)
+    return RunState(mode=mode)  # type: ignore[arg-type]
 
 
 def save_state(path: Path, state: RunState):

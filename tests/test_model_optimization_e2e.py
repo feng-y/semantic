@@ -5,11 +5,9 @@ Tests full pipeline with mock executor, pattern count reduction,
 canonical quality improvement, and CLI flag parsing.
 """
 
-import sys
 import argparse
+import sys
 from pathlib import Path
-
-import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
@@ -18,18 +16,15 @@ from src.commit_semantic.dedup import (
     group_strict_duplicates,
     select_canonical_duplicate,
 )
+from src.commit_semantic.model_optimizer import (
+    ModelOptimizer,
+    ModelOptimizerConfig,
+)
 from src.commit_semantic.patterning import (
     PatternInput,
     group_patterns,
     select_canonical_pattern_case,
 )
-from src.commit_semantic.model_optimizer import (
-    ModelOptimizer,
-    ModelOptimizerConfig,
-    check_semantic_duplicates,
-    score_abstraction_quality,
-)
-
 
 # ---------------------------------------------------------------------------
 # Realistic mock executor
@@ -306,8 +301,8 @@ class TestCLIFlagParsing:
 
     def test_export_cases_accepts_use_model_optimization(self):
         """export_cases function signature accepts use_model_optimization param."""
-        import inspect
         import importlib.util
+        import inspect
         run_py = Path(__file__).parent.parent / "skills" / "commit-semantic-export" / "run.py"
         spec = importlib.util.spec_from_file_location("run_module", run_py)
         mod = importlib.util.module_from_spec(spec)

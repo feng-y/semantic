@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import re
 
-
 CHANGE_ANALYSIS_SECTIONS = (
     "Change Intent",
     "Affected Pipelines",

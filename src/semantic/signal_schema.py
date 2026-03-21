@@ -1,7 +1,7 @@
 """
 Signal schema validation for the semantic cache.
 """
-from typing import Dict, Any, List, Tuple
+from typing import Any
 
 KNOWN_CATEGORIES = frozenset([
     'domain_signals',
@@ -13,7 +13,7 @@ KNOWN_CATEGORIES = frozenset([
 REQUIRED_SIGNAL_KEYS = {'signal_type', 'source', 'evidence', 'confidence'}
 
 
-def validate_signals(signals: Any) -> Tuple[bool, List[str]]:
+def validate_signals(signals: Any) -> tuple[bool, list[str]]:
     """
     Validate a signals dict against the expected schema.
 

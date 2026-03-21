@@ -5,10 +5,10 @@ Uses Python's ast module to extract class and function definitions,
 converting them into semantic signals for domain/concept detection.
 No external LSP server required.
 """
-from dataclasses import dataclass, field
-from pathlib import Path
-from typing import Any, Dict, List, Optional
 import ast
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any
 
 
 @dataclass
@@ -17,11 +17,11 @@ class SymbolInfo:
     kind: str          # 'class' | 'function' | 'method'
     module: str        # dotted module path
     line: int
-    docstring: Optional[str]
-    bases: List[str]   # for classes: base class names
+    docstring: str | None
+    bases: list[str]   # for classes: base class names
 
 
-def extract_symbols(source_path: Path) -> List[SymbolInfo]:
+def extract_symbols(source_path: Path) -> list[SymbolInfo]:
     """
     Extract class and function symbols from a Python source file.
     Returns empty list if file cannot be parsed.
@@ -70,7 +70,7 @@ def extract_symbols(source_path: Path) -> List[SymbolInfo]:
     return symbols
 
 
-def symbols_to_signals(symbols: List[SymbolInfo], source_path: Path) -> List[Dict[str, Any]]:
+def symbols_to_signals(symbols: list[SymbolInfo], source_path: Path) -> list[dict[str, Any]]:
     """Convert extracted symbols into semantic signals format"""
     signals = []
     classes = [s for s in symbols if s.kind == 'class']
@@ -97,7 +97,7 @@ def symbols_to_signals(symbols: List[SymbolInfo], source_path: Path) -> List[Dic
     return signals
 
 
-def extract_lsp_signals_from_dir(src_dir: Path) -> List[Dict[str, Any]]:
+def extract_lsp_signals_from_dir(src_dir: Path) -> list[dict[str, Any]]:
     """
     Walk a source directory and extract LSP signals from all .py files.
     Returns a flat list of signals.

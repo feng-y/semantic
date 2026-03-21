@@ -5,11 +5,11 @@ Unified pipeline runner for commit-semantic stages: collect, generate, export.
 import importlib.util
 import json
 import time
-from dataclasses import dataclass, field
+from collections.abc import Callable
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from enum import Enum
 from pathlib import Path
-from typing import Optional, Callable, List
 
 repo_root = Path(__file__).parent.parent.parent
 
@@ -17,6 +17,8 @@ repo_root = Path(__file__).parent.parent.parent
 def _load_skill(skill_name: str):
     module_path = repo_root / "skills" / skill_name / "run.py"
     spec = importlib.util.spec_from_file_location(f"{skill_name}.run", module_path)
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"Could not load skill module: {skill_name}")
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
@@ -31,12 +33,12 @@ class PipelineStage(Enum):
 @dataclass
 class PipelineContext:
     repo_path: str
-    commit_range: Optional[str] = None
+    commit_range: str | None = None
     data_dir: str = "data"
-    executor: Optional[Callable] = None
+    executor: Callable | None = None
     incremental: bool = False
     checkpoint_file: str = "data/.pipeline-checkpoint.json"
-    exclude_paths: Optional[List[str]] = None
+    exclude_paths: list[str] | None = None
 
 
 @dataclass
@@ -58,7 +60,7 @@ def _write_checkpoint(ctx: PipelineContext, stage: PipelineStage):
         json.dump(checkpoint, f)
 
 
-def _read_checkpoint(ctx: PipelineContext) -> Optional[str]:
+def _read_checkpoint(ctx: PipelineContext) -> str | None:
     try:
         with open(ctx.checkpoint_file) as f:
             return json.load(f).get("last_completed_stage")
@@ -140,13 +142,13 @@ def _parse_stages(stages: str) -> list:
 
 def run_pipeline(
     repo_path: str,
-    commit_range: Optional[str] = None,
+    commit_range: str | None = None,
     stages: str = "all",
     resume: bool = True,
     data_dir: str = "data",
-    executor: Optional[Callable] = None,
+    executor: Callable | None = None,
     incremental: bool = False,
-    exclude_paths: Optional[List[str]] = None,
+    exclude_paths: list[str] | None = None,
 ) -> dict:
     ctx = PipelineContext(
         repo_path=repo_path,

@@ -6,16 +6,14 @@ import json
 import sys
 from pathlib import Path
 
-import pytest
-
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
 from semantic.export import (
-    export_json,
-    export_graphql,
-    candidates_to_graphql,
-    _to_pascal,
     _to_camel,
+    _to_pascal,
+    candidates_to_graphql,
+    export_graphql,
+    export_json,
 )
 
 

@@ -5,19 +5,21 @@ This module provides Dict-based interface while using the new P4 architecture
 (patterning.py with dataclasses) internally.
 """
 
-from typing import Dict, List, Tuple
 
 from .patterning import (
     PatternInput,
-    build_pattern_fingerprint as _build_pattern_fingerprint,
     group_patterns,
-    check_pattern_count as _check_pattern_count,
     infer_action_class,
-    infer_object_class,
     infer_constraint_class,
-    select_canonical_pattern_case,
+    infer_object_class,
+    select_canonical_pattern_case as _select_canonical_pattern_case_orig,
 )
-from .normalize import normalize_text as normalize_for_similarity
+from .patterning import (
+    build_pattern_fingerprint as _build_pattern_fingerprint,
+)
+from .patterning import (
+    check_pattern_count as _check_pattern_count,
+)
 
 
 def calculate_similarity(text1: str, text2: str) -> float:
@@ -53,7 +55,7 @@ def calculate_similarity(text1: str, text2: str) -> float:
     return pair_similarity(input1, input2)
 
 
-def group_by_similarity(cases: List[Dict], threshold: float = 0.75) -> List[List[Dict]]:
+def group_by_similarity(cases: list[dict], threshold: float = 0.75) -> list[list[dict]]:
     """
     Group cases by similarity within a bucket.
 
@@ -96,7 +98,7 @@ def group_by_similarity(cases: List[Dict], threshold: float = 0.75) -> List[List
     return result
 
 
-def generate_pattern_fingerprint_v2(case: Dict) -> str:
+def generate_pattern_fingerprint_v2(case: dict) -> str:
     """Generate P2/P3 pattern fingerprint."""
     # Use explicit domain field from case, not re-guessed from module
     domain = case.get("domain", "")
@@ -115,10 +117,10 @@ def generate_pattern_fingerprint_v2(case: Dict) -> str:
 
 
 def extract_patterns_v2(
-    cases: List[Dict],
+    cases: list[dict],
     similarity_threshold: float = 0.50,
     use_model_optimization: bool = False
-) -> Tuple[List[Dict], Dict[str, int]]:
+) -> tuple[list[dict], dict[str, int]]:
     """
     Extract patterns with P2/P3 enhancements.
 
@@ -156,8 +158,8 @@ def extract_patterns_v2(
     )
 
     # Convert to dict format
-    patterns = []
-    domain_counts: Dict[str, int] = {}
+    patterns: list[dict[str, object]] = []
+    domain_counts: dict[str, int] = {}
 
     for group in pattern_groups:
         # Count by domain
@@ -182,12 +184,12 @@ def extract_patterns_v2(
         patterns.append(pattern)
 
     # Sort by count (most frequent first)
-    patterns.sort(key=lambda p: p["count"], reverse=True)
+    patterns.sort(key=lambda p: p["count"], reverse=True)  # type: ignore[arg-type,return-value]
 
     return patterns, domain_counts
 
 
-def check_pattern_count(domain_counts: Dict[str, int]) -> Dict[str, Dict]:
+def check_pattern_count(domain_counts: dict[str, int]) -> dict[str, dict]:
     """
     Check pattern counts per domain and generate alerts.
 
@@ -228,7 +230,7 @@ def extract_action_class(issue_text: str, dev_type: str) -> str:
     return infer_action_class(issue_text, dev_type)
 
 
-def extract_object_class(case: Dict) -> str:
+def extract_object_class(case: dict) -> str:
     """Extract object class - wrapper for backward compatibility."""
     return infer_object_class(
         case.get("issue_text", ""),
@@ -238,17 +240,15 @@ def extract_object_class(case: Dict) -> str:
     )
 
 
-def extract_constraint_class(rules: List[str], invariants: List[str]) -> str:
+def extract_constraint_class(rules: list[str], invariants: list[str]) -> str:
     """Extract constraint class - wrapper for backward compatibility."""
     return infer_constraint_class(rules, invariants)
 
 
-def select_canonical_pattern_case_wrapper(cases: List[Dict]) -> Dict:
+def _select_canonical_case(cases: list[dict]) -> dict:
     """
     Select canonical pattern case - wrapper for backward compatibility.
     """
-    from .patterning import select_canonical_pattern_case as _select_canonical
-
     # Convert to PatternInput
     pattern_inputs = []
     for case in cases:
@@ -266,7 +266,7 @@ def select_canonical_pattern_case_wrapper(cases: List[Dict]) -> Dict:
         pattern_inputs.append(pattern_input)
 
     # Select canonical
-    canonical_input = _select_canonical(pattern_inputs)
+    canonical_input = _select_canonical_pattern_case_orig(pattern_inputs)
 
     # Find and return original dict
     for case in cases:
@@ -277,4 +277,4 @@ def select_canonical_pattern_case_wrapper(cases: List[Dict]) -> Dict:
 
 
 # Alias for backward compatibility
-select_canonical_pattern_case = select_canonical_pattern_case_wrapper
+select_canonical_pattern_case = _select_canonical_case

@@ -10,17 +10,16 @@ Tests the complete workflow:
 
 import sys
 import tempfile
-import shutil
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 
-from src.io_utils import load_yaml, save_yaml
 from src.commit_semantic.prompt_runner import (
     generate_commit_log,
+    generate_issue_text,
     generate_rules_invariants,
-    generate_issue_text
 )
+from src.io_utils import load_yaml, save_yaml
 from src.validators import validate_semantic_case
 
 
@@ -130,7 +129,7 @@ def main():
 
                 # Validate
                 validate_semantic_case(complete_case)
-                print(f"  ✓ Validation passed")
+                print("  ✓ Validation passed")
 
                 # Save
                 output_file = output_dir / case_file.name

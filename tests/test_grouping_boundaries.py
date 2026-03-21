@@ -13,15 +13,16 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from src.types import RawCommit, BugfixEvidence
 from src.commit_semantic.grouping import (
-    extract_theme_from_file,
-    extract_change_groups,
     _filter_diff_chunks_for_files,
+    extract_change_groups,
+    extract_theme_from_file,
 )
-from src.commit_semantic.semantic_case_builder import build_semantic_cases, _should_merge_groups
-from src.types import ChangeGroup, ChangeRole
-
+from src.commit_semantic.semantic_case_builder import (
+    _should_merge_groups,
+    build_semantic_cases,
+)
+from src.types import BugfixEvidence, ChangeGroup, ChangeRole, RawCommit
 
 # ---------------------------------------------------------------------------
 # extract_theme_from_file

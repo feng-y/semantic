@@ -4,11 +4,11 @@ from pathlib import Path
 
 import pytest
 
-from src.skill_loader import PathSandboxError as SkillPathSandboxError
-from src.skill_loader import _validate_path as skill_validate_path
 from src.prompt_loader import PathSandboxError as PromptPathSandboxError
 from src.prompt_loader import _validate_path as prompt_validate_path
 from src.prompt_loader import resolve_prompt_path
+from src.skill_loader import PathSandboxError as SkillPathSandboxError
+from src.skill_loader import _validate_path as skill_validate_path
 
 
 @pytest.fixture

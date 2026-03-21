@@ -2,16 +2,18 @@
 Integration tests for incremental signal extraction
 """
 
-import pytest
-from pathlib import Path
-import tempfile
 import shutil
+import tempfile
+from pathlib import Path
+
+import pytest
 import yaml
+
 from src.semantic.extract_signals import (
-    run_incremental_extraction,
     extract_signals_from_files,
     load_fact_canonical,
-    load_fact_working_summary
+    load_fact_working_summary,
+    run_incremental_extraction,
 )
 
 

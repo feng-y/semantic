@@ -2,11 +2,10 @@
 Tests for SignalCache module
 """
 
-import pytest
-from pathlib import Path
 import json
 import sys
 from datetime import datetime, timezone
+from pathlib import Path
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
@@ -127,7 +126,7 @@ def test_cache_entry_structure(tmp_path):
 
     assert signal_file.exists()
 
-    with open(signal_file, 'r') as f:
+    with open(signal_file) as f:
         stored_signals = json.load(f)
 
     # Verify signals are stored correctly

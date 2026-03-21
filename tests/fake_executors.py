@@ -19,7 +19,7 @@ def stub_executor(
 
     if artifact_name == "sampling-report":
         lines.extend([
-            f"## Sampling Mode",
+            "## Sampling Mode",
             f"{sampling_mode}",
             "",
             "## Selected Areas",

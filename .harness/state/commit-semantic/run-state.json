@@ -1,0 +1,23 @@
+{
+  "version": "1.0",
+  "stage": "init",
+  "repo_path": "",
+  "last_updated": "2026-03-21T08:22:56.854416+00:00",
+  "metadata": {
+    "command": "commit-semantic",
+    "status": "ok",
+    "completed_stages": [
+      "analyze",
+      "domain-map",
+      "feed"
+    ],
+    "artifacts_written": [
+      "patterns/pattern-analysis.yaml",
+      "domains/domain-mapping.yaml",
+      "domains/demand-feed.yaml"
+    ],
+    "current_stage": null,
+    "resume_token": null,
+    "breakpoint_reason": null
+  }
+}

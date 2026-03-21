@@ -13,11 +13,15 @@ Note: commit_log is NOT included in dedup key per P2/P3/P4 spec.
 from __future__ import annotations
 
 import hashlib
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
-from typing import Iterable, Optional, Callable
 
+from .model_optimizer import (
+    ModelOptimizerConfig,
+    check_semantic_duplicates,
+    score_abstraction_quality,
+)
 from .normalize import build_constraint_signature, normalize_text
-from .model_optimizer import check_semantic_duplicates, score_abstraction_quality, ModelOptimizerConfig
 
 
 @dataclass
@@ -76,8 +80,8 @@ def group_strict_duplicates(
     *,
     use_constraint_signature: bool = False,
     use_model_optimization: bool = False,
-    model_executor: Optional[Callable[[str], str]] = None,
-    model_config: Optional[ModelOptimizerConfig] = None,
+    model_executor: Callable[[str], str] | None = None,
+    model_config: ModelOptimizerConfig | None = None,
 ) -> list[DedupGroup]:
     """
     Group cases by strict deduplication key.
@@ -127,8 +131,8 @@ def select_canonical_duplicate(
     cases: list[DedupInput],
     *,
     use_model_optimization: bool = False,
-    model_executor: Optional[Callable[[str], str]] = None,
-    model_config: Optional[ModelOptimizerConfig] = None,
+    model_executor: Callable[[str], str] | None = None,
+    model_config: ModelOptimizerConfig | None = None,
 ) -> DedupInput:
     """
     Select canonical case from duplicate group.
@@ -202,7 +206,7 @@ def _finalize_groups(buckets: dict[str, list[DedupInput]]) -> list[DedupGroup]:
 
 def _extract_gray_zone_pairs(
     buckets: dict[str, list[DedupInput]],
-    config: Optional[ModelOptimizerConfig] = None
+    config: ModelOptimizerConfig | None = None
 ) -> list[tuple[DedupInput, DedupInput]]:
     """
     Extract gray zone pairs with similarity 0.40-0.60.
@@ -217,7 +221,7 @@ def _extract_gray_zone_pairs(
     Returns:
         List of (case_a, case_b) tuples in gray zone
     """
-    from .patterning import pair_similarity, PatternInput
+    from .patterning import PatternInput, pair_similarity
 
     if config is None:
         config = ModelOptimizerConfig()
@@ -270,7 +274,7 @@ def _extract_gray_zone_pairs(
 def _apply_semantic_merges(
     buckets: dict[str, list[DedupInput]],
     dup_results: list,
-    config: Optional[ModelOptimizerConfig] = None
+    config: ModelOptimizerConfig | None = None
 ) -> dict[str, list[DedupInput]]:
     """
     Apply model decisions to merge groups.

@@ -1,8 +1,8 @@
 """Test that reset clears the current FACT snapshot to prevent version_skew."""
 
-from pathlib import Path
-import tempfile
 import json
+import tempfile
+from pathlib import Path
 
 from src import dispatcher
 

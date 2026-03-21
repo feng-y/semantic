@@ -1,5 +1,7 @@
 from pathlib import Path
+
 import yaml
+
 
 def test_run_state_template_exists():
     path = Path(__file__).parents[2] / "templates" / "semantic" / "run-state.template.yaml"

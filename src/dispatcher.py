@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from . import skill_loader, state_inspector
+from . import state_inspector
 from .discovery_executor import run_discovery
 from .refine_executor import run_refine
 
@@ -170,7 +170,6 @@ def _handle_status(root: Path, **kwargs: Any) -> dict[str, Any]:
 
 def _handle_reset(root: Path, **kwargs: Any) -> dict[str, Any]:
     """Reset working semantic state. Preserves baseline and schemas."""
-    import shutil
 
     removed: list[str] = []
 

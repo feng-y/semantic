@@ -14,20 +14,17 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from src.commit_semantic.dedup import (
     DedupInput,
-    DedupGroup,
-    group_strict_duplicates,
-    select_canonical_duplicate,
-    _extract_gray_zone_pairs,
     _apply_semantic_merges,
-    _select_by_rules,
+    _extract_gray_zone_pairs,
     _filter_by_semantic_value,
     build_dedup_key,
+    group_strict_duplicates,
+    select_canonical_duplicate,
 )
 from src.commit_semantic.model_optimizer import (
     ModelOptimizerConfig,
     SemanticDuplicateResult,
 )
-
 
 # ---------------------------------------------------------------------------
 # Fixtures

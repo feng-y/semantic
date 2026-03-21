@@ -9,13 +9,13 @@ Groups similar cases into patterns using:
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from collections.abc import Callable, Iterable
+from dataclasses import dataclass
 from difflib import SequenceMatcher
-from typing import Iterable, Optional, Callable
 
-from .normalize import build_constraint_signature, normalize_text
-from .model_optimizer import score_abstraction_quality, ModelOptimizerConfig
 from .dedup import DedupInput
+from .model_optimizer import ModelOptimizerConfig, score_abstraction_quality
+from .normalize import build_constraint_signature, normalize_text
 
 
 @dataclass
@@ -93,8 +93,8 @@ def group_patterns(
     *,
     similarity_threshold: float = 0.50,
     use_model_optimization: bool = False,
-    model_executor: Optional[Callable[[str], str]] = None,
-    model_config: Optional[ModelOptimizerConfig] = None,
+    model_executor: Callable[[str], str] | None = None,
+    model_config: ModelOptimizerConfig | None = None,
 ) -> list[PatternGroup]:
     """
     Group cases into patterns.
@@ -245,8 +245,8 @@ def select_canonical_pattern_case(
     cases: list[PatternInput],
     *,
     use_model_optimization: bool = False,
-    model_executor: Optional[Callable[[str], str]] = None,
-    model_config: Optional[ModelOptimizerConfig] = None,
+    model_executor: Callable[[str], str] | None = None,
+    model_config: ModelOptimizerConfig | None = None,
 ) -> PatternInput:
     """
     Select canonical case for pattern.

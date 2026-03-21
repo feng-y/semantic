@@ -1,0 +1,53 @@
+# Progress — Cross-Session State
+
+*This file tracks session-to-session state so agents don't restart cold.*
+*Format: YYYY-MM-DD | Category | Entry*
+
+## Last Session (2026-03-21)
+
+### Harness Engineering Setup
+- [x] Create `AGENTS.md` (~100 lines, map-style)
+- [x] Create `core-beliefs.md` (10 golden principles)
+- [x] Create `tech-debt-tracker.md` (12 items, P1-P3)
+- [x] Create `QUALITY_SCORE.md` (60/100 → 68/100 after CI additions)
+- [x] Create `docs/harness-engineering/synthesis.md` (完整中文知识总结，9 个核心模式)
+- [x] Create `docs/harness-engineering/reading-list.md` (641 lines, 10 articles fully synthesized)
+- [x] Create `.github/workflows/ci.yml` (pytest + ruff + mypy jobs)
+- [x] Add ruff config to `pyproject.toml` (E,F rules, enforced on src/)
+- [x] Add mypy config to `pyproject.toml` (informational mode)
+- [x] Fix ruff E701 style in `src/semantic/finalize_assets.py`
+- [x] Create `progress.txt` (this file)
+
+### Repo Discovery
+- 5 capabilities identified: fact, semantic, demand, commit-semantic, semantic-extract
+- `docs/fact/` workspace already initialized with schemas/, discovery/, review/, baseline/
+- FACT baseline accepted (v1 artifacts present)
+- 46 tests passing
+
+### Open Items
+- T003: ruff ✅ + mypy ✅ CI gate active (38 errors → 0 errors fixed)
+- T001: demand-pipeline ✅ stable — completed missing skill wrapper (`skills/demand-pipeline/run.py`), pipeline tested, README status updated
+- T004: mypy configured, informational mode ⚠️
+- T005: schemas/ has `demand/demand-card.schema.json` — NOT empty
+- T006: templates/ has 13 files (fact/semantic/demand) — NOT empty
+- T007: skills/legacy/ has 3 files (not 5 as originally noted)
+
+### Reading List Enrichment (2026-03-21, Session 2)
+- ✅ Mitchell Hashimoto "My AI Adoption Journey" — 6-step journey, harness engineering term coined here, AGENTS.md as living feedback loop
+- ✅ Geoffrey Huntley "Ralph Wiggum Loop" — self-referential verification, backpressure flow control, 3-phase workflow
+- ✅ Addy Osmani "Agentic Engineering" — 4-part workflow, tests as backpressure, skill atrophy warning
+- ✅ Ralph/Backpressure deep mechanics — TCP/IP analogy, self-regulating loop signals
+- ✅ Smart Zone / Dumb Zone deep definition — ~20% actionable, ~80% reference
+- ✅ Research-Plan-Implement workflow — 3-phase model with boundary enforcement
+- ✅ OpenAI "Harness Engineering: Leveraging Codex" — 3 engineers, 1M LOC, Codex as sole coder, AGENTS.md as catalog not encyclopedia, normative architecture (Types→Config→Repo→Service→Runtime→UI), garbage collection as continuous background Codex tasks, entropy management
+- ✅ Anthropic "Effective Harnesses for Long-Running Agents" — Two-agent architecture (Initializer + Coding), JSON feature lists, E2E mandatory self-testing, Context Amnesia concept
+- ✅ Cassie Kozyrkov / Decision Substack "How to Supervise Code You Can't Read" — Two-Translation Habit, Trust Debt concept, build walls not conversations, stakes determine rigor
+- ✅ Stripe "Can AI Agents Build Real Stripe Integrations?" — MCP harness + deterministic graders, Claude Opus 4.5 = 92% on full-stack tasks, 100% accuracy required for payments
+- ✅ Martin Fowler series (Böckeler/Thoughtworks x2) — "Harness Engineering" (3 categories: context+constraints+GC) and "Context Engineering for Coding Agents" (instructions vs guidance taxonomy, context interfaces, illusion of control)
+- ✅ Charlie Guo — not needed (Anthropic "Effective Harnesses" IS the Emerging Harness Engineering Playbook)
+- ✅ Dex Horthy — captured via reading-list synthesis
+- ✅ Geoffrey Huntley (rwx.haus) — captured via ghuntley.com + reading-list synthesis
+
+---
+
+*Update this file at end of each session with key state changes.*

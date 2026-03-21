@@ -21,7 +21,6 @@ from src import artifact_writer, state_inspector
 from src.discovery_executor import run_discovery, validate_artifact_content
 from tests.fake_executors import stub_executor
 
-
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
 FACT_ARTIFACTS = [

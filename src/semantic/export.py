@@ -5,20 +5,19 @@ Supports:
 - JSON: flat export of any semantic YAML artifact
 - GraphQL schema: generates a .graphql schema from candidates
 """
-from pathlib import Path
-from typing import Any, Dict, List, Optional
 import json
-import yaml
+from pathlib import Path
+from typing import Any
 
 
-def export_json(data: Dict[str, Any], output_path: Path) -> None:
+def export_json(data: dict[str, Any], output_path: Path) -> None:
     """Export semantic data as pretty-printed JSON"""
     output_path.parent.mkdir(parents=True, exist_ok=True)
     with open(output_path, 'w', encoding='utf-8') as f:
         json.dump(data, f, indent=2, ensure_ascii=False)
 
 
-def candidates_to_graphql(candidates_data: Dict[str, Any]) -> str:
+def candidates_to_graphql(candidates_data: dict[str, Any]) -> str:
     """
     Generate a GraphQL schema string from candidates data.
 
@@ -39,9 +38,9 @@ def candidates_to_graphql(candidates_data: Dict[str, Any]) -> str:
             lines.append(desc_safe)
             lines.append('"""')
         lines.append(f'type {name} {{')
-        lines.append(f'  id: ID!')
-        lines.append(f'  name: String!')
-        lines.append(f'}}')
+        lines.append('  id: ID!')
+        lines.append('  name: String!')
+        lines.append('}')
         lines.append('')
 
     # Concept types
@@ -55,12 +54,12 @@ def candidates_to_graphql(candidates_data: Dict[str, Any]) -> str:
             lines.append(desc_safe)
             lines.append('"""')
         lines.append(f'type {name} {{')
-        lines.append(f'  id: ID!')
-        lines.append(f'  name: String!')
+        lines.append('  id: ID!')
+        lines.append('  name: String!')
         confidence = concept.get('confidence', '')
         if confidence:
             lines.append(f'  # confidence: {confidence}')
-        lines.append(f'}}')
+        lines.append('}')
         lines.append('')
 
     # Query type
@@ -79,7 +78,7 @@ def candidates_to_graphql(candidates_data: Dict[str, Any]) -> str:
     return '\n'.join(lines)
 
 
-def export_graphql(candidates_data: Dict[str, Any], output_path: Path) -> None:
+def export_graphql(candidates_data: dict[str, Any], output_path: Path) -> None:
     """Export candidates as a GraphQL schema file"""
     output_path.parent.mkdir(parents=True, exist_ok=True)
     schema = candidates_to_graphql(candidates_data)

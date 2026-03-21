@@ -1,15 +1,19 @@
 """Tests for refactored semantic runner (run.py)."""
 
-from pathlib import Path
 import sys
 import tempfile
-from unittest.mock import patch, MagicMock
-import yaml
+from pathlib import Path
+from unittest.mock import MagicMock, patch
+
 import pytest
+import yaml
 
-from src.semantic.run import main, load_state, save_state, next_stage, check_finalize_guard
+from src.semantic.run import (
+    check_finalize_guard,
+    load_state,
+    main,
+)
 from src.semantic.runner_models import RunState
-
 
 # ---------------------------------------------------------------------------
 # Helpers

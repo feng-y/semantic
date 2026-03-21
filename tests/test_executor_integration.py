@@ -12,11 +12,11 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from src.commit_semantic.prompt_runner import (
-    run_prompt_with_claude,
     extract_yaml_from_response,
     generate_commit_log,
+    generate_issue_text,
     generate_rules_invariants,
-    generate_issue_text
+    run_prompt_with_claude,
 )
 
 
@@ -129,7 +129,10 @@ def test_generate_functions():
     except Exception as e:
         print(f"    ✗ Error: {e}")
         # Debug: print what we got
-        from src.commit_semantic.prompt_runner import load_prompt, run_prompt_with_claude
+        from src.commit_semantic.prompt_runner import (
+            load_prompt,
+            run_prompt_with_claude,
+        )
         prompt = load_prompt("generate_rules_invariants")
         input_with_log = case_input.copy()
         input_with_log['commit_log'] = commit_log

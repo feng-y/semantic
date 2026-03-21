@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import re
 import unicodedata
-from typing import Iterable
+from collections.abc import Iterable
 
 _WS_RE = re.compile(r"\s+")
 _NUM_RE = re.compile(r"\b\d+(\.\d+)?\b")

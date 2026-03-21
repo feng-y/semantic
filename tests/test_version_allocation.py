@@ -1,7 +1,6 @@
 """Tests for atomic version allocation in artifact_writer."""
 
 import threading
-from pathlib import Path
 
 import pytest
 

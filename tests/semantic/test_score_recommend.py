@@ -2,25 +2,27 @@
 Tests for semantic recommendation generation
 """
 
-import pytest
-from pathlib import Path
-import yaml
 import sys
+from pathlib import Path
+
+import pytest
+import yaml
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
 from semantic.score_recommend import (
-    load_candidates,
-    evaluate_semantic_validity,
+    check_evidence_needs,
     compute_scores,
     determine_recommendation,
+    evaluate_semantic_validity,
     generate_reasons,
-    check_evidence_needs,
     generate_recommendation_item,
     generate_stable_id,
-    main
+    load_candidates,
+    main,
 )
+
 
 def test_load_candidates():
     """Test loading candidates.yaml"""
@@ -283,7 +285,7 @@ def test_recommendations_yaml_structure(tmp_path):
     # Verify output
     assert output_file.exists()
 
-    with open(output_file, 'r') as f:
+    with open(output_file) as f:
         data = yaml.safe_load(f)
 
     # Check structure

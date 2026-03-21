@@ -10,7 +10,6 @@ Tests the complete flow:
 
 import sys
 import tempfile
-import shutil
 from pathlib import Path
 
 import pytest
@@ -18,12 +17,12 @@ import pytest
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent))
 
-from src.commit_semantic.git_utils import get_commit_list, get_commit_details
-from src.commit_semantic.grouping import extract_change_groups, detect_bugfix_evidence
+from src.commit_semantic.git_utils import get_commit_details, get_commit_list
+from src.commit_semantic.grouping import detect_bugfix_evidence, extract_change_groups
 from src.commit_semantic.semantic_case_builder import build_semantic_cases
-from src.io_utils import save_yaml, load_yaml, semantic_case_input_to_dict
-from src.validators import validate_semantic_case, ValidationError
+from src.io_utils import load_yaml, save_yaml, semantic_case_input_to_dict
 from src.types import DevelopmentType
+from src.validators import ValidationError, validate_semantic_case
 
 
 @pytest.fixture(scope="module")
@@ -136,8 +135,8 @@ def test_generate_semantics(commit):
     """Test semantic generation with mock executor."""
     from src.commit_semantic.prompt_runner import (
         generate_commit_log,
+        generate_issue_text,
         generate_rules_invariants,
-        generate_issue_text
     )
 
     groups = extract_change_groups(commit)
@@ -175,8 +174,8 @@ def test_validators(commit):
     """Test validation logic."""
     from src.commit_semantic.prompt_runner import (
         generate_commit_log,
+        generate_issue_text,
         generate_rules_invariants,
-        generate_issue_text
     )
 
     groups = extract_change_groups(commit)
@@ -236,9 +235,11 @@ def test_validators(commit):
 def test_data_structures():
     """Test data structure definitions."""
     from src.types import (
-        RawCommit, ChangeGroup, SemanticCaseInput, SemanticCaseOutput,
-        BugfixEvidence, SplitHints, SplitSuggestion,
-        DevelopmentType, ChangeRole
+        ChangeGroup,
+        ChangeRole,
+        RawCommit,
+        SemanticCaseInput,
+        SemanticCaseOutput,
     )
 
     commit = RawCommit(

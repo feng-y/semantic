@@ -18,3 +18,7 @@ Requires-Python: >=3.10
 Requires-Dist: pyyaml>=6.0
 Provides-Extra: test
 Requires-Dist: pytest>=8.0; extra == "test"
+Provides-Extra: lint
+Requires-Dist: ruff>=0.9.0; extra == "lint"
+Provides-Extra: typecheck
+Requires-Dist: mypy>=1.0; extra == "typecheck"

@@ -1,5 +1,3 @@
-from typing import Dict, List, Optional
-from src.types import SemanticCaseOutput, DevelopmentType
 
 
 class ValidationError(Exception):
@@ -9,7 +7,7 @@ class ValidationError(Exception):
         super().__init__(reason)
 
 
-def validate_structure(case_dict: Dict) -> None:
+def validate_structure(case_dict: dict) -> None:
     """Validate required fields are present."""
     required_fields = [
         'case_id', 'commit_id', 'module', 'commit_log',
@@ -28,7 +26,7 @@ def validate_structure(case_dict: Dict) -> None:
         raise ValidationError("Missing split_suggestion.split_reasons")
 
 
-def validate_types(case_dict: Dict) -> None:
+def validate_types(case_dict: dict) -> None:
     """Validate field types."""
     if not isinstance(case_dict['commit_log'], str):
         raise ValidationError("commit_log must be string")
@@ -48,7 +46,7 @@ def validate_types(case_dict: Dict) -> None:
         raise ValidationError("semantic_value must be string")
 
 
-def validate_enums(case_dict: Dict) -> None:
+def validate_enums(case_dict: dict) -> None:
     """Validate enum values."""
     valid_types = {'feature', 'bugfix', 'refactor', 'migration', 'optimize'}
     dev_type = case_dict['development_type']
@@ -63,7 +61,7 @@ def validate_enums(case_dict: Dict) -> None:
         raise ValidationError(f"Invalid semantic_value: {semantic_value}")
 
 
-def validate_consistency(case_dict: Dict) -> None:
+def validate_consistency(case_dict: dict) -> None:
     """Validate consistency rules."""
     issue_text = case_dict['issue_text']
     dev_type = case_dict['development_type']
@@ -119,7 +117,7 @@ def validate_consistency(case_dict: Dict) -> None:
             )
 
 
-def validate_semantic_case(case_dict: Dict) -> None:
+def validate_semantic_case(case_dict: dict) -> None:
     """Run all validation checks on a semantic case."""
     if not isinstance(case_dict, dict):
         raise ValidationError(f"Expected dict, got {type(case_dict)}")

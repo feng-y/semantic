@@ -1,6 +1,5 @@
 """Tests for state inspector versioned review-summary detection."""
 
-from pathlib import Path
 
 import pytest
 
@@ -122,8 +121,8 @@ def test_recommend_next_complete():
 
 
 def test_recommend_next_prefers_runner_status():
-    from src.state_inspector import SemanticState, recommend_next
     from src.semantic.status import StatusReport
+    from src.state_inspector import SemanticState, recommend_next
     state = SemanticState(has_discovery_artifacts=True)
     runner = StatusReport(
         current_stage="step2_candidates",
@@ -137,8 +136,8 @@ def test_recommend_next_prefers_runner_status():
 
 
 def test_recommend_next_blocked_runner():
-    from src.state_inspector import SemanticState, recommend_next
     from src.semantic.status import StatusReport
+    from src.state_inspector import SemanticState, recommend_next
     state = SemanticState(has_discovery_artifacts=True)
     runner = StatusReport(
         current_stage="step5_finalize",

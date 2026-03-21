@@ -15,8 +15,13 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from . import artifact_writer, context_builder, prompt_loader, skill_loader, state_inspector
-from . import artifact_validation
+from . import (
+    artifact_validation,
+    artifact_writer,
+    context_builder,
+    prompt_loader,
+    state_inspector,
+)
 from .change_analysis_generator import generate_change_analysis
 from .change_analysis_validation import validate_change_analysis
 from .host_executor import HostExecutor
@@ -211,7 +216,8 @@ def run_refine(
             result.steps.append(baseline_result)
             if baseline_result.status == "ok":
                 result.baseline_generated = True
-                result.artifacts_written.append(baseline_result.artifact_path)
+                if baseline_result.artifact_path:
+                    result.artifacts_written.append(baseline_result.artifact_path)
                 change_result = _execute_change_analysis_step(root)
                 result.steps.append(change_result)
                 if change_result.artifact_path:

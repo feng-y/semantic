@@ -10,10 +10,10 @@ Tests the full pipeline:
 This test uses a mock executor for prompt generation.
 """
 
-import sys
-import shutil
-from pathlib import Path
 import importlib.util
+import shutil
+import sys
+from pathlib import Path
 
 # Add parent directory to path
 repo_root = Path(__file__).parent.parent
@@ -206,14 +206,20 @@ def test_e2e_pipeline():
 def test_e2e_bugfix_path():
     """Pipeline produces a valid bugfix case end-to-end."""
     import tempfile
-    from src.commit_semantic.prompt_runner import (
-        generate_commit_log, generate_rules_invariants, generate_issue_text,
+
+    from src.commit_semantic.git_utils import get_commit_details, get_commit_list
+    from src.commit_semantic.grouping import (
+        detect_bugfix_evidence,
+        extract_change_groups,
     )
-    from src.validators import validate_semantic_case, ValidationError
-    from src.commit_semantic.git_utils import get_commit_list, get_commit_details
-    from src.commit_semantic.grouping import extract_change_groups, detect_bugfix_evidence
+    from src.commit_semantic.prompt_runner import (
+        generate_commit_log,
+        generate_issue_text,
+        generate_rules_invariants,
+    )
     from src.commit_semantic.semantic_case_builder import build_semantic_cases
-    from src.io_utils import save_yaml, load_yaml, semantic_case_input_to_dict
+    from src.io_utils import load_yaml, save_yaml, semantic_case_input_to_dict
+    from src.validators import validate_semantic_case
 
     commits = get_commit_list(".", commit_range="HEAD~10..HEAD")
     commit = None
@@ -260,15 +266,22 @@ def test_e2e_bugfix_path():
 def test_e2e_validation_rejects_mismatched_prefix():
     """Validator rejects a case where issue_text prefix contradicts development_type."""
     import tempfile
-    from src.commit_semantic.prompt_runner import (
-        generate_commit_log, generate_rules_invariants, generate_issue_text,
-    )
-    from src.validators import validate_semantic_case, ValidationError
-    from src.commit_semantic.git_utils import get_commit_list, get_commit_details
-    from src.commit_semantic.grouping import extract_change_groups, detect_bugfix_evidence
-    from src.commit_semantic.semantic_case_builder import build_semantic_cases
-    from src.io_utils import save_yaml, load_yaml, semantic_case_input_to_dict
+
     import pytest
+
+    from src.commit_semantic.git_utils import get_commit_details, get_commit_list
+    from src.commit_semantic.grouping import (
+        detect_bugfix_evidence,
+        extract_change_groups,
+    )
+    from src.commit_semantic.prompt_runner import (
+        generate_commit_log,
+        generate_issue_text,
+        generate_rules_invariants,
+    )
+    from src.commit_semantic.semantic_case_builder import build_semantic_cases
+    from src.io_utils import load_yaml, save_yaml, semantic_case_input_to_dict
+    from src.validators import ValidationError, validate_semantic_case
 
     commits = get_commit_list(".", commit_range="HEAD~10..HEAD")
     commit = None

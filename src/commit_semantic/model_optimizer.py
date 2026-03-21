@@ -10,13 +10,14 @@ Model has final authority when enabled; rule-based logic serves as efficiency pr
 
 from __future__ import annotations
 
+import hashlib
 import json
 import time
-import hashlib
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from pathlib import Path
-from typing import Optional, Callable, TYPE_CHECKING
 from datetime import datetime, timezone
+from pathlib import Path
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .dedup import DedupInput
@@ -95,8 +96,8 @@ class ModelOptimizer:
 
     def __init__(
         self,
-        executor: Optional[Callable[[str], str]] = None,
-        config: Optional[ModelOptimizerConfig] = None
+        executor: Callable[[str], str] | None = None,
+        config: ModelOptimizerConfig | None = None
     ):
         """
         Initialize model optimizer.
@@ -112,7 +113,7 @@ class ModelOptimizer:
 
     def check_semantic_duplicates(
         self,
-        pairs: list[tuple["DedupInput", "DedupInput"]]
+        pairs: list[tuple[DedupInput, DedupInput]]
     ) -> list[SemanticDuplicateResult]:
         """
         Check if pairs are semantic duplicates using model.
@@ -156,7 +157,7 @@ class ModelOptimizer:
 
     def score_abstraction_quality(
         self,
-        cases: list["DedupInput"]
+        cases: list[DedupInput]
     ) -> list[QualityScore]:
         """
         Score abstraction quality of issue_text using model.
@@ -197,8 +198,8 @@ class ModelOptimizer:
 
     def _check_pair_with_retry(
         self,
-        case_a: "DedupInput",
-        case_b: "DedupInput"
+        case_a: DedupInput,
+        case_b: DedupInput
     ) -> SemanticDuplicateResult:
         """Check pair with exponential backoff retry."""
         cache_key = self._make_cache_key("dup", case_a.case_id, case_b.case_id)
@@ -246,8 +247,8 @@ class ModelOptimizer:
 
     def _check_pair(
         self,
-        case_a: "DedupInput",
-        case_b: "DedupInput"
+        case_a: DedupInput,
+        case_b: DedupInput
     ) -> SemanticDuplicateResult:
         """Check if pair is semantic duplicate (single attempt)."""
         if self.executor is None:
@@ -282,7 +283,7 @@ class ModelOptimizer:
 
     def _score_case_with_retry(
         self,
-        case: "DedupInput"
+        case: DedupInput
     ) -> QualityScore:
         """Score case with exponential backoff retry."""
         cache_key = self._make_cache_key("quality", self._hash_text(case.issue_text))
@@ -326,7 +327,7 @@ class ModelOptimizer:
 
     def _score_case(
         self,
-        case: "DedupInput"
+        case: DedupInput
     ) -> QualityScore:
         """Score case abstraction quality (single attempt)."""
         if self.executor is None:
@@ -361,8 +362,8 @@ class ModelOptimizer:
 
     def _build_duplicate_check_prompt(
         self,
-        case_a: "DedupInput",
-        case_b: "DedupInput"
+        case_a: DedupInput,
+        case_b: DedupInput
     ) -> str:
         """Build prompt for semantic duplicate check."""
         return f"""Compare these two issue descriptions:
@@ -384,7 +385,7 @@ Respond with JSON:
 
     def _build_quality_score_prompt(
         self,
-        case: "DedupInput"
+        case: DedupInput
     ) -> str:
         """Build prompt for abstraction quality scoring."""
         rules_str = "\n".join(f"- {r}" for r in case.rules) if case.rules else "None"
@@ -495,9 +496,9 @@ Quality Scoring:
 
 # Convenience functions for backward compatibility
 def check_semantic_duplicates(
-    pairs: list[tuple["DedupInput", "DedupInput"]],
-    executor: Optional[Callable[[str], str]] = None,
-    config: Optional[ModelOptimizerConfig] = None
+    pairs: list[tuple[DedupInput, DedupInput]],
+    executor: Callable[[str], str] | None = None,
+    config: ModelOptimizerConfig | None = None
 ) -> list[SemanticDuplicateResult]:
     """
     Check if pairs are semantic duplicates using model.
@@ -515,9 +516,9 @@ def check_semantic_duplicates(
 
 
 def score_abstraction_quality(
-    cases: list["DedupInput"],
-    executor: Optional[Callable[[str], str]] = None,
-    config: Optional[ModelOptimizerConfig] = None
+    cases: list[DedupInput],
+    executor: Callable[[str], str] | None = None,
+    config: ModelOptimizerConfig | None = None
 ) -> list[QualityScore]:
     """
     Score abstraction quality of issue_text using model.

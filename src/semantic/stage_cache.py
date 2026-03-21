@@ -4,10 +4,13 @@ Stage-level output cache for semantic pipeline stages.
 Caches full stage output (YAML dict) keyed by (stage_name, input_file_hash).
 Enables skipping expensive re-computation when inputs are unchanged.
 """
+import hashlib
+import json
+import os
+import tempfile
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any, Dict, Optional
-import hashlib, json, os, tempfile
-from datetime import datetime, timezone, timedelta
+from typing import Any
 
 
 class StageCache:
@@ -28,16 +31,16 @@ class StageCache:
     def _cache_file(self, key: str) -> Path:
         return self.cache_dir / f"{key}.json"
 
-    def _load_index(self) -> Dict[str, Any]:
+    def _load_index(self) -> dict[str, Any]:
         if not self.index_file.exists():
             return {}
         try:
-            with open(self.index_file, 'r', encoding='utf-8') as f:
+            with open(self.index_file, encoding='utf-8') as f:
                 return json.load(f)
-        except (json.JSONDecodeError, IOError):
+        except (OSError, json.JSONDecodeError):
             return {}
 
-    def _save_index(self, index: Dict[str, Any]):
+    def _save_index(self, index: dict[str, Any]):
         with tempfile.NamedTemporaryFile('w', dir=self.cache_dir, delete=False,
                                          suffix='.tmp', encoding='utf-8') as tmp:
             json.dump(index, tmp, indent=2)
@@ -55,7 +58,7 @@ class StageCache:
         except (FileNotFoundError, PermissionError):
             return ""
 
-    def get(self, stage: str, input_hash: str) -> Optional[Dict[str, Any]]:
+    def get(self, stage: str, input_hash: str) -> dict[str, Any] | None:
         """Return cached output or None on miss/expiry"""
         index = self._load_index()
         entry_key = f"{stage}:{input_hash}"
@@ -79,15 +82,15 @@ class StageCache:
             return None
 
         try:
-            with open(cache_file, 'r', encoding='utf-8') as f:
+            with open(cache_file, encoding='utf-8') as f:
                 data = json.load(f)
             self._hits += 1
             return data
-        except (json.JSONDecodeError, IOError):
+        except (OSError, json.JSONDecodeError):
             self._misses += 1
             return None
 
-    def put(self, stage: str, input_hash: str, output: Dict[str, Any]):
+    def put(self, stage: str, input_hash: str, output: dict[str, Any]):
         """Store stage output in cache"""
         key = self._cache_key(stage, input_hash)
         cache_file = self._cache_file(key)
@@ -120,7 +123,7 @@ class StageCache:
         if self.index_file.exists():
             self.index_file.unlink()
 
-    def stats(self) -> Dict[str, Any]:
+    def stats(self) -> dict[str, Any]:
         index = self._load_index()
         total = self._hits + self._misses
         return {

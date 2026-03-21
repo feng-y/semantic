@@ -2,8 +2,8 @@
 Tests for semantic.logger module
 """
 import logging
-import pytest
-from semantic.logger import get_logger, configure_logging
+
+from semantic.logger import configure_logging, get_logger
 
 
 def test_get_logger_returns_logger():

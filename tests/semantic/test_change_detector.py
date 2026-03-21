@@ -2,10 +2,9 @@
 Tests for ChangeDetector module
 """
 
-import pytest
-from pathlib import Path
 import json
 import sys
+from pathlib import Path
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
@@ -266,7 +265,7 @@ def test_state_file_structure(tmp_path):
 
     # Read and verify structure
     state_file = tmp_path / "cache" / "change_state.json"
-    with open(state_file, 'r') as f:
+    with open(state_file) as f:
         data = json.load(f)
 
     assert 'file_hashes' in data

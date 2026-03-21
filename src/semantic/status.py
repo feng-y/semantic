@@ -2,12 +2,12 @@
 Semantic pipeline status reporter.
 Reads run-state.yaml and recommends next action.
 """
-from dataclasses import dataclass, field
-from pathlib import Path
-from typing import List, Optional
-import yaml
 import argparse
 import sys
+from dataclasses import dataclass, field
+from pathlib import Path
+
+import yaml
 
 STAGE_SEQUENCE = [
     "step1_signals",
@@ -28,11 +28,11 @@ NEXT_ACTION_MAP = {
 
 @dataclass
 class StatusReport:
-    current_stage: Optional[str]
+    current_stage: str | None
     next_action: str
     blocked: bool
-    blocked_reason: Optional[str]
-    completed: List[str] = field(default_factory=list)
+    blocked_reason: str | None
+    completed: list[str] = field(default_factory=list)
 
 def get_status(workspace: Path) -> StatusReport:
     """Read run-state.yaml and return current status + next action recommendation."""
