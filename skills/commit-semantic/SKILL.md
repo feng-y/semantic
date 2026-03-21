@@ -40,4 +40,4 @@ Requires: `/commit-extract` output in `.harness/outputs/commit-extract/`
 
 - `.harness/outputs/commit-semantic/patterns/`
 - `.harness/outputs/commit-semantic/domains/`
-- `.harness/state/commit-semantic/run-state.json`
+- `.harness/state/commit-semantic/state.json`
