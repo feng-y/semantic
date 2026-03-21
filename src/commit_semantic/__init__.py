@@ -1,25 +1,16 @@
 """
 Commit semantic extraction module.
 
-Extracts semantic cases from git commit history.
+.. deprecated::
+   The old extract/generate/export pipeline is deprecated.
+   Use ``skills/commit-extract/`` and ``skills/commit-semantic/`` instead,
+   which follow the Team Agent architecture (SKILL.md + prompts/*.md + Task tool).
+   Only ``git_utils`` is still used by the new skills.
 """
 
 from .git_utils import get_commit_details, get_commit_list
-from .grouping import detect_bugfix_evidence, extract_change_groups
-from .prompt_runner import (
-    generate_commit_log,
-    generate_issue_text,
-    generate_rules_invariants,
-)
-from .semantic_case_builder import build_semantic_cases
 
 __all__ = [
     'get_commit_list',
     'get_commit_details',
-    'extract_change_groups',
-    'detect_bugfix_evidence',
-    'build_semantic_cases',
-    'generate_commit_log',
-    'generate_rules_invariants',
-    'generate_issue_text',
 ]
