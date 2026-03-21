@@ -661,7 +661,7 @@ class TestCommitSemanticTeamAgentArchitecture:
         content = skill_md.read_text()
 
         # Should NOT be deprecated
-        assert "deprecated" not in content.lower() or "replacement" not in content.lower(), \
+        assert "deprecated" not in content.lower() and "replacement" not in content.lower(), \
             "SKILL.md should not be marked as deprecated"
 
         # Should mention worker agents or Task tool

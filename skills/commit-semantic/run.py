@@ -116,10 +116,8 @@ class CommitSemanticRunner(SkillRunner):
             "yes",
         )
 
-        if use_task:
-            # Real Task agent spawning — implemented in agent context via SKILL.md
-            # This branch is a no-op here; the main agent handles Task calls.
-            pass
+        if use_task and not results:
+            print("  [commit-semantic] WARNING: _spawn_worker called with use_task=True but returned no results. Ensure this runs within a Task agent context.")
 
         # Local processing (default): run _score_unit directly
         results: list[dict] = []
@@ -253,7 +251,7 @@ class CommitSemanticRunner(SkillRunner):
                 else:
                     low.append(scored)
             else:
-                non_functional.append(unit)
+                non_functional.append({**unit, "score": None})
 
         for tier, units_list in [("high", high), ("medium", medium), ("low", low)]:
             save_yaml({
