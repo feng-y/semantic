@@ -39,7 +39,7 @@ analyze (分析) ─────────────────────
 
 ### Pipeline 1: commit pipeline (变更语义事实)
 
-**前置条件:** `data/commit-extract/` 存在（commit-extract 已运行）
+**前置条件:** `data/commit-extract/` 存在（commit-extract 已运行）—— 严格 upstream，缺失则报错，不自举。
 **输出:** `hotspot_map.yaml`
 
 ```
@@ -57,9 +57,7 @@ git commits
             (commit 视角: 热点模块、常见变更语义、领域演化高频区)
 ```
 
-**如果 commit-extract 不存在:** hotspot 阶段先运行 commit-extract，再继续。
-
-**Pipeline 1 各步骤含义:**
+**Pipeline 1 各步骤含义:****
 
 | 步骤 | commit pipeline |
 |------|----------------|
@@ -241,10 +239,15 @@ architect_augment.yaml  (archi 视角)
         ↓ baseline (三源融合 + 冲突仲裁)
 facts.vN.yaml
         ↓
-Knowledge Views (整理层)
-├── Domain Map
-├── Concept Map
-└── Rule Map
+Knowledge Views (整理层, derived from baseline)
+
+| Map | 性质 | 说明 |
+|-----|------|------|
+| Domain Map | **derived knowledge view** | 从 facts.vN.yaml 整理得到 |
+| Concept Map | **derived knowledge view** | 从 facts.vN.yaml 整理得到 |
+| Rule Map | **derived knowledge view** | 从 facts.vN.yaml 整理得到 |
+
+**`facts.vN.yaml` 是唯一 source-of-truth。** Domain / Concept / Rule Map 不得直接编辑，必须从 baseline facts 派生。Demand Matching、Demand Card 等运行时语义消费默认从 baseline facts 出发。
         ↓
 Runtime Semantic Use
 ├── Demand Model Map
@@ -270,7 +273,7 @@ Runtime Semantic Use
 |-------|-------------|--------|
 | `sample` | 从 gsd 输出提取 key files，生成 manifest | Python (deterministic) |
 | `hotspot` | 检查/运行 commit-extract + commit-semantic，生成 hotspot_map | Python + existing tools |
-| `extract` | LLM worker 按 section 分批提取结构化 facts，生成 codebase_map | LLM worker (4 batches) |
+| `extract` | LLM worker 按 DocSectionTask 分批提取结构化 facts，生成 codebase_map | LLM worker (DocSectionTask batches) |
 | `augment` | LLM worker 分析 archi docs + compare with repo，生成 architect_augment | LLM worker |
 | `validate` | Schema + rule 校验，去重，冲突标记 | Python (deterministic) |
 | `baseline` | 三源融合，按优先级仲裁，freeze facts.vN.yaml | Python (deterministic) |
@@ -355,7 +358,8 @@ metadata:
 
 1. **优先级高的 evidence 胜出**: architect > hotspot > codebase
 2. **同优先级时**: recurring > evidence-backed > isolated
-3. **无法仲裁时**: 两个 fact 都保留，由 architect 手工标记
+3. **同一 statement，commit 不同**: 优先当前 snapshot；旧 snapshot 仅保留为 lineage/history，不参与当前 baseline 覆盖
+4. **无法仲裁时**: 两个 fact 都保留，由 architect 手工标记
 
 ---
 
@@ -442,7 +446,7 @@ description: Extract structured facts from codebase + git history
 
 ```
 skills/repo-structure/prompts/
-├── extract_codebase.md      # extract: LLM, 4 batches by gsd section
+├── extract_codebase.md      # extract: LLM, DocSectionTask batches
 ├── extract_hotspot.md       # (复用 commit-semantic, 或内部处理)
 ├── augment_architect.md      # augment: LLM, analyze + compare with repo
 ├── validate_facts.md        # validate: schema + rule validation
@@ -488,10 +492,10 @@ No aliases retained.
 ```
 gsd (预运行) → .planning/codebase/
                         │
-                        ├── STRUCTURE.md      ──→ sample ──→ extract (batch 1)
-                        ├── ARCHITECTURE.md   ──→ extract (batch 2)
-                        ├── CONCERNS.md       ──→ extract (batch 3)
-                        └── STACK.md          ──→ extract (batch 4)
+                        ├── STRUCTURE.md      ──→ extract (by DocSectionTask)
+                        ├── ARCHITECTURE.md   ──→ extract (by DocSectionTask)
+                        ├── CONCERNS.md       ──→ extract (by DocSectionTask)
+                        └── STACK.md          ──→ extract (by DocSectionTask)
                                                       ↓
 git commits ──→ commit-extract ──→ commit-semantic ──→ hotspot_map ──┐
                                                                         │
