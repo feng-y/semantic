@@ -1,0 +1,84 @@
+$schema: "https://json-schema.org/draft/2020-12/schema"
+schema_name: repo_structure_fact_entry
+schema_version: v1
+type: object
+additionalProperties: false
+required:
+  - fact_id
+  - fact_type
+  - statement
+  - source
+  - repo_snapshot_commit
+  - evidence
+properties:
+  fact_id:
+    type: string
+    description: Stable UUID for this fact
+  fact_type:
+    type: string
+    enum: [module_role, dependency_rule, boundary_constraint, pattern_usage, convention, invariant, hotspot_signal]
+    description: Category of this fact
+  domain:
+    type: string
+    description: Problem domain this fact belongs to
+  category:
+    type: string
+    enum: [domain, concept, rule, invariant]
+  statement:
+    type: string
+    description: Human-readable fact statement
+  confidence:
+    type: string
+    enum: [confirmed, uncertain, contradicted]
+    description: Evidence confidence level
+  status:
+    type: string
+    enum: [active, conflicted, filtered]
+    description: Fact lifecycle status
+  repo_snapshot_commit:
+    type: string
+    description: Git HEAD at time of extraction
+  source:
+    type: string
+    enum: [hotspot, codebase, architect]
+    description: Which pipeline produced this fact
+  evidence:
+    type: array
+    items:
+      type: object
+      additionalProperties: false
+      required: [source_type, locator_type, locator, stable_ref]
+      properties:
+        source_type:
+          type: string
+          enum: [codebase, hotspot, architect]
+        file_path:
+          type: string
+        locator_type:
+          type: string
+          enum: [file_path, symbol, config_key, section_ref, test_case, ast_pattern]
+        locator:
+          type: string
+          description: Concrete value for the locator_type
+        stable_ref:
+          type: string
+          description: Stable reference (symbol_signature_hash or file_blob_sha)
+        rationale:
+          type: string
+          description: Why this evidence is relevant
+  conflicts_with:
+    type: array
+    items:
+      type: string
+    description: IDs of facts this conflicts with
+  resolution_reason:
+    type: string
+    description: Why this fact was chosen over a conflict
+  metadata:
+    type: object
+    properties:
+      generated_at:
+        type: string
+        format: date-time
+      mapper_version:
+        type: string
