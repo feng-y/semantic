@@ -179,3 +179,48 @@ class TestHotspot:
         data = yaml.safe_load(hotspot_maps[0].read_text())
         assert "metadata" in data
         assert "facts" in data
+
+
+class TestExtract:
+    def test_extract_produces_codebase_map(self, tmp_path, monkeypatch):
+        """extract stage writes codebase_map.vN.yaml with fact entries."""
+        import yaml
+        monkeypatch.chdir(tmp_path)
+        (tmp_path / ".git").mkdir()
+        (tmp_path / "data/commit-extract").mkdir(parents=True)
+        gsd_dir = tmp_path / ".planning/codebase"
+        gsd_dir.mkdir(parents=True)
+        (gsd_dir / "ARCHITECTURE.md").write_text(
+            "## Key Abstractions\n\nThe `OperatorRegistry` class provides registration "
+            "for operators using the `REGISTER_OPERATOR_BY_OPS` decorator.\n"
+        )
+        for fname in ["STRUCTURE.md", "CONCERNS.md", "CONVENTIONS.md",
+                      "INTEGRATIONS.md", "STACK.md", "TESTING.md"]:
+            (gsd_dir / fname).write_text(f"## Section\n\nContent for {fname}.\n")
+
+        from src.harness_state import HarnessState
+        from skills.repo_structure.run import RepoStructureRunner
+
+        runner = RepoStructureRunner()
+        state = HarnessState()
+        runner._run_sample(state)
+        success = runner._run_extract(state)
+        assert success
+
+        maps_dir = tmp_path / "data/repo-structure/maps"
+        assert maps_dir.exists()
+        maps = list(maps_dir.glob("codebase_map.v*.yaml"))
+        assert len(maps) >= 1
+
+        data = yaml.safe_load(maps[0].read_text())
+        assert "facts" in data
+        assert "metadata" in data
+        assert len(data["facts"]) > 0
+        for fact in data["facts"]:
+            assert "fact_id" in fact
+            assert "fact_type" in fact
+            assert "evidence" in fact
+            assert len(fact["evidence"]) > 0
+            ev = fact["evidence"][0]
+            assert "locator_type" in ev
+            assert "locator" in ev
