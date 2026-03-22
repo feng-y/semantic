@@ -147,3 +147,35 @@ class TestSample:
             "STRUCTURE.md", "ARCHITECTURE.md", "CONCERNS.md",
             "CONVENTIONS.md", "INTEGRATIONS.md", "STACK.md", "TESTING.md"]}
         assert expected.issubset(covered_files), f"Missing: {expected - covered_files}"
+
+
+class TestHotspot:
+    def test_hotspot_consumes_commit_semantic(self, tmp_path, monkeypatch):
+        """hotspot stage reads commit-extract + commit-semantic and writes hotspot_map."""
+        import yaml
+        monkeypatch.chdir(tmp_path)
+        (tmp_path / ".git").mkdir()
+        (tmp_path / "data/commit-extract").mkdir(parents=True)
+        (tmp_path / "data/commit-semantic/patterns").mkdir(parents=True)
+
+        yaml.dump({"metadata": {"month": "2025-01"}, "commits": [
+            {"commit_id": "abc", "files": ["src/hermes/registry.py", "src/hermes/registry.py"]}
+        ]}, (tmp_path / "data/commit-extract/2025-01.yaml").open("w"))
+        yaml.dump({"patterns": [{"pattern_id": "p1", "description": "Test pattern"}]},
+                 (tmp_path / "data/commit-semantic/patterns/canonical.yaml").open("w"))
+
+        from src.harness_state import HarnessState
+        from skills.repo_structure.run import RepoStructureRunner
+
+        runner = RepoStructureRunner()
+        state = HarnessState()
+        success = runner._run_hotspot(state)
+        assert success
+
+        maps_dir = tmp_path / "data/repo-structure/maps"
+        hotspot_maps = list(maps_dir.glob("hotspot_map.v*.yaml"))
+        assert len(hotspot_maps) >= 1
+
+        data = yaml.safe_load(hotspot_maps[0].read_text())
+        assert "metadata" in data
+        assert "facts" in data
