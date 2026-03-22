@@ -46,12 +46,10 @@ def workspace_with_extract_output(tmp_path: Path) -> Path:
     (harness / "state/commit-extract").mkdir(parents=True)
     (harness / "state/commit-semantic").mkdir(parents=True)
 
-    # Create mock commit-extract output where the skill expects it
+    # Create mock commit-extract output where the skill expects it (JSONL format)
     extract_dir = tmp_path / "data" / "commit-extract"
     extract_dir.mkdir(parents=True)
-    (extract_dir / "2024-01.yaml").write_text(
-        "metadata:\n  month: '2024-01'\n  total_commits: 1\ncommits: []\n"
-    )
+    (extract_dir / "2024-01.jsonl").write_text("")
 
     return tmp_path
 

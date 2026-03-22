@@ -33,14 +33,31 @@ def save_jsonl(data: list[dict[str, Any]], file_path: str) -> None:
             f.write(json.dumps(item, ensure_ascii=False) + '\n')
 
 
-def load_jsonl(file_path: str) -> list[dict[str, Any]]:
-    """Load JSONL file."""
+def load_jsonl(
+    file_path: str, *, skip_errors: bool = False
+) -> list[dict[str, Any]]:
+    """Load JSONL file. If skip_errors=True, skip invalid JSON lines."""
     data = []
     with open(file_path, encoding='utf-8') as f:
         for line in f:
-            if line.strip():
+            line = line.strip()
+            if not line:
+                continue
+            try:
                 data.append(json.loads(line))
+            except json.JSONDecodeError:
+                if skip_errors:
+                    continue
+                raise
     return data
+
+
+def append_jsonl(items: list[dict[str, Any]], file_path: str) -> None:
+    """Append items to a JSONL file, creating parent directories if needed."""
+    Path(file_path).parent.mkdir(parents=True, exist_ok=True)
+    with open(file_path, 'a', encoding='utf-8') as f:
+        for item in items:
+            f.write(json.dumps(item, ensure_ascii=False) + '\n')
 
 
 def save_json(data: dict[str, Any], file_path: str) -> None:
