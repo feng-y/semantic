@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import argparse
 import sys
+import yaml
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
@@ -37,6 +38,41 @@ class RepoStructureRunner(SkillRunner):
     def __init__(self):
         super().__init__()
         self.gsd_root: str | None = None
+
+    # REQUIRED_GSD_FILES imported from preflight module (shared constant)
+    from .preflight import REQUIRED_GSD_FILES
+
+    # Section-to-locator mapping (per spec: section routing, not file batching)
+    SECTION_LOCATOR_MAP = {
+        # STRUCTURE.md
+        ("STRUCTURE.md", "Directory Layout"): ("file_path", 2, "file_path"),
+        ("STRUCTURE.md", "Key File Locations"): ("symbol", 2, "symbol"),
+        ("STRUCTURE.md", "Naming Conventions"): ("file_path", 1, "file_path"),
+        # ARCHITECTURE.md
+        ("ARCHITECTURE.md", "Pattern Overview"): ("section_ref", 1, "section_ref"),
+        ("ARCHITECTURE.md", "Layers"): ("ast_pattern", 2, "ast_pattern"),
+        ("ARCHITECTURE.md", "Data Flow"): ("section_ref", 1, "section_ref"),
+        ("ARCHITECTURE.md", "Key Abstractions"): ("symbol", 2, "symbol"),
+        ("ARCHITECTURE.md", "Entry Points"): ("symbol", 2, "symbol"),
+        ("ARCHITECTURE.md", "Error Handling"): ("section_ref", 1, "section_ref"),
+        ("ARCHITECTURE.md", "Cross-Cutting"): ("section_ref", 1, "section_ref"),
+        ("ARCHITECTURE.md", "State Management"): ("section_ref", 1, "section_ref"),
+        # CONCERNS.md
+        ("CONCERNS.md", "Tech Debt"): ("file_path", 2, "file_path"),
+        ("CONCERNS.md", "Fragile Areas"): ("test_case", 2, "file_path+test_case"),
+        ("CONCERNS.md", "Security"): ("file_path", 2, "file_path"),
+        ("CONCERNS.md", "Performance"): ("file_path", 1, "file_path"),
+        ("CONCERNS.md", "Test Coverage"): ("test_case", 1, "test_case"),
+        # CONVENTIONS.md
+        ("CONVENTIONS.md", None): ("section_ref", 1, "section_ref"),
+        # INTEGRATIONS.md
+        ("INTEGRATIONS.md", None): ("config_key", 1, "config_key"),
+        # STACK.md
+        ("STACK.md", "Technology Stack"): ("config_key", 1, "config_key"),
+        ("STACK.md", "Runtime"): ("config_key", 1, "config_key"),
+        # TESTING.md
+        ("TESTING.md", None): ("test_case", 2, "test_case"),
+    }
 
     def run_stage(self, stage: str, state: HarnessState) -> bool:
         """Execute a single stage."""
@@ -95,9 +131,92 @@ class RepoStructureRunner(SkillRunner):
     # -------------------------------------------------------------------------
 
     def _run_sample(self, state: HarnessState) -> bool:
-        """Stage 1: Build sampling manifest from gsd dossier."""
-        print("  [TODO] sample stage not yet implemented")
+        """Build DocSectionTask manifest from 7-file gsd dossier."""
+        print("  -> Building DocSectionTask manifest from gsd dossier")
+        root = Path.cwd()
+        gsd_dir = root / ".planning" / "codebase"
+
+        tasks: list = []
+        task_id_counter = 0
+
+        for fname in self.REQUIRED_GSD_FILES:
+            fpath = gsd_dir / fname
+            if not fpath.exists():
+                print(f"  WARNING: {fpath} not found, skipping")
+                continue
+
+            text = fpath.read_text(encoding="utf-8")
+            sections = self._split_sections(text)
+
+            for section_title, section_content in sections:
+                task_id_counter += 1
+                key = (fname, section_title if section_title != fname else None)
+                fallback_key = (fname, None)
+                mapped = self.SECTION_LOCATOR_MAP.get(key) or self.SECTION_LOCATOR_MAP.get(fallback_key)
+
+                if mapped:
+                    locator_type, priority, routing_note = mapped
+                else:
+                    locator_type = "section_ref"
+                    priority = 1
+                    routing_note = "default routing"
+
+                section_type = section_title.lower().replace(" ", "_") if section_title else fname.lower().replace(".md", "")
+
+                tasks.append({
+                    "task_id": f"doc-{task_id_counter:03d}",
+                    "source_file": f".planning/codebase/{fname}",
+                    "section_title": section_title or "(full file)",
+                    "section_type": section_type,
+                    "locator_type": locator_type,
+                    "priority": priority,
+                    "routing_note": routing_note,
+                    "content": section_content.strip(),
+                })
+
+        OUTPUT_BASE.mkdir(parents=True, exist_ok=True)
+        manifest_dir = OUTPUT_BASE / "sample"
+        manifest_dir.mkdir(parents=True, exist_ok=True)
+        manifest_path = manifest_dir / "manifest.yaml"
+
+        manifest_data = {
+            "metadata": {
+                "version": "v1",
+                "total_sections": len(tasks),
+                "generated_at": __import__("datetime").datetime.now().isoformat(),
+                "gsd_root": str(gsd_dir),
+            },
+            "sections": tasks,
+        }
+
+        yaml.dump(
+            manifest_data,
+            manifest_path.open("w", encoding="utf-8"),
+            allow_unicode=True,
+            default_flow_style=False,
+        )
+        print(f"  Wrote {len(tasks)} DocSectionTask entries -> {manifest_path}")
+        self.add_artifact(state, str(manifest_path))
         return True
+
+    def _split_sections(self, text: str) -> list[tuple[str, str]]:
+        """Split a markdown file into sections by ## headings."""
+        import re
+        sections = []
+        parts = re.split(r"(?=^##\s+)", text, flags=re.MULTILINE)
+        for part in parts:
+            part = part.strip()
+            if not part:
+                continue
+            lines = part.splitlines()
+            if lines and lines[0].startswith("## "):
+                title = lines[0][3:].strip()
+                content = "\n".join(lines[1:]).strip()
+            else:
+                title = part.split("\n")[0][:50]
+                content = part
+            sections.append((title, content))
+        return sections
 
     def _run_hotspot(self, state: HarnessState) -> bool:
         """Stage 2: Consume commit-extract + commit-semantic → hotspot_map."""

@@ -91,3 +91,59 @@ class TestPreflight:
             from skills.repo_structure.preflight import check
             result = check(tmp_path)
         assert result.ok is True
+
+
+class TestSample:
+    def test_sample_produces_manifest(self, tmp_path, monkeypatch):
+        """sample stage writes a manifest.yaml with section entries."""
+        import yaml
+        monkeypatch.chdir(tmp_path)
+        (tmp_path / ".git").mkdir()
+        (tmp_path / "data/commit-extract").mkdir(parents=True)
+        gsd_dir = tmp_path / ".planning/codebase"
+        gsd_dir.mkdir(parents=True)
+        for fname in ["STRUCTURE.md", "ARCHITECTURE.md", "CONCERNS.md",
+                      "CONVENTIONS.md", "INTEGRATIONS.md", "STACK.md", "TESTING.md"]:
+            (gsd_dir / fname).write_text(f"# {fname}\n\n## Section\nContent for {fname}.\n")
+
+        from src.harness_state import HarnessState
+        from skills.repo_structure.run import RepoStructureRunner
+
+        runner = RepoStructureRunner()
+        state = HarnessState()
+        success = runner._run_sample(state)
+        assert success
+
+        manifest = tmp_path / "data/repo-structure/sample/manifest.yaml"
+        assert manifest.exists()
+        data = yaml.safe_load(manifest.read_text())
+        assert "sections" in data
+        assert len(data["sections"]) >= 7
+
+    def test_sample_sections_cover_all_7_files(self, tmp_path, monkeypatch):
+        """Each of the 7 gsd files gets at least one DocSectionTask entry."""
+        import yaml
+        monkeypatch.chdir(tmp_path)
+        (tmp_path / ".git").mkdir()
+        (tmp_path / "data/commit-extract").mkdir(parents=True)
+        gsd_dir = tmp_path / ".planning/codebase"
+        gsd_dir.mkdir(parents=True)
+        for fname in ["STRUCTURE.md", "ARCHITECTURE.md", "CONCERNS.md",
+                      "CONVENTIONS.md", "INTEGRATIONS.md", "STACK.md", "TESTING.md"]:
+            (gsd_dir / fname).write_text(f"# {fname}\n\n## Section\nContent.\n")
+
+        from src.harness_state import HarnessState
+        from skills.repo_structure.run import RepoStructureRunner
+
+        runner = RepoStructureRunner()
+        state = HarnessState()
+        runner._run_sample(state)
+
+        data = yaml.safe_load(
+            (tmp_path / "data/repo-structure/sample/manifest.yaml").read_text()
+        )
+        covered_files = {s["source_file"] for s in data["sections"]}
+        expected = {f".planning/codebase/{fname}" for fname in [
+            "STRUCTURE.md", "ARCHITECTURE.md", "CONCERNS.md",
+            "CONVENTIONS.md", "INTEGRATIONS.md", "STACK.md", "TESTING.md"]}
+        assert expected.issubset(covered_files), f"Missing: {expected - covered_files}"
