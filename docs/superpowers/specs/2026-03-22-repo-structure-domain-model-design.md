@@ -76,34 +76,52 @@ git commits
 ### Pipeline 2: codebase pipeline (代码结构事实)
 
 **前置条件:** gsd 已预运行，`.planning/codebase/*.md` 已存在
+**gsd 角色:** 上游分析器，不在 pipeline 内调用；`run.py` 只消费 `.planning/codebase/` 现有文件
+
+**缺失输入报错:**
+
+```
+missing prerequisite: gsd codebase artifacts not found
+expected files:
+  - .planning/codebase/STRUCTURE.md
+  - .planning/codebase/ARCHITECTURE.md
+  - .planning/codebase/STACK.md
+  - .planning/codebase/CONCERNS.md
+action: run gsd map-codebase first
+```
+
 **输出:** `codebase_map.yaml`
 
 ```
 code tree
     │
-    ├── sample (deterministic, Python)
-    │   └── 读 gsd 输出文件，提取 key files
-    │       → sample/manifest.yaml
+    ├── sample (gsd-guided + repo fallback)
+    │   ├── STRUCTURE.md guided: Directory Layout + Key Files
+    │   ├── ARCHITECTURE.md referenced files/symbols
+    │   ├── CONCERNS.md referenced files
+    │   └── repo fallback probe (if gsd files incomplete)
+    │       ↓
+    │   sample/manifest.yaml
     │
-    └── extract (LLM worker, 按 section 分批)
-        ├── batch 1: STRUCTURE.md → Directory Layout + Key File Locations
-        ├── batch 2: ARCHITECTURE.md → Layers + Key Abstractions + Entry Points
-        ├── batch 3: CONCERNS.md → Tech Debt + Known Bugs + Fragile Areas
-        └── batch 4: STACK.md → Technology Stack (可选，优先级低)
+    └── extract (LLM worker, 按 section 切分再路由)
+        ├── section: STRUCTURE.md / Directory Layout → locator: file_path
+        ├── section: STRUCTURE.md / Key File Locations → locator: symbol
+        ├── section: ARCHITECTURE.md / Layers → locator: ast_pattern
+        ├── section: ARCHITECTURE.md / Key Abstractions → locator: symbol
+        ├── section: ARCHITECTURE.md / Entry Points → locator: symbol
+        ├── section: CONCERNS.md / Tech Debt → locator: file_path
+        ├── section: CONCERNS.md / Fragile Areas → locator: file_path + test_case
+        └── section: STACK.md / Technology Stack → locator: config_key
             ↓
         codebase_map.yaml
             (Code 视角: symbol / relationship / pattern / boundary)
 ```
 
-**sample 阶段:** 直接从 gsd STRUCTURE.md 提取 key files，不再独立遍历文件树。
+**section 切分原则:**
 
-**gsd 集成:**
-
-- gsd 是外部预运行工具，不在 pipeline 内部调用
-- gsd 输出路径: `{repo_root}/.planning/codebase/`
-- 可通过 `--gsd-root` 参数覆盖
-- 读取文件: `STRUCTURE.md`, `ARCHITECTURE.md`, `STACK.md`, `CONCERNS.md`
-- extract 阶段只读现有文件，不运行 gsd
+- 不是按整文件分 batch，而是先 deterministic split section，再按 section 类型路由
+- 每个 section 对应固定 `locator_type` 映射规则
+- 输出单位不是 paragraph/summary，而是带 evidence binding 的 fact entry
 
 **Pipeline 2 各步骤含义:**
 
@@ -115,12 +133,30 @@ code tree
 | **evaluate** | 判断 fact 准确性：confirmed / uncertain / contradicted |
 | **recommend** | 纳入 codebase_map / 需进一步验证 / 标记为 uncertain |
 
-**extract worker prompt 指令:**
+**extract worker prompt 核心指令:**
 
-- 从自然语言提取 fact entries，格式参照 Evidence Model
-- STRUCTURE.md "Key Methods" → `symbol` locator
-- CONCERNS.md "Files" → `file_path` + `locator`
-- ARCHITECTURE.md "Key Abstractions" → `ast_pattern` locator
+> Extract atomic fact entries from this section.
+> Each fact must be explicitly supported by the section text.
+> Prefer concrete module / file / symbol / rule facts over summaries.
+> Attach an evidence locator using the section-to-locator mapping policy.
+> Do not infer implementation details not stated in the section.
+> Output unit is a fact entry with evidence binding, not a paragraph summary.
+
+**extract 输出格式:**
+
+```yaml
+- fact_type:
+  subject:
+  predicate:
+  object:
+  confidence:
+  evidence:
+    source_doc:
+    locator_type:  # 由 section 决定
+    locator:
+    stable_ref:
+    rationale:
+```
 
 ---
 
@@ -129,28 +165,60 @@ code tree
 **前置条件:** `docs/ARCHITECTURE.md` 存在
 **输出:** `architect_augment.yaml`
 
+**缺失 archi docs 时:** augment 阶段输出空 `architect_augment.yaml`，pipeline 继续。
+
+**两段式处理:**
+
 ```
 archi docs (docs/ARCHITECTURE.md)
     │
-    ├── analyze (读文档，提取架构声明)
+    ├── Phase 1: Python evidence collection (deterministic)
+    │   ├── grep / ripgrep 搜索 symbol
+    │   ├── macro / registry pattern search
+    │   ├── config key search
+    │   └── test / assertion / comment search
     │       ↓
-    ├── compare with repo (LLM worker: 在 repo 中 grep/search 找 evidence)
-    │       ↓
-    └── architect_augment.yaml
-            (evidence-backed claim + stable_ref)
+    │   candidate_evidence.json (候选证据集合)
+    │
+    └── Phase 2: LLM claim adjudication
+        ├── 输入: architect claim + candidate_evidence.json + stable refs + search misses
+        │       ↓
+        └── architect_augment.yaml (evidence-backed claim + stable_ref)
 ```
 
-**如果 archi docs 不存在:** augment 阶段输出空 `architect_augment.yaml`，pipeline 继续。
+**Phase 1 (Python) 适合:** 找证据候选（grep/search），确定性高
+**Phase 2 (LLM) 适合:** 判断 claim 与 evidence 是否匹配，语义理解
 
 **Pipeline 3 各步骤含义:**
 
 | 步骤 | architect pipeline |
 |------|--------------------|
-| **compare** | LLM worker 在代码中找对应实现的 evidence（类型定义、注册宏、配置项、调用链、guard code） |
+| **compare** | Phase 1 Python: grep/search 找 evidence 候选；Phase 2 LLM: 对照 claim 判断匹配度 |
 | **research** | 调研 claim 的上下文（这个约束从哪来、为何存在） |
 | **analyze** | 分析文档声明与 repo 实现的对应关系 |
-| **evaluate** | 判断 claim 状态：evidence-backed / weakly-backed / gap / drift |
-| **recommend** | 接受 / 修正 / 补充 / 拒绝 |
+| **evaluate** | Phase 2 LLM 判断: evidence-backed / weakly-backed / gap / drift |
+| **recommend** | Phase 2 LLM 输出: 接受 / 修正 / 补充 / 拒绝 |
+
+**augment LLM prompt 核心:**
+
+> Judge whether the architecture claim is supported by the provided repo evidence candidates.
+> Prefer direct implementation evidence over comments.
+> Mark as gap if no stable supporting evidence exists.
+> Mark as drift if the repo contradicts the claim.
+> Attach stable_ref from the most authoritative matched evidence.
+
+**augment LLM 输出格式:**
+
+```yaml
+- claim_id:
+  claim_text:
+  status: evidence_backed|weakly_backed|gap|drift
+  matched_evidence:
+    - stable_ref:
+      rationale:
+  notes:
+  recommendation: accept|modify|supplement|reject
+```
 
 **Claim 状态定义:**
 
@@ -212,15 +280,16 @@ Runtime Semantic Use
 ```
 data/repo-structure/
 ├── sample/
-│   └── manifest.yaml           # key files extracted from gsd
+│   └── manifest.yaml           # gsd-guided + repo fallback sampling
 ├── maps/
 │   ├── codebase_map.vN.yaml    # (codebase pipeline)
-│   ├── hotspot_map.vN.yaml     # (commit pipeline)
+│   ├── hotspot_map.vN.yaml    # (commit pipeline)
 │   └── architect_augment.vN.yaml # (architect pipeline)
 ├── facts/
 │   └── validated.yaml          # post-validate fact entries
 ├── baseline/
-│   └── facts.vN.yaml           # fused, versioned baseline
+│   ├── facts.vN.yaml           # fused, versioned baseline
+│   └── snapshot.yaml           # source version combination
 └── state.json
 ```
 
@@ -239,11 +308,20 @@ data/repo-structure/
     "hotspot": "v0",
     "architect": "v0"
   },
+  "snapshot": {
+    "version": "sf-YYYY-MM-DD.N",
+    "sources": {
+      "hotspot_map": "v0",
+      "codebase_map": "v0",
+      "architect_augment": "v0"
+    }
+  },
   "artifacts_written": []
 }
 ```
 
-**三个 map version 独立递增**：每个 source 可单独重新运行，不强制联动。
+**三个 map version 独立递增:** 每个 source 可单独重新运行，不强制联动。
+**snapshot version:** 记录三者的输入版本组合，用于整体可追溯。
 
 ### Data Schema: Fact Entry
 
@@ -442,10 +520,13 @@ data/domain-model/assets/
 6. **No aliases** — hard cutoff of old commands
 7. **Team Agent architecture** — aligned with commit-extract/commit-semantic pattern
 8. **Three Maps are result views, not starting point** — Domain/Concept/Rule Map are knowledge organization outputs, not the extraction process itself
-9. **gsd is external, pre-run** — repo-structure reads existing `.planning/codebase/*.md`, does not invoke gsd internally
-10. **extract by gsd section** — 4 batches matching STRUCTURE/ARCHITECTURE/CONCERNS/STACK
-11. **augment uses LLM worker** — analyze + compare with repo, not simple script
+9. **gsd is upstream analyzer, not internal command** — `run.py` only consumes `.planning/codebase/`, does not invoke gsd internally
+10. **extract by section, not by file** — deterministic section split, then route by section type; each section has fixed locator_type mapping
+11. **augment is two-phase: Python collection + LLM adjudication** — Python finds evidence candidates, LLM judges claim-evidence match
 12. **archi docs optional** — augment outputs empty yaml if docs missing, pipeline continues
-13. **Three map versions independent** — each source can re-run without forcing others
+13. **Three map versions independent + snapshot version** — each source can re-run without forcing others; snapshot records combination
 14. **baseline version starts at v0, increments each run** — no manual acceptance gate
-15. **commit-extract required for hotspot** — hotspot stage runs commit-extract if missing
+15. **commit-extract is upstream artifact** — hotspot stage checks `data/commit-extract/` exists, not `hotspot_map.yaml`
+16. **sample is gsd-guided + repo fallback** — STRUCTURE.md as primary input, fallback probe if gsd files incomplete
+17. **gsd missing input error is explicit** — lists expected files and recommended action
+18. **extract output unit is fact entry with evidence binding** — not paragraph summary; includes locator_type, locator, stable_ref, rationale
