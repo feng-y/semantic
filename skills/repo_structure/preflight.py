@@ -133,30 +133,33 @@ def check(repo_root: Path | str = ".") -> PreflightResult:
     gsd_dir = root / ".planning" / "codebase"
     for fname in REQUIRED_GSD_FILES:
         fpath = gsd_dir / fname
-        if not fpath.exists():
+        try:
+            size = fpath.stat().st_size
+            if size == 0:
+                result.ok = False
+                result.invalid.append(PreflightIssue(
+                    "EMPTY_ARTIFACT", str(fpath.relative_to(root)),
+                    f"gsd file is empty",
+                    producer="gsd::map-codebase"))
+        except FileNotFoundError:
             result.ok = False
             result.missing.append(PreflightIssue(
                 "MISSING_INPUT", str(fpath.relative_to(root)),
                 f"gsd file not found",
                 producer="gsd::map-codebase",
                 suggestion="Run gsd map-codebase first"))
-        elif fpath.stat().st_size == 0:
-            result.ok = False
-            result.invalid.append(PreflightIssue(
-                "EMPTY_ARTIFACT", str(fpath.relative_to(root)),
-                f"gsd file is empty",
-                producer="gsd::map-codebase"))
 
     # 7. Optional: architecture doc
     arch_doc = root / "docs" / "ARCHITECTURE.md"
-    if not arch_doc.exists():
+    try:
+        if arch_doc.stat().st_size == 0:
+            result.warnings.append(PreflightIssue(
+                "EMPTY_ARTIFACT", "docs/ARCHITECTURE.md",
+                "Architecture doc is empty; augment stage may produce weak results"))
+    except FileNotFoundError:
         result.warnings.append(PreflightIssue(
             "OPTIONAL_INPUT_MISSING", "docs/ARCHITECTURE.md",
             "Optional architecture doc not found; augment stage will emit empty output",
             producer="architect"))
-    elif arch_doc.stat().st_size == 0:
-        result.warnings.append(PreflightIssue(
-            "EMPTY_ARTIFACT", "docs/ARCHITECTURE.md",
-            "Architecture doc is empty; augment stage may produce weak results"))
 
     return result
