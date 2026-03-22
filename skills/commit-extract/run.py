@@ -283,11 +283,11 @@ class CommitExtractRunner(SkillRunner):
             return True
 
         # 3. Check for interrupted tmp files → merge first
-        if TMP_DIR.exists() and list(TMP_DIR.glob("*.jsonl")):
+        if TMP_DIR.exists() and next(TMP_DIR.glob("*.jsonl"), None) is not None:
             print("  Found interrupted tmp files, merging first...")
             merged = merge_tmp_files(OUTPUT_BASE, TMP_DIR)
             print(f"  Merged {merged} records from previous run")
-            # Re-check what's still needed
+            # Update existing set incrementally instead of re-scanning
             existing_shas = get_existing_shas(OUTPUT_BASE)
             new_shas = [s for s in all_shas if s not in existing_shas]
             if not new_shas:
@@ -307,23 +307,23 @@ class CommitExtractRunner(SkillRunner):
 
         # 6. Create batch manifest for workers
         TMP_DIR.mkdir(parents=True, exist_ok=True)
+        prompt_content = self._get_prompt()
         manifest = {
             "repo_path": self.repo_path,
             "total_shas": len(new_shas),
             "total_batches": len(batches),
+            "prompt": prompt_content,
             "batches": [],
         }
 
         for i, batch_shas in enumerate(batches):
             batch_id = f"batch_{i:04d}"
             output_path = str(TMP_DIR / f"{batch_id}.jsonl")
-            worker_prompt = self._build_worker_prompt(batch_shas)
 
             manifest["batches"].append({
                 "batch_id": batch_id,
                 "shas": batch_shas,
                 "output_path": output_path,
-                "worker_prompt": worker_prompt,
             })
 
             print(f"  Batch {i}: {len(batch_shas)} SHAs → {output_path}")
@@ -332,7 +332,7 @@ class CommitExtractRunner(SkillRunner):
         manifest_path = str(TMP_DIR / "manifest.json")
         save_json(manifest, manifest_path)
         print(f"\n  Manifest written to {manifest_path}")
-        print(f"  Workers should write to data/commit-extract/tmp/batch_NNNN.jsonl")
+        print(f"  Workers should write to {TMP_DIR}/batch_NNNN.jsonl")
         print(f"  After all workers complete, run merge to consolidate.")
 
         self.add_artifact(state, str(OUTPUT_BASE))

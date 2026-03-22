@@ -23,7 +23,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from src.harness_state import HarnessState
+from src.harness_state import HarnessState, save_state
 from src.skill_runner import SkillRunner, run_skill
 from src.io_utils import load_jsonl, save_jsonl, save_json
 
@@ -213,15 +213,6 @@ class CommitSemanticRunner(SkillRunner):
 
         patterns = load_jsonl(str(patterns_file))
 
-        # Load invariants for cross-commit weighting
-        invariants_file = SEMANTIC_OUTPUT / "invariants.jsonl"
-        invariant_counts: dict[str, int] = defaultdict(int)
-        if invariants_file.exists():
-            for inv in load_jsonl(str(invariants_file)):
-                stmt = inv.get("statement", "")
-                if stmt:
-                    invariant_counts[stmt] += 1
-
         # Score each pattern
         demands: list[dict] = []
         for pattern in patterns:
@@ -278,12 +269,16 @@ class CommitSemanticRunner(SkillRunner):
 
         # Op distribution across all units
         op_dist: dict[str, int] = defaultdict(int)
-        dates: list[str] = []
+        min_date: str = ""
+        max_date: str = ""
         for u in units:
             op_dist[u.get("op", "other")] += 1
             d = u.get("date", "")
             if d:
-                dates.append(d)
+                if not min_date or d < min_date:
+                    min_date = d
+                if not max_date or d > max_date:
+                    max_date = d
 
         bugfix_count = op_dist.get("bugfix", 0)
         total = len(units) or 1
@@ -299,9 +294,8 @@ class CommitSemanticRunner(SkillRunner):
 
         # Date range
         date_range = {}
-        if dates:
-            sorted_dates = sorted(dates)
-            date_range = {"from": sorted_dates[0], "to": sorted_dates[-1]}
+        if min_date:
+            date_range = {"from": min_date, "to": max_date}
 
         summary = {
             "total_units": len(units),
@@ -347,7 +341,6 @@ class CommitSemanticRunner(SkillRunner):
             if not self._require_prerequisites():
                 return 1
             state = self.init_state()
-            from src.harness_state import save_state
             save_state(self.PIPELINE, state)
             success = self.run_stage(args.stage, state)
             return 0 if success else 1
