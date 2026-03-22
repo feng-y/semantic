@@ -9,6 +9,13 @@ from . import state_inspector
 from .discovery_executor import run_discovery
 from .refine_executor import run_refine
 
+# Optional: repo-structure skill
+try:
+    from skills.repo_structure.run import RepoStructureRunner
+    _REPO_STRUCTURE_RUNNER = RepoStructureRunner()
+except ImportError:
+    _REPO_STRUCTURE_RUNNER = None
+
 # Directory structure required by init
 REQUIRED_DIRS = [
     "docs/fact/schemas",
@@ -47,10 +54,24 @@ def dispatch(command: str, root: str | Path, **kwargs: Any) -> dict[str, Any]:
 
     handler = handlers.get(command)
     if handler is None:
+        # Check for repo-structure skill
+        if command == "repo-structure":
+            if _REPO_STRUCTURE_RUNNER is None:
+                return {
+                    "command": command,
+                    "status": "error",
+                    "error": "repo-structure skill not installed",
+                }
+            import sys as _sys
+            return {
+                "command": command,
+                "status": "ok",
+                "exit_code": _REPO_STRUCTURE_RUNNER.main(_sys.argv[2:] if len(_sys.argv) > 2 else []),
+            }
         return {
             "command": command,
             "status": "error",
-            "error": f"Unknown command: {command}. Valid: {', '.join(handlers)}",
+            "error": f"Unknown command: {command}. Valid: {', '.join(sorted(handlers))}",
         }
 
     return handler(root, **kwargs)
