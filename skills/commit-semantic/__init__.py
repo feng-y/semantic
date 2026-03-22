@@ -1,0 +1,1 @@
+"""commit-semantic skill."""

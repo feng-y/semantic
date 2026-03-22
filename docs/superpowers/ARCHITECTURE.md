@@ -27,10 +27,10 @@ Git commit metadata → semantic cases → canonical patterns。
 | Item | Status |
 |------|--------|
 | Skill | `skills/commit-semantic/` |
-| Stages | `split` → `analyze` → `aggregate` → `distill` (4 步) |
-| Output | `data/commit-semantic/` (patterns, distill) |
-| Tests | 722 passed (full suite) |
-| Lines | 393 |
+| Stages | `split` → `analyze` → `aggregate` → `distill` → `export` (5 步) |
+| Output | `data/commit-semantic/` (patterns, distill, **summary.yaml**) |
+| Tests | 728 passed (full suite) |
+| Lines | ~430 |
 
 ```
 /commit-semantic run
@@ -108,4 +108,4 @@ Issue text → demand card。
 | 2 | semantic | `semantic-pipeline` (+ 6 steps) | 5 | domain/concept/pipeline maps |
 | 3 | demand | `demand-pipeline` | 5 | demand card |
 | 4 | commit | `commit-extract` | 1 | `YYYY-MM.yaml` |
-| 5 | commit | `commit-semantic` | 4 | patterns + distill |
+| 5 | commit | `commit-semantic` | 5 | patterns + distill + summary.yaml |

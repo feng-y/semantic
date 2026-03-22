@@ -53,6 +53,15 @@ Extract **canonical demands** from module patterns.
 - Synthesizes top 5 demands per module using LLM analysis
 - Output: `data/commit-semantic/canonical-demands.yaml`
 
+### 5. export
+
+Generate structured **summary statistics** from canonical demands and patterns.
+
+- Reads `canonical-demands.yaml`
+- Classifies demands by development type (feature/bugfix/refactor/other)
+- Computes bugfix ratio, pattern count, high-frequency patterns
+- Output: `data/commit-semantic/summary.yaml` (ExportSummary format)
+
 ## Worker Agents
 
 LLM analysis stages (classify, score, distill) are delegated to **worker agents**
