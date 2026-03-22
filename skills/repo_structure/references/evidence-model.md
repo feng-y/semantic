@@ -1,10 +1,3 @@
-下面给你 **`skills/repo-structure/references/evidence-model.md` 初稿**。
-
-这份的目标很简单：
-
-**把 `repo-structure` 里所有“证据相关”的最小契约写死。**
-让 `extract`、`augment`、`validate`、`baseline` 都围绕同一套 evidence model 工作，不然后面很容易各写各的。
-
 ---
 
 ````markdown
@@ -705,10 +698,3 @@ A pipeline with fewer trustworthy facts is better than a larger baseline full of
 - `references/evidence-model.md`
 - `prompts/extract_codebase.md`
 - `prompts/augment_architect.md`
-
-接下来最值得补的就是两个 schema：
-
-- `schemas/fact_entry.schema.yaml`
-- `schemas/baseline_facts.schema.yaml`
-
-```

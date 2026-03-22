@@ -1,21 +1,3 @@
-下面给你 **`skills/repo-structure/references/arbitration-rules.md` 初稿**。
-
-这份要解决的是：
-
-**`baseline` 阶段面对多个候选 fact 时，到底怎么选、怎么保留、什么时候不该硬合并。**
-
-你前面已经定了几条关键原则：
-
-* source priority：`architect > hotspot > codebase`
-* 同优先级下：`recurring > evidence_backed > isolated`
-* 不同 snapshot 时优先当前 snapshot
-* 仲裁不出来就保留 conflict，不要偷偷抹平
-
-这份文档就是把这些口径正式写死。
-
----
-
-```markdown id="4v92yx"
 # Arbitration Rules
 
 This document defines how the `baseline` stage chooses, preserves, or defers candidate facts after validation.
@@ -315,8 +297,8 @@ Arbitration may merge candidates into one accepted fact only when:
 - one fact provides file-level structure and another provides symbol-level strengthening
 
 ### Unsafe merge examples
-- one fact says “must”
-- another says “usually”
+- one fact says "must"
+- another says "usually"
 - one fact encodes a hard rule
 - another encodes only a fragile convention
 - one fact is current
@@ -473,26 +455,3 @@ Do not bias toward:
 - artificial certainty
 
 A narrower trustworthy baseline is better than a broader but unreliable one.
-```
-
----
-
-到这里，`repo-structure` 这条 skill 的**核心设计文档闭环**已经差不多完整了：
-
-* `SKILL.md`
-* `references/gotchas.md`
-* `references/evidence-model.md`
-* `references/preflight-rules.md`
-* `references/arbitration-rules.md`
-* `prompts/extract_codebase.md`
-* `prompts/augment_architect.md`
-* `schemas/fact_entry.schema.yaml`
-* `schemas/baseline_facts.schema.yaml`
-
-现在往下最值得做的，不再是继续补说明文档，而是开始补**实现接口层**。
-最顺的下一个就是：
-
-* `schemas/state.schema.json`
-* 或者 `references/pipeline-overview.md`
-
-我建议先补 `references/pipeline-overview.md`，因为它能把上面这些文件怎么协同跑起来收成一页图景。

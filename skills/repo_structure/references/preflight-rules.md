@@ -1,18 +1,3 @@
-下面给你 **`skills/repo-structure/references/preflight-rules.md` 初稿**。
-
-这份要解决的是：
-
-**`repo-structure` 在真正执行任何 stage 之前，什么必须检查，怎么分级，什么直接失败，什么只是 warning。**
-
-你前面已经定了一个很关键的原则：
-
-* 不做 skill 嵌 skill
-* 不在 stage 内偷偷补跑上游
-* 依赖通过 preflight 显式暴露
-* 缺失 required input 就 fail-fast
-
-这份文档就是把这个原则写成运行契约。
-
 ---
 
 ````markdown id="2x5t1m"
@@ -565,6 +550,3 @@ If any required answer is “no”, stop.
 现在还差的核心文件，最值得补的是：
 
 - `references/arbitration-rules.md`
-
-因为 `baseline` 现在已经有 schema 了，但“到底怎么裁决冲突、怎么选 winning fact”还没写成正式规则。
-```

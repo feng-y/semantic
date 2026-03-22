@@ -1,7 +1,3 @@
-下面给你 **`skills/repo-structure/references/pipeline-overview.md` 初稿**。
-
-这份的作用不是补规则细节，而是把整条 `repo-structure` skill 的执行图景收成一页，方便 CC 在实现时不跑偏。
-
 ---
 
 ````markdown id="pyy8g8"
@@ -471,6 +467,3 @@ No less.
 
 - `schemas/state.schema.json`
 - `references/pipeline-overview.md` 已经补完后，接下来就是 `state.schema.json`
-
-我建议下一步直接补 **`schemas/state.schema.json`**。
-```

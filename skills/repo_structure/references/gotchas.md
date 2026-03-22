@@ -1,6 +1,3 @@
-可以，下面把 **`skills/repo-structure/references/gotchas.md`** 完整再输出一遍。
-
-```markdown
 # Repo-Structure Gotchas
 
 This file records the highest-value failure modes for the `repo-structure` skill.
@@ -422,5 +419,3 @@ Before accepting a change, verify:
 
 If the answer to any of these is “yes, maybe”, stop and inspect before merging.
 ```
-
-如果你要，我下一条可以把这份再收成一个**更短、更像 CC 真正在运行时会读的版本**。
