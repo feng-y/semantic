@@ -1,6 +1,6 @@
 ---
 name: commit-extract
-description: Aggregate raw commits by month with worker-driven commit_log regeneration
+description: Aggregate raw commits by month with LLM worker-driven semantic analysis
 entrypoint: skills.commit-extract.run.run_commit_extract
 disable-model-invocation: false
 triggers:
@@ -11,69 +11,68 @@ triggers:
 
 # Commit Extract
 
-Aggregate CC-generated commits by month, regenerating `commit_log` from diff via worker agents.
+LLM-powered commit analysis with adaptive batching. Replaces regex heuristic with `docs/generate_commit.md` prompt.
 
 ## Architecture
 
 ```
-git commits → collect → batch → spawn workers → aggregate → data/commit-extract/YYYY-MM.yaml
+Main Agent (orchestrator = run.py, inherits SkillRunner)
+  │
+  ├─ git log --no-merges → SHA list
+  ├─ git show --stat → weight estimation (parse insertions+deletions)
+  ├─ adaptive batching (weight_budget=3000, max_commits_per_batch=15)
+  │
+  ├─► Worker Agent ×N (parallel, via Task tool)
+  │     ├─ receives: SHA list + prefix instructions + docs/generate_commit.md
+  │     ├─ per SHA: git show → analyze patch → JSON object → append
+  │     └─ writes: data/commit-extract/tmp/{batch_id}.jsonl
+  │
+  └─► Merge (orchestrator, after all workers)
+        ├─ reads: tmp/*.jsonl
+        ├─ dedup by sha, skip invalid JSON lines
+        ├─ groups by date → YYYY-MM
+        ├─ appends to: data/commit-extract/YYYY-MM.jsonl
+        └─ cleans up tmp/
 ```
-
-**Main agent** reads git commits and orchestrates.
-**Worker agents** regenerate `commit_log` from `diff_chunks` (never from `original_message`).
-
-## Stages
-
-1. **collect** — read git commits, group by month, batch for workers
-
-## Batching Strategy
-
-- Batch size: 30 commits per worker
-- Each batch sent to a worker agent for parallel processing
-- Results aggregated back into the monthly YAML output
-
-## Worker Spawning
-
-Workers are spawned via the `Task` tool with prompts from `prompts/generate_commit_log.md`:
-
-```
-Task tool (general-purpose):
-  description: "Regenerate commit logs from diff batch"
-  prompt: |
-    [Injected from prompts/generate_commit_log.md]
-    [Plus batch context: list of commits with diff_chunks]
-```
-
-## Critical Constraint
-
-**COMMIT_LOG IS NEVER TAKEN FROM ORIGINAL MESSAGE OR ISSUE TEXT.**
-- Worker agents receive `diff_chunks` and regenerate `commit_log` from code changes
-- Original message stored as `original_message` (reference only)
-- The canonical field is `commit_log` (regenerated)
 
 ## Output Schema
 
-`data/commit-extract/YYYY-MM.yaml`:
-```yaml
-metadata:
-  month: "2024-03"
-  total_commits: 45
-commits:
-  - commit_id: "abc123"
-    timestamp: "2024-03-15T10:30:00"
-    author: "yan."
-    original_message: "feat: add parser legacy support"
-    files: ["src/parser.py"]
-    diff_chunks: ["diff --git a/src/parser.py..."]
-    commit_log: "在 parser 中补充 legacy 语法的边界检查处理"
+`data/commit-extract/YYYY-MM.jsonl`, each line:
+```json
+{
+  "sha": "<SHA>",
+  "author": "<author or empty string>",
+  "date": "<ISO 8601>",
+  "is_large_aggregate": true,
+  "is_mixed": true,
+  "sections": [
+    {
+      "name": "<generic functional block name>",
+      "theme": "<short change theme>",
+      "importance": "<primary|secondary>",
+      "summary": "<optional>",
+      "items": [{"op": "<feat|bugfix|...>", "summary": "<semantic summary>"}]
+    }
+  ],
+  "rules_invariants": [
+    {"kind": "<lifecycle|ownership|...>", "statement": "<rule>", "enforced_by_commit": true}
+  ]
+}
 ```
 
 ## Usage
 
 ```
-/commit-extract run              # Full pipeline
+/commit-extract run              # Full pipeline: collect → manifest → (workers) → merge
+/commit-extract run --range HEAD~10..HEAD  # Limit range
+/commit-extract run --merge      # Merge tmp files only (after workers complete)
 /commit-extract status           # Check current state
-/commit-extract step             # Run next stage only
 /commit-extract resume           # Continue from breakpoint
 /commit-extract reset            # Clear state, keep artifacts
 ```
+
+## Resume / Incremental
+
+- Reads existing YYYY-MM.jsonl to get processed SHA set
+- Only new commits go through batching + workers
+- tmp/ files from interrupted runs are merged on next run

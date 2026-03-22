@@ -10,10 +10,12 @@ if TYPE_CHECKING:
 
 def get_commit_list(repo_path: str, commit_range: str = None,
                    author: str = None, since: str = None,
-                   until: str = None) -> list[str]:
+                   until: str = None, no_merges: bool = False) -> list[str]:
     """Get list of commit IDs based on filters."""
     cmd = ["git", "-C", repo_path, "log", "--format=%H"]
 
+    if no_merges:
+        cmd.append("--no-merges")
     if commit_range:
         cmd.append(commit_range)
     if author:
