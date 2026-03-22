@@ -21,7 +21,8 @@ def classify_intent_keyword(text: str) -> str:
         return "reset"
 
     # Step patterns
-    if any(word in text_lower for word in ["step", "next", "continue one", "single step"]):
+    _step_words = ["step", "next", "continue one", "single step"]
+    if any(word in text_lower for word in _step_words):
         return "step"
 
     # Resume patterns

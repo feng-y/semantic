@@ -28,7 +28,9 @@ class HarnessState:
     version: str = "1.0"
     stage: str = "init"
     repo_path: str = ""
-    last_updated: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    last_updated: str = field(
+        default_factory=lambda: datetime.now(timezone.utc).isoformat()
+    )
     metadata: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -48,7 +50,9 @@ class HarnessState:
             version=data.get("version", "1.0"),
             stage=data.get("stage", "init"),
             repo_path=data.get("repo_path", ""),
-            last_updated=data.get("last_updated", datetime.now(timezone.utc).isoformat()),
+            last_updated=data.get(
+                "last_updated", datetime.now(timezone.utc).isoformat()
+            ),
             metadata=data.get("metadata", {}),
         )
 

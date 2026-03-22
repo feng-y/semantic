@@ -24,17 +24,27 @@ from __future__ import annotations
 
 import re
 
+# Shared regex flags for section-heading matching
+_RE_FLAGS = re.MULTILINE | re.IGNORECASE
+
 # Schema-defined sections for each artifact type
 # Required sections (ALL must be present) - Use _has_required_sections with AND logic
 REPO_FACTS_REQUIRED = (
     "Repository", "Modules", "Entrypoints", "Core Entities", "Configuration"
 )
-REPO_UNDERSTANDING_REQUIRED = ("System Purpose", "Pipelines", "Concepts", "Candidate Domains")
-KNOWLEDGE_CONFIDENCE_REQUIRED = ("Confirmed Knowledge", "Inferred Knowledge", "Uncertain Knowledge")
+REPO_UNDERSTANDING_REQUIRED = (
+    "System Purpose", "Pipelines", "Concepts", "Candidate Domains"
+)
+KNOWLEDGE_CONFIDENCE_REQUIRED = (
+    "Confirmed Knowledge", "Inferred Knowledge", "Uncertain Knowledge"
+)
 # Optional sections (ANY must be present) - Use _has_any_optional_section with OR logic
 DOMAIN_CANDIDATES_SECTIONS = ("Candidate Domains",)
 # Required sections (ALL must be present) - Use _has_required_sections with AND logic
-REVIEW_SUMMARY_REQUIRED = ("System Summary", "Pipelines", "Concepts", "Candidate Domains", "Assumptions", "Questions for Architect")
+REVIEW_SUMMARY_REQUIRED = (
+    "System Summary", "Pipelines", "Concepts", "Candidate Domains",
+    "Assumptions", "Questions for Architect",
+)
 
 # Baseline section headings and their required schema keywords
 BASELINE_SECTIONS: dict[str, str] = {
@@ -66,7 +76,7 @@ def _has_required_sections(content: str, required: tuple[str, ...]) -> bool:
         False
     """
     for heading in required:
-        pattern = re.compile(rf"^##\s+{re.escape(heading)}\b", re.MULTILINE | re.IGNORECASE)
+        pattern = re.compile(rf"^##\s+{re.escape(heading)}\b", _RE_FLAGS)
         if pattern.search(content) is None:
             return False  # Missing required section
     return True
@@ -93,7 +103,7 @@ def _has_any_optional_section(content: str, optional: tuple[str, ...]) -> bool:
         False
     """
     for heading in optional:
-        pattern = re.compile(rf"^##\s+{re.escape(heading)}\b", re.MULTILINE | re.IGNORECASE)
+        pattern = re.compile(rf"^##\s+{re.escape(heading)}\b", _RE_FLAGS)
         if pattern.search(content) is not None:
             return True
     return False
@@ -105,7 +115,7 @@ def _has_any_section_heading(content: str, headings: tuple[str, ...]) -> bool:
     DEPRECATED: Use _has_required_sections or _has_any_optional_section instead.
     """
     for heading in headings:
-        pattern = re.compile(rf"^##\s+{re.escape(heading)}\b", re.MULTILINE | re.IGNORECASE)
+        pattern = re.compile(rf"^##\s+{re.escape(heading)}\b", _RE_FLAGS)
         if pattern.search(content) is not None:
             return True
     return False
@@ -132,7 +142,7 @@ def validate_repo_facts(content: str) -> list[str]:
         # Find which sections are missing
         missing = []
         for section in REPO_FACTS_REQUIRED:
-            pattern = re.compile(rf"^##\s+{re.escape(section)}\b", re.MULTILINE | re.IGNORECASE)
+            pattern = re.compile(rf"^##\s+{re.escape(section)}\b", _RE_FLAGS)
             if pattern.search(content) is None:
                 missing.append(section)
 
@@ -165,7 +175,7 @@ def validate_repo_understanding(content: str) -> list[str]:
         # Find which sections are missing
         missing = []
         for section in REPO_UNDERSTANDING_REQUIRED:
-            pattern = re.compile(rf"^##\s+{re.escape(section)}\b", re.MULTILINE | re.IGNORECASE)
+            pattern = re.compile(rf"^##\s+{re.escape(section)}\b", _RE_FLAGS)
             if pattern.search(content) is None:
                 missing.append(section)
 
@@ -198,7 +208,7 @@ def validate_knowledge_confidence(content: str) -> list[str]:
         # Find which sections are missing
         missing = []
         for section in KNOWLEDGE_CONFIDENCE_REQUIRED:
-            pattern = re.compile(rf"^##\s+{re.escape(section)}\b", re.MULTILINE | re.IGNORECASE)
+            pattern = re.compile(rf"^##\s+{re.escape(section)}\b", _RE_FLAGS)
             if pattern.search(content) is None:
                 missing.append(section)
 
@@ -231,7 +241,7 @@ def validate_domain_candidates(content: str) -> list[str]:
         # Find which sections are missing
         missing = []
         for section in DOMAIN_CANDIDATES_SECTIONS:
-            pattern = re.compile(rf"^##\s+{re.escape(section)}\b", re.MULTILINE | re.IGNORECASE)
+            pattern = re.compile(rf"^##\s+{re.escape(section)}\b", _RE_FLAGS)
             if pattern.search(content) is None:
                 missing.append(section)
 
@@ -264,7 +274,7 @@ def validate_review_summary(content: str) -> list[str]:
         # Find which sections are missing
         missing = []
         for section in REVIEW_SUMMARY_REQUIRED:
-            pattern = re.compile(rf"^##\s+{re.escape(section)}\b", re.MULTILINE | re.IGNORECASE)
+            pattern = re.compile(rf"^##\s+{re.escape(section)}\b", _RE_FLAGS)
             if pattern.search(content) is None:
                 missing.append(section)
 

@@ -63,15 +63,17 @@ def dispatch(command: str, root: str | Path, **kwargs: Any) -> dict[str, Any]:
                     "error": "repo-structure skill not installed",
                 }
             import sys as _sys
+            _args = _sys.argv[2:] if len(_sys.argv) > 2 else []
             return {
                 "command": command,
                 "status": "ok",
-                "exit_code": _REPO_STRUCTURE_RUNNER.main(_sys.argv[2:] if len(_sys.argv) > 2 else []),
+                "exit_code": _REPO_STRUCTURE_RUNNER.main(_args),
             }
         return {
             "command": command,
             "status": "error",
-            "error": f"Unknown command: {command}. Valid: {', '.join(sorted(handlers))}",
+            "error": f"Unknown command: {command}. "
+            f"Valid: {', '.join(sorted(handlers))}",
         }
 
     return handler(root, **kwargs)
