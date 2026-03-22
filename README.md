@@ -9,8 +9,8 @@ Claude Code skill repository for extracting structured semantic knowledge from a
 Register the plugin marketplace and install:
 
 ```
-/plugin marketplace add obra/semantic-harness
-/plugin install semantic-harness@semantic-harness-marketplace
+/plugin marketplace add feng-y/semantic
+/plugin install semantic-harness@feng-y-semantic-harness-marketplace
 ```
 
 This exposes all 14 skills listed below.
