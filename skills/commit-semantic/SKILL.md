@@ -1,6 +1,7 @@
 ---
 name: commit-semantic
 description: Analyze commit patterns with team agent architecture
+entrypoint: skills.commit-semantic.run.run_commit_semantic
 triggers:
   - commit-semantic
   - analyze commit patterns

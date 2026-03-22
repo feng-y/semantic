@@ -988,5 +988,10 @@ class RepoStructureRunner(SkillRunner):
         return handlers.get(args.intent, handlers["run"])()
 
 
+def run_repo_structure() -> None:
+    """Entry point for the repo-structure skill."""
+    raise SystemExit(RepoStructureRunner().main())
+
+
 if __name__ == "__main__":
-    run_skill(RepoStructureRunner)
+    run_repo_structure()

@@ -1,6 +1,5 @@
 """Tests for intent router."""
 
-import pytest
 
 from src.intent_router import classify_intent_keyword, parse_intent
 

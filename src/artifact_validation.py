@@ -26,7 +26,9 @@ import re
 
 # Schema-defined sections for each artifact type
 # Required sections (ALL must be present) - Use _has_required_sections with AND logic
-REPO_FACTS_REQUIRED = ("Repository", "Modules", "Entrypoints", "Core Entities", "Configuration")
+REPO_FACTS_REQUIRED = (
+    "Repository", "Modules", "Entrypoints", "Core Entities", "Configuration"
+)
 REPO_UNDERSTANDING_REQUIRED = ("System Purpose", "Pipelines", "Concepts", "Candidate Domains")
 KNOWLEDGE_CONFIDENCE_REQUIRED = ("Confirmed Knowledge", "Inferred Knowledge", "Uncertain Knowledge")
 # Optional sections (ANY must be present) - Use _has_any_optional_section with OR logic

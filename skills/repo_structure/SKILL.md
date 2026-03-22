@@ -1,6 +1,7 @@
 ---
 name: repo-structure
 description: Build or refresh repo-level baseline facts from commit history artifacts, precomputed codebase analysis artifacts, and optional architecture documents. Use when the task is to extract structured repo facts, run the repo-structure pipeline, inspect stage status, or regenerate facts.vN.yaml for downstream semantic modeling.
+entrypoint: skills.repo_structure.run.run_repo_structure
 ---
 
 # Repo Structure

@@ -1,7 +1,5 @@
 """E2E tests for commit-extract skill."""
 
-import json
-import os
 import subprocess
 import sys
 import tempfile
@@ -215,7 +213,6 @@ class TestCommitExtractOutputSchema:
     def test_output_schema_has_correct_fields(self, tmp_path):
         """Output YAML must have metadata + commits, each commit with specific fields."""
         import importlib.util
-        import shutil
         repo_root = Path(__file__).parent.parent.parent
         spec = importlib.util.spec_from_file_location(
             "commit_extract5",

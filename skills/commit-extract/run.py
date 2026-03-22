@@ -309,5 +309,10 @@ class CommitExtractRunner(SkillRunner):
         return super().handle_run()
 
 
+def run_commit_extract() -> None:
+    """Entry point for the commit-extract skill."""
+    raise SystemExit(CommitExtractRunner().main())
+
+
 if __name__ == "__main__":
-    run_skill(CommitExtractRunner)
+    run_commit_extract()
