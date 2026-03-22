@@ -1,702 +1,672 @@
-"""E2E tests for commit-semantic skill - Task 2 implementation.
+"""E2E tests for commit-semantic skill - 4-stage JSONL pipeline.
 
-Tests the Team Agent architecture for commit-semantic:
-- Reads commit_log from extract output (not commit_message)
-- Classifies functional/non-functional commits
-- Splits by module
-- Scores functional commits 0-10
-- Aggregates high-scored by module
-- Distills canonical demands
+Tests:
+- ingest: JSONL expansion, rules_invariants collection, fault tolerance
+- aggregate: theme grouping, op_distribution, importance_ratio, high-frequency threshold
+- distill: scoring formula, tiebreaking, invariant extra weight
+- export: summary stats computation
+- prerequisites: checks for .jsonl files
+- full pipeline: ingest -> aggregate -> distill -> export
 """
 
 from __future__ import annotations
 
+import json
 import sys
-import yaml
 from pathlib import Path
 
+import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
+from src.io_utils import save_jsonl as _save_jsonl, load_jsonl
 
-def load_commit_semantic_module():
+
+def load_module():
     """Load commit-semantic skill module."""
     import importlib.util
     repo_root = Path(__file__).parent.parent.parent
     spec = importlib.util.spec_from_file_location(
-        "commit_semantic_test",
+        "commit_semantic_run",
         str(repo_root / "skills/commit-semantic/run.py"),
     )
     mod = importlib.util.module_from_spec(spec)
-    sys.modules["commit_semantic_test"] = mod
+    sys.modules["commit_semantic_run"] = mod
     spec.loader.exec_module(mod)
     return mod
 
 
-class TestCommitSemanticReadsCommitLog:
-    """Tests: reads commit_log field from extract output, NOT original_message."""
+def make_commit(
+    sha="abc123",
+    author="Test",
+    date="2024-01-15T10:00:00",
+    is_large_aggregate=False,
+    is_mixed=False,
+    sections=None,
+    rules_invariants=None,
+):
+    return {
+        "sha": sha,
+        "author": author,
+        "date": date,
+        "is_large_aggregate": is_large_aggregate,
+        "is_mixed": is_mixed,
+        "sections": sections or [],
+        "rules_invariants": rules_invariants or [],
+    }
 
-    def test_split_reads_commit_log_not_original_message(self, tmp_path):
-        """_run_split reads commit_log as canonical field.
 
-        The critical constraint: commit_log is the LLM-regenerated field from
-        commit-extract workers. The semantic stage must read commit_log, NOT
-        original_message or commit_message.
-        """
-        mod = load_commit_semantic_module()
+def write_jsonl(path: Path, records: list[dict]) -> None:
+    _save_jsonl(records, str(path))
 
-        # Create a temp extract output directory
+
+def read_jsonl(path: Path) -> list[dict]:
+    return load_jsonl(str(path), skip_errors=True)
+
+
+# ---------------------------------------------------------------------------
+# Fixtures
+# ---------------------------------------------------------------------------
+
+SECTION_BATCH = {
+    "name": "Inference path",
+    "theme": "batch processing",
+    "importance": "primary",
+    "summary": "batch inference improvements",
+    "items": [
+        {"op": "feat", "summary": "add batch inference"},
+        {"op": "optimize", "summary": "reduce batch latency"},
+    ],
+}
+
+SECTION_CONFIG = {
+    "name": "Config layer",
+    "theme": "configuration management",
+    "importance": "secondary",
+    "summary": "config updates",
+    "items": [
+        {"op": "config", "summary": "update default batch size"},
+    ],
+}
+
+INVARIANT_ORDERING = {
+    "kind": "ordering",
+    "statement": "batch must complete before flush",
+    "enforced_by_commit": True,
+}
+
+
+# ---------------------------------------------------------------------------
+# Stage 1: ingest
+# ---------------------------------------------------------------------------
+
+class TestIngest:
+    def _setup_extract(self, tmp_path, commits):
         extract_dir = tmp_path / "data" / "commit-extract"
-        extract_dir.mkdir(parents=True)
+        write_jsonl(extract_dir / "2024-01.jsonl", commits)
+        return extract_dir
 
-        # Write extract output with commit_log populated by workers
-        commits = [
-            {
-                "commit_id": "abc123def0000000000000000000000000001",
-                "timestamp": "2024-01-15T10:00:00",
-                "author": "Test <test@test.com>",
-                "files": ["src/parser.py"],
-                "diff_chunks": ["+def parse(): pass"],
-                # original_message is raw git message
-                "original_message": "feat: add stuff",
-                # commit_log is LLM-regenerated from diff (the canonical field)
-                "commit_log": "在 parser 中新增 parse 函数用于 DSL 解析",
-            },
-            {
-                "commit_id": "abc123def0000000000000000000000000002",
-                "timestamp": "2024-01-16T10:00:00",
-                "author": "Test <test@test.com>",
-                "files": ["src/config.py"],
-                "diff_chunks": ["+cfg = {}\n"],
-                "original_message": "fix: update config",
-                # commit_log is the canonical semantic field
-                "commit_log": "更新 config 模块的配置加载逻辑",
-            },
-        ]
-
-        month_file = extract_dir / "2024-01.yaml"
-        month_file.write_text(
-            yaml.dump({
-                "metadata": {"month": "2024-01", "total_commits": 2},
-                "commits": commits,
-            })
-        )
-
-        # Patch output path and run
-        saved_extract = mod.EXTRACT_OUTPUT
-        saved_semantic = mod.SEMANTIC_OUTPUT
+    def _run(self, mod, tmp_path, commits):
+        extract_dir = self._setup_extract(tmp_path, commits)
+        semantic_dir = tmp_path / "data" / "commit-semantic"
+        saved_e, saved_s = mod.EXTRACT_OUTPUT, mod.SEMANTIC_OUTPUT
         mod.EXTRACT_OUTPUT = extract_dir
-        mod.SEMANTIC_OUTPUT = tmp_path / "data" / "commit-semantic"
-
-        sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+        mod.SEMANTIC_OUTPUT = semantic_dir
         from src.harness_state import HarnessState
+        state = HarnessState(metadata={"completed_stages": [], "artifacts_written": []})
+        result = mod.CommitSemanticRunner()._run_ingest(state)
+        mod.EXTRACT_OUTPUT = saved_e
+        mod.SEMANTIC_OUTPUT = saved_s
+        return result, semantic_dir
 
-        runner = mod.CommitSemanticRunner()
-        state = HarnessState(
-            stage="split",
-            metadata={"completed_stages": [], "artifacts_written": []},
+    def test_expands_items_into_units(self, tmp_path):
+        mod = load_module()
+        commit = make_commit(
+            sha="sha001",
+            sections=[SECTION_BATCH],
         )
-        result = runner._run_split(state)
+        ok, sem = self._run(mod, tmp_path, [commit])
+        assert ok is True
+        units = read_jsonl(sem / "units" / "all.jsonl")
+        assert len(units) == 2  # two items in SECTION_BATCH
+        for u in units:
+            assert u["sha"] == "sha001"
+            assert u["theme"] == "batch processing"
+            assert u["section_name"] == "Inference path"
+            assert u["importance"] == "primary"
+            assert u["is_large_aggregate"] is False
+            assert u["is_mixed"] is False
 
-        mod.EXTRACT_OUTPUT = saved_extract
-        mod.SEMANTIC_OUTPUT = saved_semantic
-
-        assert result is True
-
-        units_file = tmp_path / "data" / "commit-semantic" / "units" / "all.yaml"
-        assert units_file.exists(), "units/all.yaml should be created"
-
-        data = yaml.safe_load(units_file.read_text())
-        units = data["units"]
-
-        # Verify that commit_log from extract IS present in units
-        # (not original_message)
-        commit_logs = [u.get("commit_log", "") for u in units]
-        assert any("parser" in log for log in commit_logs), \
-            "commit_log should reference 'parser' (from LLM-regenerated field)"
-        assert any("config" in log for log in commit_logs), \
-            "commit_log should reference 'config' (from LLM-regenerated field)"
-
-        # Verify original_message is NOT used as commit_log
-        assert not any("add stuff" in log for log in commit_logs), \
-            "original_message 'add stuff' should NOT appear as commit_log"
-        assert not any("update config" in log for log in commit_logs), \
-            "original_message 'update config' should NOT appear as commit_log"
-
-    def test_split_does_not_read_commit_message_field(self, tmp_path):
-        """_run_split must not use a 'commit_message' field - it should use commit_log."""
-        mod = load_commit_semantic_module()
-
-        extract_dir = tmp_path / "data" / "commit-extract"
-        extract_dir.mkdir(parents=True)
-
-        # Write a commit that has commit_message (the WRONG field name)
-        # This simulates the bug where commit_message was read instead of commit_log
-        bad_commit = {
-            "commit_id": "abc123def0000000000000000000000000003",
-            "timestamp": "2024-01-17T10:00:00",
-            "author": "Test <test@test.com>",
-            "files": ["src/server.py"],
-            "diff_chunks": ["+def serve(): pass"],
-            "original_message": "feat: add server",
-            # No commit_log — this commit has the WRONG field
-            "commit_message": "add server feature",
-        }
-
-        month_file = extract_dir / "2024-01.yaml"
-        month_file.write_text(
-            yaml.dump({
-                "metadata": {"month": "2024-01", "total_commits": 1},
-                "commits": [bad_commit],
-            })
+    def test_inherits_commit_flags(self, tmp_path):
+        mod = load_module()
+        commit = make_commit(
+            sha="sha002",
+            is_large_aggregate=True,
+            is_mixed=True,
+            sections=[SECTION_CONFIG],
         )
-
-        saved_extract = mod.EXTRACT_OUTPUT
-        saved_semantic = mod.SEMANTIC_OUTPUT
-        mod.EXTRACT_OUTPUT = extract_dir
-        mod.SEMANTIC_OUTPUT = tmp_path / "data" / "commit-semantic"
-
-        sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-        from src.harness_state import HarnessState
-
-        runner = mod.CommitSemanticRunner()
-        state = HarnessState(
-            stage="split",
-            metadata={"completed_stages": [], "artifacts_written": []},
-        )
-        result = runner._run_split(state)
-
-        mod.EXTRACT_OUTPUT = saved_extract
-        mod.SEMANTIC_OUTPUT = saved_semantic
-
-        assert result is True
-
-        units_file = tmp_path / "data" / "commit-semantic" / "units" / "all.yaml"
-        data = yaml.safe_load(units_file.read_text())
-        units = data["units"]
-
-        # When commit_log is missing, the unit should have empty/None commit_log,
-        # NOT the value from commit_message
-        for unit in units:
-            # The bug: old code did commit.get("commit_message", "")
-            # After fix: it should use commit.get("commit_log", "")
-            # A missing commit_log should NOT be filled from commit_message
-            if "commit_message" in bad_commit:
-                assert unit.get("commit_log", "") != bad_commit.get("commit_message", ""), \
-                    "commit_log should NOT be read from commit_message field"
-
-
-class TestCommitSemanticClassification:
-    """Tests for commit classification."""
-
-    def test_classify_functional(self):
-        """feat, bugfix, optimize = functional."""
-        mod = load_commit_semantic_module()
-        runner = mod.CommitSemanticRunner()
-
-        assert runner._classify_type("feat: add parser") == "functional", \
-            "feat prefix should be functional"
-        assert runner._classify_type("bugfix: fix boundary") == "functional", \
-            "bugfix prefix should be functional"
-        assert runner._classify_type("optimize: improve perf") == "functional", \
-            "optimize prefix should be functional"
-        assert runner._classify_type("feat+bugfix: fix and add") == "functional", \
-            "compound prefix with feat should be functional"
-
-    def test_classify_non_functional(self):
-        """refactor, test, config, cleanup = non-functional."""
-        mod = load_commit_semantic_module()
-        runner = mod.CommitSemanticRunner()
-
-        assert runner._classify_type("refactor: cleanup code") == "non-functional", \
-            "refactor should be non-functional"
-        assert runner._classify_type("test: add parser tests") == "non-functional", \
-            "test should be non-functional"
-        assert runner._classify_type("config: update deps") == "non-functional", \
-            "config should be non-functional"
-        assert runner._classify_type("chore: update deps") == "non-functional", \
-            "chore should be non-functional"
-        assert runner._classify_type("cleanup: remove dead code") == "non-functional", \
-            "cleanup should be non-functional"
-        assert runner._classify_type("docs: update readme") == "non-functional", \
-            "docs should be non-functional"
-        assert runner._classify_type("perf: improve perf") == "non-functional", \
-            "perf should be non-functional (not in FUNCTIONAL_PREFIXES)"
-
-
-class TestCommitSemanticSplitByModule:
-    """Tests for module-based splitting."""
-
-    def test_split_by_module_detects_multiple_modules(self, tmp_path):
-        """Multi-module commits produce separate units per module."""
-        mod = load_commit_semantic_module()
-
-        extract_dir = tmp_path / "data" / "commit-extract"
-        extract_dir.mkdir(parents=True)
-
-        commits = [
-            {
-                "commit_id": "abc123def0000000000000000000000000004",
-                "timestamp": "2024-02-10T10:00:00",
-                "author": "Test <test@test.com>",
-                "files": ["src/parser.py", "src/server.py"],
-                "diff_chunks": ["+def parse(): pass\n+def serve(): pass"],
-                "original_message": "feat: add parser and server modules",
-                # commit_log mentions both parser and server
-                "commit_log": "新增 parser 解析模块和 server 服务模块",
-            },
-        ]
-
-        (extract_dir / "2024-02.yaml").write_text(
-            yaml.dump({
-                "metadata": {"month": "2024-02", "total_commits": 1},
-                "commits": commits,
-            })
-        )
-
-        saved_extract = mod.EXTRACT_OUTPUT
-        saved_semantic = mod.SEMANTIC_OUTPUT
-        mod.EXTRACT_OUTPUT = extract_dir
-        mod.SEMANTIC_OUTPUT = tmp_path / "data" / "commit-semantic"
-
-        sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-        from src.harness_state import HarnessState
-
-        runner = mod.CommitSemanticRunner()
-        state = HarnessState(
-            stage="split",
-            metadata={"completed_stages": [], "artifacts_written": []},
-        )
-        result = runner._run_split(state)
-
-        mod.EXTRACT_OUTPUT = saved_extract
-        mod.SEMANTIC_OUTPUT = saved_semantic
-
-        assert result is True
-        units_file = tmp_path / "data" / "commit-semantic" / "units" / "all.yaml"
-        data = yaml.safe_load(units_file.read_text())
-        units = data["units"]
-
-        modules = [u["module"] for u in units]
-        # Should produce units for both parser and server
-        assert "parser" in modules or "server" in modules, \
-            "Should detect at least one module from commit_log"
-
-    def test_split_unknown_module_for_unmatched_commits(self, tmp_path):
-        """Commits with no module keywords get 'unknown' module."""
-        mod = load_commit_semantic_module()
-
-        extract_dir = tmp_path / "data" / "commit-extract"
-        extract_dir.mkdir(parents=True)
-
-        commits = [
-            {
-                "commit_id": "abc123def0000000000000000000000000005",
-                "timestamp": "2024-03-01T10:00:00",
-                "author": "Test <test@test.com>",
-                "files": [],
-                "diff_chunks": ["+x = 1\n"],
-                "original_message": "wip: stuff",
-                "commit_log": "工作进展更新",
-            },
-        ]
-
-        (extract_dir / "2024-03.yaml").write_text(
-            yaml.dump({
-                "metadata": {"month": "2024-03", "total_commits": 1},
-                "commits": commits,
-            })
-        )
-
-        saved_extract = mod.EXTRACT_OUTPUT
-        saved_semantic = mod.SEMANTIC_OUTPUT
-        mod.EXTRACT_OUTPUT = extract_dir
-        mod.SEMANTIC_OUTPUT = tmp_path / "data" / "commit-semantic"
-
-        sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-        from src.harness_state import HarnessState
-
-        runner = mod.CommitSemanticRunner()
-        state = HarnessState(
-            stage="split",
-            metadata={"completed_stages": [], "artifacts_written": []},
-        )
-        runner._run_split(state)
-
-        mod.EXTRACT_OUTPUT = saved_extract
-        mod.SEMANTIC_OUTPUT = saved_semantic
-
-        units_file = tmp_path / "data" / "commit-semantic" / "units" / "all.yaml"
-        data = yaml.safe_load(units_file.read_text())
-        units = data["units"]
-
+        ok, sem = self._run(mod, tmp_path, [commit])
+        assert ok is True
+        units = read_jsonl(sem / "units" / "all.jsonl")
         assert len(units) == 1
-        assert units[0]["module"] == "unknown", \
-            "Unmatched commit should get 'unknown' module"
+        assert units[0]["is_large_aggregate"] is True
+        assert units[0]["is_mixed"] is True
 
-
-class TestCommitSemanticScoring:
-    """Tests for scoring functional commits."""
-
-    def test_score_functional_range(self, tmp_path):
-        """Functional commits scored 0-10."""
-        mod = load_commit_semantic_module()
-        runner = mod.CommitSemanticRunner()
-
-        units = [
-            {"commit_log": "feat: add parser with proper description here", "module": "parser"},
-            {"commit_log": "x", "module": "unknown"},
-            {"commit_log": "feat: fix important bug in the database module", "module": "db"},
-            {"commit_log": "feat: add", "module": "api"},
-        ]
-
-        for unit in units:
-            score = runner._score_unit(unit)
-            assert 0 <= score <= 10, \
-                f"Score {score} for unit {unit} should be between 0 and 10"
-
-    def test_score_module_affects_score(self):
-        """Known module boosts score."""
-        mod = load_commit_semantic_module()
-        runner = mod.CommitSemanticRunner()
-
-        unit_known = {"commit_log": "feat: add parser module", "module": "parser"}
-        unit_unknown = {"commit_log": "feat: add parser module", "module": "unknown"}
-
-        score_known = runner._score_unit(unit_known)
-        score_unknown = runner._score_unit(unit_unknown)
-
-        assert score_known > score_unknown, \
-            "Known module should score higher than unknown"
-
-    def test_score_clear_message_bonus(self):
-        """Clear, well-described commit log gets bonus."""
-        mod = load_commit_semantic_module()
-        runner = mod.CommitSemanticRunner()
-
-        unit_clear = {
-            "commit_log": "feat: add parser module with proper description and clear intent",
-            "module": "parser",
-        }
-        unit_short = {
-            "commit_log": "feat: add",
-            "module": "parser",
-        }
-
-        score_clear = runner._score_unit(unit_clear)
-        score_short = runner._score_unit(unit_short)
-
-        assert score_clear >= score_short, \
-            "Clear message should score >= short message"
-
-
-class TestCommitSemanticAggregate:
-    """Tests for aggregating high-scored units by module."""
-
-    def test_aggregate_patterns(self, tmp_path):
-        """High-scored units are grouped by module into patterns."""
-        mod = load_commit_semantic_module()
-
-        # Setup: create functional/high directory with units
-        high_dir = tmp_path / "data" / "commit-semantic" / "functional" / "high"
-        high_dir.mkdir(parents=True)
-
-        units = [
-            {
-                "unit_id": "abc00001-parser",
-                "commit_id": "abc00001",
-                "module": "parser",
-                "score": 9,
-                "commit_log": "在 parser 中新增 AST 解析函数",
-            },
-            {
-                "unit_id": "abc00002-parser",
-                "commit_id": "abc00002",
-                "module": "parser",
-                "score": 8,
-                "commit_log": "修复 parser 边界条件",
-            },
-            {
-                "unit_id": "abc00003-server",
-                "commit_id": "abc00003",
-                "module": "server",
-                "score": 9,
-                "commit_log": "新增 server 启动回调机制",
-            },
-        ]
-
-        (high_dir / "units.yaml").write_text(
-            yaml.dump({
-                "metadata": {"tier": "high", "count": len(units)},
-                "units": units,
-            })
+    def test_collects_rules_invariants(self, tmp_path):
+        mod = load_module()
+        commit = make_commit(
+            sha="sha003",
+            sections=[SECTION_BATCH],
+            rules_invariants=[INVARIANT_ORDERING],
         )
+        ok, sem = self._run(mod, tmp_path, [commit])
+        assert ok is True
+        invs = read_jsonl(sem / "invariants.jsonl")
+        assert len(invs) == 1
+        assert invs[0]["kind"] == "ordering"
+        assert invs[0]["sha"] == "sha003"
 
-        saved_semantic = mod.SEMANTIC_OUTPUT
-        mod.SEMANTIC_OUTPUT = tmp_path / "data" / "commit-semantic"
-
-        sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-        from src.harness_state import HarnessState
-
-        runner = mod.CommitSemanticRunner()
-        state = HarnessState(
-            stage="aggregate",
-            metadata={"completed_stages": ["split", "analyze"], "artifacts_written": []},
-        )
-        result = runner._run_aggregate(state)
-
-        mod.SEMANTIC_OUTPUT = saved_semantic
-
-        assert result is True
-
-        patterns_dir = tmp_path / "data" / "commit-semantic" / "patterns"
-        assert patterns_dir.exists(), "patterns directory should be created"
-
-        parser_pattern = patterns_dir / "parser.yaml"
-        server_pattern = patterns_dir / "server.yaml"
-
-        assert parser_pattern.exists(), "parser.yaml should be created from high units"
-        assert server_pattern.exists(), "server.yaml should be created from high units"
-
-        parser_data = yaml.safe_load(parser_pattern.read_text())
-        assert parser_data["metadata"]["module"] == "parser"
-        assert len(parser_data["patterns"]) == 2, "parser should have 2 patterns"
-
-
-class TestCommitSemanticDistill:
-    """Tests for extracting canonical demands."""
-
-    def test_distill_demands(self, tmp_path):
-        """Canonical demands extracted from patterns."""
-        mod = load_commit_semantic_module()
-
-        # Setup: create patterns directory
-        patterns_dir = tmp_path / "data" / "commit-semantic" / "patterns"
-        patterns_dir.mkdir(parents=True)
-
-        patterns = [
-            {
-                "commit_id": "abc00001",
-                "module": "parser",
-                "score": 9,
-                "commit_log": "在 parser 中新增 AST 解析函数",
-            },
-            {
-                "commit_id": "abc00002",
-                "module": "parser",
-                "score": 8,
-                "commit_log": "修复 parser 边界条件",
-            },
-            {
-                "commit_id": "abc00003",
-                "module": "server",
-                "score": 9,
-                "commit_log": "新增 server 启动回调机制",
-            },
-        ]
-
-        (patterns_dir / "parser.yaml").write_text(
-            yaml.dump({
-                "metadata": {"module": "parser", "count": 2},
-                "patterns": patterns[:2],
-            })
-        )
-        (patterns_dir / "server.yaml").write_text(
-            yaml.dump({
-                "metadata": {"module": "server", "count": 1},
-                "patterns": patterns[2:],
-            })
-        )
-
-        saved_semantic = mod.SEMANTIC_OUTPUT
-        mod.SEMANTIC_OUTPUT = tmp_path / "data" / "commit-semantic"
-
-        sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-        from src.harness_state import HarnessState
-
-        runner = mod.CommitSemanticRunner()
-        state = HarnessState(
-            stage="distill",
-            metadata={
-                "completed_stages": ["split", "analyze", "aggregate"],
-                "artifacts_written": [],
-            },
-        )
-        result = runner._run_distill(state)
-
-        mod.SEMANTIC_OUTPUT = saved_semantic
-
-        assert result is True
-
-        demands_file = tmp_path / "data" / "commit-semantic" / "canonical-demands.yaml"
-        assert demands_file.exists(), "canonical-demands.yaml should be created"
-
-        data = yaml.safe_load(demands_file.read_text())
-        demands = data["demands"]
-
-        assert len(demands) > 0, "Should produce at least one demand"
-        assert all("demand_id" in d for d in demands), "Each demand needs demand_id"
-        assert all("module" in d for d in demands), "Each demand needs module"
-        assert all("commit_log" in d for d in demands), "Each demand needs commit_log"
-
-
-class TestCommitSemanticFullPipeline:
-    """Integration tests for the full pipeline."""
-
-    def test_full_pipeline_with_extract_output(self, tmp_path):
-        """Full pipeline runs when extract output exists."""
-        mod = load_commit_semantic_module()
-
+    def test_fault_tolerance_skips_invalid_json(self, tmp_path, capsys):
+        mod = load_module()
         extract_dir = tmp_path / "data" / "commit-extract"
         extract_dir.mkdir(parents=True)
+        path = extract_dir / "2024-01.jsonl"
+        good = make_commit(sha="sha004", sections=[SECTION_CONFIG])
+        with open(path, "w", encoding="utf-8") as fh:
+            fh.write("NOT VALID JSON\n")
+            fh.write(json.dumps(good) + "\n")
+            fh.write("{broken\n")
 
-        commits = [
-            {
-                "commit_id": "abc123def0000000000000000000000000006",
-                "timestamp": "2024-04-01T10:00:00",
-                "author": "Test <test@test.com>",
-                "files": ["src/parser.py"],
-                "diff_chunks": ["+def parse(): pass"],
-                "original_message": "feat: add parser",
-                "commit_log": "在 parser 中新增 parse 函数用于 DSL 解析",
-            },
-            {
-                "commit_id": "abc123def0000000000000000000000000007",
-                "timestamp": "2024-04-02T10:00:00",
-                "author": "Test <test@test.com>",
-                "files": ["src/parser.py"],
-                "diff_chunks": ["+def parse(): pass\n"],
-                "original_message": "refactor: cleanup",
-                "commit_log": "重构 parser 代码结构",
-            },
-        ]
-
-        (extract_dir / "2024-04.yaml").write_text(
-            yaml.dump({
-                "metadata": {"month": "2024-04", "total_commits": 2},
-                "commits": commits,
-            })
-        )
-
-        saved_extract = mod.EXTRACT_OUTPUT
-        saved_semantic = mod.SEMANTIC_OUTPUT
+        semantic_dir = tmp_path / "data" / "commit-semantic"
+        saved_e, saved_s = mod.EXTRACT_OUTPUT, mod.SEMANTIC_OUTPUT
         mod.EXTRACT_OUTPUT = extract_dir
-        mod.SEMANTIC_OUTPUT = tmp_path / "data" / "commit-semantic"
-
-        sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+        mod.SEMANTIC_OUTPUT = semantic_dir
         from src.harness_state import HarnessState
+        state = HarnessState(metadata={"completed_stages": [], "artifacts_written": []})
+        result = mod.CommitSemanticRunner()._run_ingest(state)
+        mod.EXTRACT_OUTPUT = saved_e
+        mod.SEMANTIC_OUTPUT = saved_s
 
-        runner = mod.CommitSemanticRunner()
-        state = HarnessState(
-            stage="init",
-            metadata={"completed_stages": [], "artifacts_written": []},
+        assert result is True
+        units = read_jsonl(semantic_dir / "units" / "all.jsonl")
+        # Only the good commit's item should appear
+        assert len(units) == 1
+        assert units[0]["sha"] == "sha004"
+
+    def test_empty_sections_produces_no_units(self, tmp_path):
+        mod = load_module()
+        commit = make_commit(sha="sha005", sections=[])
+        ok, sem = self._run(mod, tmp_path, [commit])
+        assert ok is True
+        units = read_jsonl(sem / "units" / "all.jsonl")
+        assert len(units) == 0
+
+    def test_multiple_months(self, tmp_path):
+        mod = load_module()
+        extract_dir = tmp_path / "data" / "commit-extract"
+        write_jsonl(
+            extract_dir / "2024-01.jsonl",
+            [make_commit(sha="jan1", sections=[SECTION_BATCH])],
         )
+        write_jsonl(
+            extract_dir / "2024-02.jsonl",
+            [make_commit(sha="feb1", sections=[SECTION_CONFIG])],
+        )
+        semantic_dir = tmp_path / "data" / "commit-semantic"
+        saved_e, saved_s = mod.EXTRACT_OUTPUT, mod.SEMANTIC_OUTPUT
+        mod.EXTRACT_OUTPUT = extract_dir
+        mod.SEMANTIC_OUTPUT = semantic_dir
+        from src.harness_state import HarnessState
+        state = HarnessState(metadata={"completed_stages": [], "artifacts_written": []})
+        mod.CommitSemanticRunner()._run_ingest(state)
+        mod.EXTRACT_OUTPUT = saved_e
+        mod.SEMANTIC_OUTPUT = saved_s
 
-        # Run all stages
-        runner._run_split(state)
-        runner._run_analyze(state)
-        runner._run_aggregate(state)
-        runner._run_distill(state)
-
-        mod.EXTRACT_OUTPUT = saved_extract
-        mod.SEMANTIC_OUTPUT = saved_semantic
-
-        # Verify all output files exist
-        assert (tmp_path / "data" / "commit-semantic" / "units" / "all.yaml").exists()
-        assert (tmp_path / "data" / "commit-semantic" / "functional").exists()
-        assert (tmp_path / "data" / "commit-semantic" / "non-functional").exists()
-        assert (tmp_path / "data" / "commit-semantic" / "patterns").exists()
-        assert (tmp_path / "data" / "commit-semantic" / "canonical-demands.yaml").exists()
-
-
-class TestCommitSemanticTeamAgentArchitecture:
-    """Tests for Team Agent architecture hooks."""
-
-    def test_spawn_worker_method_exists(self):
-        """Runner should have _spawn_worker method stub for Task agent spawning."""
-        mod = load_commit_semantic_module()
-        runner = mod.CommitSemanticRunner()
-
-        assert hasattr(runner, "_spawn_worker"), \
-            "CommitSemanticRunner should have _spawn_worker method"
-        assert callable(runner._spawn_worker), \
-            "_spawn_worker should be callable"
-
-    def test_batch_units_method_exists(self):
-        """Runner should have _batch_units method for batching units to workers."""
-        mod = load_commit_semantic_module()
-        runner = mod.CommitSemanticRunner()
-
-        assert hasattr(runner, "_batch_units"), \
-            "CommitSemanticRunner should have _batch_units method"
-        assert callable(runner._batch_units), \
-            "_batch_units should be callable"
-
-    def test_worker_prompt_templates_exist(self):
-        """Worker prompt templates should exist in prompts/ directory."""
-        repo_root = Path(__file__).parent.parent.parent
-        prompts_dir = repo_root / "skills" / "commit-semantic" / "prompts"
-
-        assert prompts_dir.exists(), \
-            f"prompts directory should exist at {prompts_dir}"
-
-        classify_prompt = prompts_dir / "classify.md"
-        score_prompt = prompts_dir / "score.md"
-        distill_prompt = prompts_dir / "distill.md"
-
-        assert classify_prompt.exists(), \
-            f"classify.md should exist at {classify_prompt}"
-        assert score_prompt.exists(), \
-            f"score.md should exist at {score_prompt}"
-        assert distill_prompt.exists(), \
-            f"distill.md should exist at {distill_prompt}"
-
-    def test_skill_md_has_team_agent_architecture(self):
-        """SKILL.md should document Team Agent architecture (not deprecated)."""
-        repo_root = Path(__file__).parent.parent.parent
-        skill_md = repo_root / "skills" / "commit-semantic" / "SKILL.md"
-
-        content = skill_md.read_text()
-
-        # Should NOT be deprecated
-        assert "deprecated" not in content.lower() and "replacement" not in content.lower(), \
-            "SKILL.md should not be marked as deprecated"
-
-        # Should mention worker agents or Task tool
-        assert "worker" in content.lower() or "task" in content.lower(), \
-            "SKILL.md should mention worker agents or Task tool"
+        units = read_jsonl(semantic_dir / "units" / "all.jsonl")
+        shas = {u["sha"] for u in units}
+        assert "jan1" in shas
+        assert "feb1" in shas
 
 
-class TestCommitSemanticPrerequisites:
-    """Tests for prerequisite checking."""
+# ---------------------------------------------------------------------------
+# Stage 2: aggregate
+# ---------------------------------------------------------------------------
 
-    def test_prerequisites_requires_extract_output(self):
-        """_check_prerequisites fails when no extract output exists."""
-        mod = load_commit_semantic_module()
-        runner = mod.CommitSemanticRunner()
+class TestAggregate:
+    def _run(self, mod, tmp_path, units):
+        semantic_dir = tmp_path / "data" / "commit-semantic"
+        write_jsonl(semantic_dir / "units" / "all.jsonl", units)
+        saved_s = mod.SEMANTIC_OUTPUT
+        mod.SEMANTIC_OUTPUT = semantic_dir
+        from src.harness_state import HarnessState
+        state = HarnessState(metadata={"completed_stages": [], "artifacts_written": []})
+        result = mod.CommitSemanticRunner()._run_aggregate(state)
+        mod.SEMANTIC_OUTPUT = saved_s
+        return result, semantic_dir
 
-        # Temporarily change the extract path to non-existent
+    def _make_unit(self, sha, theme, op="feat", importance="primary"):
+        return {
+            "sha": sha,
+            "date": "2024-01-01",
+            "author": "Test",
+            "section_name": "S",
+            "theme": theme,
+            "importance": importance,
+            "op": op,
+            "summary": f"{theme} via {op}",
+            "is_large_aggregate": False,
+            "is_mixed": False,
+        }
+
+    def test_groups_by_theme(self, tmp_path):
+        mod = load_module()
+        units = [
+            self._make_unit("s1", "batch processing"),
+            self._make_unit("s2", "batch processing"),
+            self._make_unit("s3", "config management"),
+        ]
+        ok, sem = self._run(mod, tmp_path, units)
+        assert ok is True
+        patterns = read_jsonl(sem / "patterns.jsonl")
+        themes = {p["theme"] for p in patterns}
+        assert "batch processing" in themes
+        assert "config management" in themes
+
+    def test_merges_same_theme_different_section_names(self, tmp_path):
+        mod = load_module()
+        units = [
+            {**self._make_unit("s1", "auth"), "section_name": "Login"},
+            {**self._make_unit("s2", "auth"), "section_name": "Logout"},
+        ]
+        ok, sem = self._run(mod, tmp_path, units)
+        assert ok is True
+        patterns = read_jsonl(sem / "patterns.jsonl")
+        auth = next(p for p in patterns if p["theme"] == "auth")
+        assert auth["distinct_commits"] == 2
+        assert auth["count"] == 2
+
+    def test_op_distribution(self, tmp_path):
+        mod = load_module()
+        units = [
+            self._make_unit("s1", "theme-x", op="feat"),
+            self._make_unit("s2", "theme-x", op="bugfix"),
+            self._make_unit("s3", "theme-x", op="feat"),
+        ]
+        ok, sem = self._run(mod, tmp_path, units)
+        assert ok is True
+        patterns = read_jsonl(sem / "patterns.jsonl")
+        p = next(x for x in patterns if x["theme"] == "theme-x")
+        assert p["op_distribution"]["feat"] == 2
+        assert p["op_distribution"]["bugfix"] == 1
+
+    def test_importance_ratio(self, tmp_path):
+        mod = load_module()
+        units = [
+            self._make_unit("s1", "theme-y", importance="primary"),
+            self._make_unit("s2", "theme-y", importance="secondary"),
+            self._make_unit("s3", "theme-y", importance="primary"),
+        ]
+        ok, sem = self._run(mod, tmp_path, units)
+        assert ok is True
+        patterns = read_jsonl(sem / "patterns.jsonl")
+        p = next(x for x in patterns if x["theme"] == "theme-y")
+        assert p["importance_ratio"]["primary"] == 2
+        assert p["importance_ratio"]["secondary"] == 1
+
+    def test_representative_summaries_capped_at_3(self, tmp_path):
+        mod = load_module()
+        units = [
+            self._make_unit(f"s{i}", "theme-z") for i in range(6)
+        ]
+        ok, sem = self._run(mod, tmp_path, units)
+        assert ok is True
+        patterns = read_jsonl(sem / "patterns.jsonl")
+        p = next(x for x in patterns if x["theme"] == "theme-z")
+        assert len(p["representative_summaries"]) <= 3
+
+    def test_high_frequency_threshold(self, tmp_path):
+        mod = load_module()
+        # theme-hf appears in 3 distinct commits -> high frequency
+        # theme-lf appears in 2 distinct commits -> not high frequency
+        units = [
+            self._make_unit("c1", "theme-hf"),
+            self._make_unit("c2", "theme-hf"),
+            self._make_unit("c3", "theme-hf"),
+            self._make_unit("c1", "theme-lf"),
+            self._make_unit("c2", "theme-lf"),
+        ]
+        ok, sem = self._run(mod, tmp_path, units)
+        assert ok is True
+        patterns = read_jsonl(sem / "patterns.jsonl")
+        hf = next(p for p in patterns if p["theme"] == "theme-hf")
+        lf = next(p for p in patterns if p["theme"] == "theme-lf")
+        assert hf["distinct_commits"] >= 3
+        assert lf["distinct_commits"] < 3
+
+
+# ---------------------------------------------------------------------------
+# Stage 3: distill
+# ---------------------------------------------------------------------------
+
+class TestDistill:
+    def _make_pattern(self, theme, distinct_commits, primary=2, secondary=1, op_dist=None):
+        return {
+            "theme": theme,
+            "count": distinct_commits,
+            "distinct_commits": distinct_commits,
+            "op_distribution": op_dist or {"feat": distinct_commits},
+            "importance_ratio": {"primary": primary, "secondary": secondary},
+            "representative_summaries": [f"{theme} summary"],
+        }
+
+    def _run(self, mod, tmp_path, patterns, invariants=None):
+        semantic_dir = tmp_path / "data" / "commit-semantic"
+        write_jsonl(semantic_dir / "patterns.jsonl", patterns)
+        if invariants is not None:
+            write_jsonl(semantic_dir / "invariants.jsonl", invariants)
+        saved_s = mod.SEMANTIC_OUTPUT
+        mod.SEMANTIC_OUTPUT = semantic_dir
+        from src.harness_state import HarnessState
+        state = HarnessState(metadata={"completed_stages": [], "artifacts_written": []})
+        result = mod.CommitSemanticRunner()._run_distill(state)
+        mod.SEMANTIC_OUTPUT = saved_s
+        return result, semantic_dir
+
+    def test_scoring_formula(self, tmp_path):
+        """score = distinct_commits * importance_weight; all-primary > all-secondary."""
+        mod = load_module()
+        patterns = [
+            self._make_pattern("all-primary", 5, primary=5, secondary=0),
+            self._make_pattern("all-secondary", 5, primary=0, secondary=5),
+        ]
+        ok, sem = self._run(mod, tmp_path, patterns)
+        assert ok is True
+        demands = read_jsonl(sem / "canonical-demands.jsonl")
+        scores = {d["theme"]: d["score"] for d in demands}
+        assert scores["all-primary"] > scores["all-secondary"]
+
+    def test_sorted_by_score_descending(self, tmp_path):
+        mod = load_module()
+        patterns = [
+            self._make_pattern("low", 1),
+            self._make_pattern("high", 10),
+            self._make_pattern("mid", 5),
+        ]
+        ok, sem = self._run(mod, tmp_path, patterns)
+        assert ok is True
+        demands = read_jsonl(sem / "canonical-demands.jsonl")
+        scores = [d["score"] for d in demands]
+        assert scores == sorted(scores, reverse=True)
+
+    def test_tiebreak_by_distinct_commits_then_theme(self, tmp_path):
+        """Equal score: higher distinct_commits first; then alphabetical theme."""
+        mod = load_module()
+        # Same importance ratio (all primary), different distinct_commits
+        patterns = [
+            self._make_pattern("zebra", 3, primary=3, secondary=0),
+            self._make_pattern("alpha", 3, primary=3, secondary=0),
+            self._make_pattern("beta", 5, primary=5, secondary=0),
+        ]
+        ok, sem = self._run(mod, tmp_path, patterns)
+        assert ok is True
+        demands = read_jsonl(sem / "canonical-demands.jsonl")
+        themes = [d["theme"] for d in demands]
+        # beta (5 commits) should come before alpha/zebra (3 commits)
+        assert themes.index("beta") < themes.index("alpha")
+        assert themes.index("beta") < themes.index("zebra")
+        # alpha before zebra (alphabetical tiebreak)
+        assert themes.index("alpha") < themes.index("zebra")
+
+    def test_invariant_extra_weight(self, tmp_path):
+        """Theme matching a high-frequency invariant gets a score bonus."""
+        mod = load_module()
+        # Two patterns with same base score
+        patterns = [
+            self._make_pattern("batch flush", 3, primary=3, secondary=0),
+            self._make_pattern("unrelated topic", 3, primary=3, secondary=0),
+        ]
+        # Invariant mentioning "batch flush" appears in 3 commits
+        invariants = [
+            {"statement": "batch flush must complete before flush", "sha": f"s{i}", "kind": "ordering"}
+            for i in range(3)
+        ]
+        ok, sem = self._run(mod, tmp_path, patterns, invariants)
+        assert ok is True
+        demands = read_jsonl(sem / "canonical-demands.jsonl")
+        scores = {d["theme"]: d["score"] for d in demands}
+        assert scores["batch flush"] > scores["unrelated topic"]
+
+    def test_rank_field_present(self, tmp_path):
+        mod = load_module()
+        patterns = [self._make_pattern("t1", 2), self._make_pattern("t2", 4)]
+        ok, sem = self._run(mod, tmp_path, patterns)
+        assert ok is True
+        demands = read_jsonl(sem / "canonical-demands.jsonl")
+        assert all("rank" in d for d in demands)
+        assert demands[0]["rank"] == 1
+
+
+# ---------------------------------------------------------------------------
+# Stage 4: export
+# ---------------------------------------------------------------------------
+
+class TestExport:
+    def _setup(self, tmp_path, units, demands, invariants=None):
+        semantic_dir = tmp_path / "data" / "commit-semantic"
+        write_jsonl(semantic_dir / "units" / "all.jsonl", units)
+        write_jsonl(semantic_dir / "canonical-demands.jsonl", demands)
+        if invariants is not None:
+            write_jsonl(semantic_dir / "invariants.jsonl", invariants)
+        return semantic_dir
+
+    def _make_unit(self, sha, op, date="2024-01-01"):
+        return {"sha": sha, "date": date, "op": op, "theme": "t", "importance": "primary",
+                "summary": "", "author": "", "section_name": "", "is_large_aggregate": False,
+                "is_mixed": False}
+
+    def _make_demand(self, theme, distinct_commits=2, score=4.0):
+        return {"rank": 1, "theme": theme, "score": score, "distinct_commits": distinct_commits,
+                "count": distinct_commits, "op_distribution": {"feat": distinct_commits},
+                "importance_ratio": {"primary": distinct_commits, "secondary": 0},
+                "representative_summaries": []}
+
+    def _run(self, mod, tmp_path, units, demands, invariants=None):
+        semantic_dir = self._setup(tmp_path, units, demands, invariants)
+        saved_s = mod.SEMANTIC_OUTPUT
+        mod.SEMANTIC_OUTPUT = semantic_dir
+        from src.harness_state import HarnessState
+        state = HarnessState(metadata={"completed_stages": [], "artifacts_written": []})
+        result = mod.CommitSemanticRunner()._run_export(state)
+        mod.SEMANTIC_OUTPUT = saved_s
+        return result, semantic_dir
+
+    def test_summary_json_created(self, tmp_path):
+        mod = load_module()
+        units = [self._make_unit("s1", "feat"), self._make_unit("s2", "bugfix")]
+        demands = [self._make_demand("theme-a")]
+        ok, sem = self._run(mod, tmp_path, units, demands)
+        assert ok is True
+        assert (sem / "summary.json").exists()
+
+    def test_total_units_and_patterns(self, tmp_path):
+        mod = load_module()
+        units = [self._make_unit(f"s{i}", "feat") for i in range(5)]
+        demands = [self._make_demand(f"t{i}") for i in range(3)]
+        ok, sem = self._run(mod, tmp_path, units, demands)
+        assert ok is True
+        import json as _json
+        summary = _json.loads((sem / "summary.json").read_text())
+        assert summary["total_units"] == 5
+        assert summary["total_patterns"] == 3
+
+    def test_bugfix_ratio(self, tmp_path):
+        mod = load_module()
+        units = [
+            self._make_unit("s1", "bugfix"),
+            self._make_unit("s2", "bugfix"),
+            self._make_unit("s3", "feat"),
+            self._make_unit("s4", "feat"),
+        ]
+        demands = [self._make_demand("t")]
+        ok, sem = self._run(mod, tmp_path, units, demands)
+        assert ok is True
+        import json as _json
+        summary = _json.loads((sem / "summary.json").read_text())
+        assert abs(summary["bugfix_ratio"] - 0.5) < 0.01
+
+    def test_op_distribution_in_summary(self, tmp_path):
+        mod = load_module()
+        units = [
+            self._make_unit("s1", "feat"),
+            self._make_unit("s2", "feat"),
+            self._make_unit("s3", "bugfix"),
+        ]
+        demands = [self._make_demand("t")]
+        ok, sem = self._run(mod, tmp_path, units, demands)
+        assert ok is True
+        import json as _json
+        summary = _json.loads((sem / "summary.json").read_text())
+        assert summary["op_distribution"]["feat"] == 2
+        assert summary["op_distribution"]["bugfix"] == 1
+
+    def test_date_range(self, tmp_path):
+        mod = load_module()
+        units = [
+            self._make_unit("s1", "feat", date="2024-01-01"),
+            self._make_unit("s2", "feat", date="2024-06-15"),
+            self._make_unit("s3", "feat", date="2024-03-10"),
+        ]
+        demands = [self._make_demand("t")]
+        ok, sem = self._run(mod, tmp_path, units, demands)
+        assert ok is True
+        import json as _json
+        summary = _json.loads((sem / "summary.json").read_text())
+        assert summary["date_range"]["from"] == "2024-01-01"
+        assert summary["date_range"]["to"] == "2024-06-15"
+
+    def test_invariant_count(self, tmp_path):
+        mod = load_module()
+        units = [self._make_unit("s1", "feat")]
+        demands = [self._make_demand("t")]
+        invariants = [
+            {"statement": "inv1", "sha": "s1", "kind": "ordering"},
+            {"statement": "inv2", "sha": "s2", "kind": "boundary"},
+        ]
+        ok, sem = self._run(mod, tmp_path, units, demands, invariants)
+        assert ok is True
+        import json as _json
+        summary = _json.loads((sem / "summary.json").read_text())
+        assert summary["invariant_count"] == 2
+
+    def test_top_patterns_capped_at_10(self, tmp_path):
+        mod = load_module()
+        units = [self._make_unit("s1", "feat")]
+        demands = [self._make_demand(f"theme-{i}", score=float(20 - i)) for i in range(15)]
+        ok, sem = self._run(mod, tmp_path, units, demands)
+        assert ok is True
+        import json as _json
+        summary = _json.loads((sem / "summary.json").read_text())
+        assert len(summary["top_patterns"]) <= 10
+
+
+# ---------------------------------------------------------------------------
+# Prerequisites
+# ---------------------------------------------------------------------------
+
+class TestPrerequisites:
+    def test_fails_when_no_extract_dir(self):
+        mod = load_module()
         saved = mod.EXTRACT_OUTPUT
-        mod.EXTRACT_OUTPUT = Path("/nonexistent/path/that/does/not/exist")
-        ok, msg = runner._check_prerequisites()
+        mod.EXTRACT_OUTPUT = Path("/nonexistent/path/does/not/exist")
+        ok, msg = mod.CommitSemanticRunner()._check_prerequisites()
         mod.EXTRACT_OUTPUT = saved
-
-        assert ok is False, "Should fail when extract output does not exist"
+        assert ok is False
         assert "commit-extract" in msg.lower() or "not found" in msg.lower()
 
-    def test_prerequisites_passes_with_extract_output(self, tmp_path):
-        """_check_prerequisites passes when extract output exists."""
-        mod = load_commit_semantic_module()
-
+    def test_fails_when_no_jsonl_files(self, tmp_path):
+        mod = load_module()
         extract_dir = tmp_path / "data" / "commit-extract"
         extract_dir.mkdir(parents=True)
-        (extract_dir / "2024-01.yaml").write_text(
-            yaml.dump({"metadata": {}, "commits": []})
-        )
-
+        # Put a yaml file there — should not count
+        (extract_dir / "2024-01.yaml").write_text("metadata: {}\ncommits: []\n")
         saved = mod.EXTRACT_OUTPUT
         mod.EXTRACT_OUTPUT = extract_dir
         ok, msg = mod.CommitSemanticRunner()._check_prerequisites()
         mod.EXTRACT_OUTPUT = saved
+        assert ok is False
 
-        assert ok is True, f"Should pass when extract output exists: {msg}"
+    def test_passes_with_jsonl_files(self, tmp_path):
+        mod = load_module()
+        extract_dir = tmp_path / "data" / "commit-extract"
+        write_jsonl(extract_dir / "2024-01.jsonl", [])
+        saved = mod.EXTRACT_OUTPUT
+        mod.EXTRACT_OUTPUT = extract_dir
+        ok, msg = mod.CommitSemanticRunner()._check_prerequisites()
+        mod.EXTRACT_OUTPUT = saved
+        assert ok is True
+
+
+# ---------------------------------------------------------------------------
+# Full pipeline
+# ---------------------------------------------------------------------------
+
+class TestFullPipeline:
+    def test_ingest_aggregate_distill_export(self, tmp_path):
+        mod = load_module()
+
+        commits = [
+            make_commit(
+                sha=f"sha{i:03d}",
+                date=f"2024-0{(i % 3) + 1}-01T10:00:00",
+                sections=[
+                    {
+                        "name": "Core",
+                        "theme": "batch processing" if i < 4 else "config management",
+                        "importance": "primary",
+                        "summary": "core change",
+                        "items": [{"op": "feat", "summary": f"change {i}"}],
+                    }
+                ],
+                rules_invariants=[
+                    {"kind": "ordering", "statement": "flush after batch", "enforced_by_commit": True}
+                ] if i < 3 else [],
+            )
+            for i in range(6)
+        ]
+
+        extract_dir = tmp_path / "data" / "commit-extract"
+        write_jsonl(extract_dir / "2024-01.jsonl", commits)
+
+        semantic_dir = tmp_path / "data" / "commit-semantic"
+        saved_e, saved_s = mod.EXTRACT_OUTPUT, mod.SEMANTIC_OUTPUT
+        mod.EXTRACT_OUTPUT = extract_dir
+        mod.SEMANTIC_OUTPUT = semantic_dir
+
+        from src.harness_state import HarnessState
+        runner = mod.CommitSemanticRunner()
+        state = HarnessState(metadata={"completed_stages": [], "artifacts_written": []})
+
+        assert runner._run_ingest(state) is True
+        assert runner._run_aggregate(state) is True
+        assert runner._run_distill(state) is True
+        assert runner._run_export(state) is True
+
+        mod.EXTRACT_OUTPUT = saved_e
+        mod.SEMANTIC_OUTPUT = saved_s
+
+        assert (semantic_dir / "units" / "all.jsonl").exists()
+        assert (semantic_dir / "invariants.jsonl").exists()
+        assert (semantic_dir / "patterns.jsonl").exists()
+        assert (semantic_dir / "canonical-demands.jsonl").exists()
+        assert (semantic_dir / "summary.json").exists()
+
+        import json as _json
+        summary = _json.loads((semantic_dir / "summary.json").read_text())
+        assert summary["total_units"] == 6
+        assert summary["total_patterns"] >= 1
+        assert "date_range" in summary
+
+    def test_stages_constant(self):
+        mod = load_module()
+        assert mod.CommitSemanticRunner.STAGES == ["ingest", "aggregate", "distill", "export"]
+        assert mod.CommitSemanticRunner.PIPELINE == "commit-semantic"

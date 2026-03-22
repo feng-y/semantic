@@ -150,10 +150,9 @@ class TestExportSummary:
 
 
 # ---------------------------------------------------------------------------
-# _run_export integration tests
+# _run_export integration tests (new JSONL-based pipeline)
 # ---------------------------------------------------------------------------
 
-# Load the run module once via spec (avoids macOS case-insensitive import issues)
 _REPO_ROOT = Path(__file__).resolve().parent.parent
 _RUN_SPEC = importlib.util.spec_from_file_location(
     "commit_semantic_run", str(_REPO_ROOT / "skills" / "commit-semantic" / "run.py")
@@ -164,108 +163,136 @@ CommitSemanticRunner = _RUN_MOD.CommitSemanticRunner
 
 
 class TestRunExport:
-    """Test _run_export() generates correct ExportSummary output."""
+    """Test _run_export() generates correct summary.json output."""
 
     @pytest.fixture(autouse=True)
     def setup(self, tmp_path):
         self.semantic_dir = tmp_path / "data" / "commit-semantic"
         self.semantic_dir.mkdir(parents=True)
-        # Monkey-patch SEMANTIC_OUTPUT to point to temp dir
         self._orig = _RUN_MOD.SEMANTIC_OUTPUT
         _RUN_MOD.SEMANTIC_OUTPUT = self.semantic_dir
         yield
         _RUN_MOD.SEMANTIC_OUTPUT = self._orig
 
     def _write_demands(self, demands):
-        from src.io_utils import save_yaml
-        save_yaml({
-            "metadata": {"total_demands": len(demands)},
-            "demands": demands,
-        }, str(self.semantic_dir / "canonical-demands.yaml"))
+        """Write canonical-demands.jsonl."""
+        demands_file = self.semantic_dir / "canonical-demands.jsonl"
+        with open(demands_file, "w", encoding="utf-8") as f:
+            for d in demands:
+                f.write(json.dumps(d, ensure_ascii=False) + "\n")
 
-    def test_returns_true_and_writes_summary_yaml(self):
+    def _write_units(self, units):
+        """Write units/all.jsonl."""
+        units_dir = self.semantic_dir / "units"
+        units_dir.mkdir(parents=True, exist_ok=True)
+        with open(units_dir / "all.jsonl", "w", encoding="utf-8") as f:
+            for u in units:
+                f.write(json.dumps(u, ensure_ascii=False) + "\n")
+
+    def _write_invariants(self, invariants):
+        """Write invariants.jsonl."""
+        with open(self.semantic_dir / "invariants.jsonl", "w", encoding="utf-8") as f:
+            for inv in invariants:
+                f.write(json.dumps(inv, ensure_ascii=False) + "\n")
+
+    def _make_unit(self, op="feat", date="2024-01-15T10:00:00"):
+        return {
+            "sha": "abc123", "date": date, "author": "Test",
+            "section_name": "Runtime", "theme": "auth",
+            "importance": "primary", "op": op, "summary": "test",
+            "is_large_aggregate": False, "is_mixed": False,
+        }
+
+    def test_returns_true_and_writes_summary_json(self):
         self._write_demands([
-            {"commit_log": "feat: add login", "module": "auth", "score": 8, "demand_id": "auth-01"},
-            {"commit_log": "fix: login bug", "module": "auth", "score": 7, "demand_id": "auth-02"},
+            {"theme": "auth", "score": 8.0, "distinct_commits": 2, "count": 2,
+             "op_distribution": {"feat": 1, "bugfix": 1}, "importance_ratio": {"primary": 2},
+             "representative_summaries": ["a", "b"], "rank": 1},
         ])
+        self._write_units([self._make_unit(), self._make_unit(op="bugfix")])
+        self._write_invariants([])
         runner = CommitSemanticRunner()
         result = runner._run_export(HarnessState())
         assert result is True
-        assert (self.semantic_dir / "summary.yaml").exists()
+        assert (self.semantic_dir / "summary.json").exists()
 
-    def test_counts_feature_and_bugfix_correctly(self):
+    def test_counts_ops_correctly(self):
         self._write_demands([
-            {"commit_log": "feat: add feature", "module": "auth", "score": 8, "demand_id": "auth-01"},
-            {"commit_log": "fix: bug", "module": "auth", "score": 7, "demand_id": "auth-02"},
-            {"commit_log": "refactor: clean up", "module": "api", "score": 6, "demand_id": "api-01"},
-            {"commit_log": "some other message", "module": "api", "score": 5, "demand_id": "api-02"},
+            {"theme": "auth", "score": 8.0, "distinct_commits": 2, "count": 4,
+             "op_distribution": {"feat": 1, "bugfix": 1, "refactor": 1, "other": 1},
+             "importance_ratio": {"primary": 4}, "representative_summaries": [],
+             "rank": 1},
         ])
+        self._write_units([
+            self._make_unit(op="feat"),
+            self._make_unit(op="bugfix"),
+            self._make_unit(op="refactor"),
+            self._make_unit(op="other"),
+        ])
+        self._write_invariants([])
         runner = CommitSemanticRunner()
         result = runner._run_export(HarnessState())
         assert result is True
-        from src.io_utils import load_yaml
-        summary = load_yaml(str(self.semantic_dir / "summary.yaml"))
-        assert summary["bugfix_count"] == 1
-        assert summary["development_type_distribution"]["feature"] == 1
-        assert summary["development_type_distribution"]["bugfix"] == 1
-        assert summary["development_type_distribution"]["refactor"] == 1
-        assert summary["development_type_distribution"]["other"] == 1
+        summary = json.loads((self.semantic_dir / "summary.json").read_text())
+        assert summary["op_distribution"]["feat"] == 1
+        assert summary["op_distribution"]["bugfix"] == 1
+        assert summary["op_distribution"]["refactor"] == 1
 
     def test_bugfix_ratio_calculation(self):
         self._write_demands([
-            {"commit_log": "fix: bug1", "module": "a", "score": 8, "demand_id": "a-01"},
-            {"commit_log": "fix: bug2", "module": "b", "score": 8, "demand_id": "b-01"},
-            {"commit_log": "feat: feat1", "module": "c", "score": 8, "demand_id": "c-01"},
-            {"commit_log": "feat: feat2", "module": "d", "score": 8, "demand_id": "d-01"},
+            {"theme": "a", "score": 8.0, "distinct_commits": 1, "count": 4,
+             "op_distribution": {}, "importance_ratio": {}, "representative_summaries": [],
+             "rank": 1},
         ])
+        self._write_units([
+            self._make_unit(op="bugfix"),
+            self._make_unit(op="bugfix"),
+            self._make_unit(op="feat"),
+            self._make_unit(op="feat"),
+        ])
+        self._write_invariants([])
         runner = CommitSemanticRunner()
         result = runner._run_export(HarnessState())
         assert result is True
-        from src.io_utils import load_yaml
-        summary = load_yaml(str(self.semantic_dir / "summary.yaml"))
-        assert summary["bugfix_count"] == 2
+        summary = json.loads((self.semantic_dir / "summary.json").read_text())
         assert abs(summary["bugfix_ratio"] - 0.5) < 1e-9
-        assert summary["pattern_count"] == 4
 
-    def test_empty_demands_produces_valid_summary(self):
-        """Empty demands file is valid — returns True and produces zero-count summary."""
-        self._write_demands([])
+    def test_empty_demands_returns_false(self):
+        """No canonical-demands.jsonl file -> returns False."""
         runner = CommitSemanticRunner()
         result = runner._run_export(HarnessState())
-        assert result is True
-        assert (self.semantic_dir / "summary.yaml").exists()
-        from src.io_utils import load_yaml
-        summary = load_yaml(str(self.semantic_dir / "summary.yaml"))
-        assert summary["total_cases"] == 0
-        assert summary["bugfix_count"] == 0
+        assert result is False
 
-    def test_summary_yaml_is_json_serializable(self):
+    def test_summary_json_is_valid(self):
         self._write_demands([
-            {"commit_log": "feat: test", "module": "auth", "score": 8, "demand_id": "auth-01"},
+            {"theme": "auth", "score": 8.0, "distinct_commits": 1, "count": 1,
+             "op_distribution": {"feat": 1}, "importance_ratio": {"primary": 1},
+             "representative_summaries": ["test"], "rank": 1},
         ])
+        self._write_units([self._make_unit()])
+        self._write_invariants([])
         runner = CommitSemanticRunner()
         runner._run_export(HarnessState())
-        from src.io_utils import load_yaml
-        summary = load_yaml(str(self.semantic_dir / "summary.yaml"))
-        json.dumps(summary)  # must not raise
+        summary = json.loads((self.semantic_dir / "summary.json").read_text())
         assert isinstance(summary, dict)
-        assert "total_cases" in summary
+        assert "total_units" in summary
         assert "bugfix_ratio" in summary
+        assert "total_patterns" in summary
 
-    def test_high_frequency_patterns_sorted_by_count(self):
-        self._write_demands([
-            {"commit_log": "feat: a", "module": "auth", "score": 8, "demand_id": "auth-01"},
-            {"commit_log": "feat: b", "module": "auth", "score": 8, "demand_id": "auth-02"},
-            {"commit_log": "feat: c", "module": "auth", "score": 8, "demand_id": "auth-03"},
-            {"commit_log": "feat: d", "module": "api", "score": 8, "demand_id": "api-01"},
-        ])
+    def test_top_patterns_from_demands(self):
+        demands = [
+            {"theme": f"theme{i}", "score": 10.0 - i, "distinct_commits": 5 - i,
+             "count": 3, "op_distribution": {"feat": 3},
+             "importance_ratio": {"primary": 3}, "representative_summaries": [],
+             "rank": i + 1}
+            for i in range(3)
+        ]
+        self._write_demands(demands)
+        self._write_units([self._make_unit() for _ in range(3)])
+        self._write_invariants([])
         runner = CommitSemanticRunner()
         runner._run_export(HarnessState())
-        from src.io_utils import load_yaml
-        summary = load_yaml(str(self.semantic_dir / "summary.yaml"))
-        hfp = summary["high_frequency_patterns"]
-        # auth (3) should come before api (1)
-        assert len(hfp) >= 1
-        if len(hfp) >= 2:
-            assert hfp[0]["pattern_id"] == "auth"
-            assert hfp[0]["count"] == 3
+        summary = json.loads((self.semantic_dir / "summary.json").read_text())
+        top = summary["top_patterns"]
+        assert len(top) == 3
+        assert top[0]["theme"] == "theme0"
