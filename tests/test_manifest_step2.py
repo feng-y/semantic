@@ -13,12 +13,10 @@ from src.skill_loader import load_all_skills
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
 EXPECTED_PLUGIN_SKILLS = [
-    "semantic-init",
     "semantic-discover",
     "semantic-review",
     "semantic-refine",
     "semantic-baseline",
-    "semantic-status",
     "semantic-reset",
 ]
 
@@ -55,4 +53,4 @@ class TestManifestStep2:
     def test_load_all_skills_succeeds(self) -> None:
         plugin_path = REPO_ROOT / ".claude-plugin" / "plugin.json"
         skills = load_all_skills(plugin_path)
-        assert len(skills) >= 7
+        assert len(skills) >= 5

@@ -1,11 +1,21 @@
 """Tests for CaseRecord/ExportSummary integration in the export pipeline."""
+
+from __future__ import annotations
+
 import dataclasses
+import importlib.util
+import json
 import sys
 from pathlib import Path
+
+import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from src.types import CaseRecord, ExportSummary
+from src.harness_state import HarnessState
+
+REPO_ROOT = Path(__file__).resolve().parent.parent
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -34,17 +44,6 @@ def _make_case(
         "dedup_key": "",
         "pattern_id": "",
     }
-
-
-def _make_pattern(pattern_id="p1", domain="backend", count=3):
-    return {
-        "pattern_id": pattern_id,
-        "domain": domain,
-        "count": count,
-        "representative_issue_text": "Users cannot log in",
-        "case_ids": [],
-    }
-
 
 # ---------------------------------------------------------------------------
 # CaseRecord tests
@@ -151,106 +150,122 @@ class TestExportSummary:
 
 
 # ---------------------------------------------------------------------------
-# generate_statistics integration test
+# _run_export integration tests
 # ---------------------------------------------------------------------------
 
-class TestGenerateStatistics:
-    """Test generate_statistics() returns ExportSummary with correct values."""
+# Load the run module once via spec (avoids macOS case-insensitive import issues)
+_REPO_ROOT = Path(__file__).resolve().parent.parent
+_RUN_SPEC = importlib.util.spec_from_file_location(
+    "commit_semantic_run", str(_REPO_ROOT / "skills" / "commit-semantic" / "run.py")
+)
+_RUN_MOD = importlib.util.module_from_spec(_RUN_SPEC)
+_RUN_SPEC.loader.exec_module(_RUN_MOD)
+CommitSemanticRunner = _RUN_MOD.CommitSemanticRunner
 
-    def _run(self, unique_cases, duplicate_groups=None, patterns=None,
-             pattern_count_status=None, tmp_path=None):
-        # Import here so sys.path manipulation above takes effect
-        import importlib
-        # We need to import the skill module; add its parent to path
-        skill_path = Path(__file__).parent.parent / "skills" / "commit-semantic-export"
-        sys.path.insert(0, str(skill_path))
-        # Use importlib to avoid name collision with built-in 'types'
-        import importlib.util
-        spec = importlib.util.spec_from_file_location(
-            "run_export",
-            str(skill_path / "run.py"),
-        )
-        mod = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(mod)
 
-        invalid_path = tmp_path / "invalid" if tmp_path else Path("/nonexistent_invalid")
-        low_value_path = tmp_path / "low_value" if tmp_path else Path("/nonexistent_low_value")
+class TestRunExport:
+    """Test _run_export() generates correct ExportSummary output."""
 
-        return mod.generate_statistics(
-            unique_cases,
-            duplicate_groups or [],
-            patterns or [],
-            pattern_count_status or {},
-            invalid_path,
-            low_value_path,
-        )
+    @pytest.fixture(autouse=True)
+    def setup(self, tmp_path):
+        self.semantic_dir = tmp_path / "data" / "commit-semantic"
+        self.semantic_dir.mkdir(parents=True)
+        # Monkey-patch SEMANTIC_OUTPUT to point to temp dir
+        self._orig = _RUN_MOD.SEMANTIC_OUTPUT
+        _RUN_MOD.SEMANTIC_OUTPUT = self.semantic_dir
+        yield
+        _RUN_MOD.SEMANTIC_OUTPUT = self._orig
 
-    def test_returns_export_summary_instance(self, tmp_path):
-        cases = [_make_case()]
-        result = self._run(cases, tmp_path=tmp_path)
-        assert isinstance(result, ExportSummary)
+    def _write_demands(self, demands):
+        from src.io_utils import save_yaml
+        save_yaml({
+            "metadata": {"total_demands": len(demands)},
+            "demands": demands,
+        }, str(self.semantic_dir / "canonical-demands.yaml"))
 
-    def test_counts_are_correct(self, tmp_path):
-        cases = [_make_case("c1"), _make_case("c2"), _make_case("c3", development_type="bugfix")]
-        dup_groups = [{"duplicate_case_ids": ["d1", "d2"]}]
-        result = self._run(cases, duplicate_groups=dup_groups, tmp_path=tmp_path)
-        assert result.unique_cases == 3
-        assert result.duplicate_cases == 2
-        assert result.total_cases == 5  # 3 unique + 2 duplicates + 0 invalid
+    def test_returns_true_and_writes_summary_yaml(self):
+        self._write_demands([
+            {"commit_log": "feat: add login", "module": "auth", "score": 8, "demand_id": "auth-01"},
+            {"commit_log": "fix: login bug", "module": "auth", "score": 7, "demand_id": "auth-02"},
+        ])
+        runner = CommitSemanticRunner()
+        result = runner._run_export(HarnessState())
+        assert result is True
+        assert (self.semantic_dir / "summary.yaml").exists()
 
-    def test_bugfix_ratio(self, tmp_path):
-        cases = [
-            _make_case("c1", development_type="bugfix"),
-            _make_case("c2", development_type="bugfix"),
-            _make_case("c3", development_type="feature"),
-            _make_case("c4", development_type="feature"),
-        ]
-        result = self._run(cases, tmp_path=tmp_path)
-        assert result.bugfix_count == 2
-        assert abs(result.bugfix_ratio - 0.5) < 1e-9
+    def test_counts_feature_and_bugfix_correctly(self):
+        self._write_demands([
+            {"commit_log": "feat: add feature", "module": "auth", "score": 8, "demand_id": "auth-01"},
+            {"commit_log": "fix: bug", "module": "auth", "score": 7, "demand_id": "auth-02"},
+            {"commit_log": "refactor: clean up", "module": "api", "score": 6, "demand_id": "api-01"},
+            {"commit_log": "some other message", "module": "api", "score": 5, "demand_id": "api-02"},
+        ])
+        runner = CommitSemanticRunner()
+        result = runner._run_export(HarnessState())
+        assert result is True
+        from src.io_utils import load_yaml
+        summary = load_yaml(str(self.semantic_dir / "summary.yaml"))
+        assert summary["bugfix_count"] == 1
+        assert summary["development_type_distribution"]["feature"] == 1
+        assert summary["development_type_distribution"]["bugfix"] == 1
+        assert summary["development_type_distribution"]["refactor"] == 1
+        assert summary["development_type_distribution"]["other"] == 1
 
-    def test_needs_split_ratio(self, tmp_path):
-        cases = [
-            _make_case("c1", needs_split=True),
-            _make_case("c2", needs_split=False),
-        ]
-        result = self._run(cases, tmp_path=tmp_path)
-        assert result.needs_split_count == 1
-        assert abs(result.needs_split_ratio - 0.5) < 1e-9
+    def test_bugfix_ratio_calculation(self):
+        self._write_demands([
+            {"commit_log": "fix: bug1", "module": "a", "score": 8, "demand_id": "a-01"},
+            {"commit_log": "fix: bug2", "module": "b", "score": 8, "demand_id": "b-01"},
+            {"commit_log": "feat: feat1", "module": "c", "score": 8, "demand_id": "c-01"},
+            {"commit_log": "feat: feat2", "module": "d", "score": 8, "demand_id": "d-01"},
+        ])
+        runner = CommitSemanticRunner()
+        result = runner._run_export(HarnessState())
+        assert result is True
+        from src.io_utils import load_yaml
+        summary = load_yaml(str(self.semantic_dir / "summary.yaml"))
+        assert summary["bugfix_count"] == 2
+        assert abs(summary["bugfix_ratio"] - 0.5) < 1e-9
+        assert summary["pattern_count"] == 4
 
-    def test_pattern_count_status_mapped(self, tmp_path):
-        cases = [_make_case()]
-        pcs = {
-            "backend": {
-                "pattern_count": 5,
-                "pattern_count_status": "excellent",
-                "action": "none",
-            }
-        }
-        result = self._run(cases, pattern_count_status=pcs, tmp_path=tmp_path)
-        assert "backend" in result.domain_pattern_stats
-        assert result.domain_pattern_stats["backend"]["status"] == "excellent"
+    def test_empty_demands_produces_valid_summary(self):
+        """Empty demands file is valid — returns True and produces zero-count summary."""
+        self._write_demands([])
+        runner = CommitSemanticRunner()
+        result = runner._run_export(HarnessState())
+        assert result is True
+        assert (self.semantic_dir / "summary.yaml").exists()
+        from src.io_utils import load_yaml
+        summary = load_yaml(str(self.semantic_dir / "summary.yaml"))
+        assert summary["total_cases"] == 0
+        assert summary["bugfix_count"] == 0
 
-    def test_high_frequency_patterns_sorted(self, tmp_path):
-        cases = [_make_case()]
-        patterns = [
-            _make_pattern("p1", count=1),
-            _make_pattern("p2", count=10),
-            _make_pattern("p3", count=5),
-        ]
-        result = self._run(cases, patterns=patterns, tmp_path=tmp_path)
-        assert result.high_frequency_patterns[0]["pattern_id"] == "p2"
-        assert result.high_frequency_patterns[1]["pattern_id"] == "p3"
+    def test_summary_yaml_is_json_serializable(self):
+        self._write_demands([
+            {"commit_log": "feat: test", "module": "auth", "score": 8, "demand_id": "auth-01"},
+        ])
+        runner = CommitSemanticRunner()
+        runner._run_export(HarnessState())
+        from src.io_utils import load_yaml
+        summary = load_yaml(str(self.semantic_dir / "summary.yaml"))
+        json.dumps(summary)  # must not raise
+        assert isinstance(summary, dict)
+        assert "total_cases" in summary
+        assert "bugfix_ratio" in summary
 
-    def test_asdict_output_is_json_serialisable(self, tmp_path):
-        import json
-        cases = [_make_case()]
-        result = self._run(cases, tmp_path=tmp_path)
-        json.dumps(dataclasses.asdict(result))  # must not raise
-
-    def test_empty_cases(self, tmp_path):
-        result = self._run([], tmp_path=tmp_path)
-        assert result.total_cases == 0
-        assert result.validation_pass_rate == 0
-        assert result.bugfix_ratio == 0
-        assert result.needs_split_ratio == 0
+    def test_high_frequency_patterns_sorted_by_count(self):
+        self._write_demands([
+            {"commit_log": "feat: a", "module": "auth", "score": 8, "demand_id": "auth-01"},
+            {"commit_log": "feat: b", "module": "auth", "score": 8, "demand_id": "auth-02"},
+            {"commit_log": "feat: c", "module": "auth", "score": 8, "demand_id": "auth-03"},
+            {"commit_log": "feat: d", "module": "api", "score": 8, "demand_id": "api-01"},
+        ])
+        runner = CommitSemanticRunner()
+        runner._run_export(HarnessState())
+        from src.io_utils import load_yaml
+        summary = load_yaml(str(self.semantic_dir / "summary.yaml"))
+        hfp = summary["high_frequency_patterns"]
+        # auth (3) should come before api (1)
+        assert len(hfp) >= 1
+        if len(hfp) >= 2:
+            assert hfp[0]["pattern_id"] == "auth"
+            assert hfp[0]["count"] == 3

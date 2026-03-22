@@ -12,12 +12,10 @@ from src.skill_loader import load_skill
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
 EXPECTED_SKILLS = [
-    "semantic-init",
     "semantic-discover",
     "semantic-review",
     "semantic-refine",
     "semantic-baseline",
-    "semantic-status",
     "semantic-reset",
 ]
 

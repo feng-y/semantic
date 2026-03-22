@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 """commit-semantic skill implementation.
 
-跨 commits 分析、拆分、聚合、提取 canonical patterns。
+跨 commits 分析、拆分、聚合、提取 canonical patterns，生成统计摘要。
 
 Stages:
   1. split    - 按模块拆分 commits
   2. analyze  - LLM 语义分析
   3. aggregate- 聚合 patterns
   4. distill  - 提取 canonical demands
+  5. export   - 生成 summary.yaml 统计摘要
 
 Input: data/commit-extract/*.yaml
 Output: data/commit-semantic/
@@ -24,9 +25,13 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
+from dataclasses import asdict, dataclass, field
+from typing import Any
+
 from src.harness_state import HarnessState
 from src.skill_runner import SkillRunner, run_skill
 from src.io_utils import load_yaml, save_yaml, save_json
+from src.types import ExportSummary
 
 
 EXTRACT_OUTPUT = Path("data/commit-extract")
@@ -50,7 +55,7 @@ MODULE_KEYWORDS = {
 class CommitSemanticRunner(SkillRunner):
     """Runner for commit-semantic pipeline."""
 
-    STAGES = ["split", "analyze", "aggregate", "distill"]
+    STAGES = ["split", "analyze", "aggregate", "distill", "export"]
     PIPELINE = "commit-semantic"
 
     def _check_prerequisites(self) -> tuple[bool, str]:
@@ -82,6 +87,8 @@ class CommitSemanticRunner(SkillRunner):
             return self._run_aggregate(state)
         elif stage == "distill":
             return self._run_distill(state)
+        elif stage == "export":
+            return self._run_export(state)
 
         return True
 
@@ -355,7 +362,77 @@ class CommitSemanticRunner(SkillRunner):
         self.add_artifact(state, str(SEMANTIC_OUTPUT / "canonical-demands.yaml"))
         return True
 
-    def handle_step(self) -> int:
+    def _run_export(self, state: HarnessState) -> bool:
+        """Generate summary statistics from canonical-demands and patterns."""
+        print("  -> Generating export summary")
+
+        demands_file = SEMANTIC_OUTPUT / "canonical-demands.yaml"
+        if not demands_file.exists():
+            print("  ! No canonical-demands.yaml found — run distill first")
+            return False
+
+        demands_data = load_yaml(str(demands_file))
+        demands: list[dict] = demands_data.get("demands", [])
+
+        # Count by development type heuristic (prefix in commit_log)
+        dev_type_dist: dict[str, int] = {"feature": 0, "bugfix": 0, "refactor": 0, "other": 0}
+        for d in demands:
+            msg = d.get("commit_log", "").lower()
+            if msg.startswith("feat") or msg.startswith("add") or msg.startswith("support"):
+                dev_type_dist["feature"] += 1
+            elif msg.startswith("fix") or msg.startswith("bug"):
+                dev_type_dist["bugfix"] += 1
+            elif msg.startswith("refactor") or msg.startswith("clean"):
+                dev_type_dist["refactor"] += 1
+            else:
+                dev_type_dist["other"] += 1
+
+        bugfix_count = dev_type_dist["bugfix"]
+        total = len(demands) or 1
+        bugfix_ratio = bugfix_count / total
+
+        # High-frequency patterns: modules with most demands
+        by_module: dict[str, int] = {}
+        for d in demands:
+            m = d.get("module", "unknown")
+            by_module[m] = by_module.get(m, 0) + 1
+
+        high_freq = sorted(
+            [{"pattern_id": m, "domain": m, "count": c,
+              "representative_issue_text": ""}
+             for m, c in by_module.items() if c >= 2],
+            key=lambda x: -x["count"],
+        )[:10]
+
+        summary = ExportSummary(
+            total_cases=len(demands),
+            unique_cases=len(demands),
+            duplicate_cases=0,
+            duplicate_groups=0,
+            valid_cases=len(demands),
+            invalid_cases=0,
+            low_value_cases=0,
+            validation_pass_rate=1.0,
+            development_type_distribution=dev_type_dist,
+            bugfix_count=bugfix_count,
+            bugfix_ratio=bugfix_ratio,
+            needs_split_count=0,
+            needs_split_ratio=0.0,
+            pattern_count=len(by_module),
+            domain_pattern_stats={
+                m: {"pattern_count": c, "pattern_count_status": "good", "action": "none"}
+                for m, c in by_module.items()
+            },
+            high_frequency_patterns=high_freq,
+            invalid_reason_top_n={},
+        )
+
+        summary_path = SEMANTIC_OUTPUT / "summary.yaml"
+        save_yaml(asdict(summary), str(summary_path))
+        print(f"  Exported summary: {len(demands)} cases, {len(by_module)} patterns, "
+              f"bugfix ratio {bugfix_ratio:.1%}")
+        self.add_artifact(state, str(summary_path))
+        return True
         if not self._require_prerequisites():
             return 1
         return super().handle_step()
