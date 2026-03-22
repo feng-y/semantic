@@ -11,12 +11,10 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 RUNTIME_MAPPING = {
-    "semantic-init": ("src.dispatcher", "_handle_init"),
     "semantic-discover": ("src.discovery_executor", "run_discovery"),
     "semantic-review": ("src.semantic.apply_review", "main"),
     "semantic-refine": ("src.refine_executor", "run_refine"),
     "semantic-baseline": ("src.refine_executor", "run_refine"),
-    "semantic-status": ("src.state_inspector", "inspect"),
     "semantic-reset": ("src.dispatcher", "_handle_reset"),
 }
 
