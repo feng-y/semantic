@@ -1,7 +1,7 @@
 ---
 name: commit-extract
-version: "1.0.0"
-description: "Aggregate raw commits by month with worker-driven commit_log regeneration"
+description: Aggregate raw commits by month with worker-driven commit_log regeneration
+entrypoint: skills.commit-extract.run.run_commit_extract
 disable-model-invocation: false
 triggers:
   - commit-extract

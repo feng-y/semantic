@@ -543,7 +543,10 @@ def _execute_baseline_step(root: Path, executor: HostExecutor) -> RefineStepResu
 def _execute_change_analysis_step(root: Path) -> RefineStepResult:
     """Generate and write change-analysis from accepted baseline artifacts."""
     ctx = context_builder.build_change_analysis_context(root)
-    missing = [name for name in ("purpose", "pipelines", "domains", "concepts") if name not in ctx]
+    missing = [
+        name for name in ("purpose", "pipelines", "domains", "concepts")
+        if name not in ctx
+    ]
     if missing:
         return RefineStepResult(
             step_index=5,
@@ -604,7 +607,10 @@ def parse_baseline_output(content: str) -> dict[str, str]:
     Returns dict mapping section name to content.
     Duplicate headings cause the section to be omitted (treated as invalid).
     """
-    section_pattern = re.compile(r"^##\s+(Purpose|Domains|Concepts|Pipelines)\s*$", re.IGNORECASE)
+    section_pattern = re.compile(
+        r"^##\s+(Purpose|Domains|Concepts|Pipelines)\s*$",
+        re.IGNORECASE,
+    )
     sections: dict[str, str] = {}
     duplicates: set[str] = set()
     current_name: str | None = None
@@ -646,7 +652,10 @@ def _write_baseline_checkpoint(root: Path, result: RefineResult, feedback: str) 
 
     # Collect source version numbers from latest working artifacts
     source_versions: dict[str, int | None] = {}
-    for name in ("repo-understanding", "knowledge-confidence", "domain-candidates", "review-summary"):
+    for name in (
+        "repo-understanding", "knowledge-confidence",
+        "domain-candidates", "review-summary",
+    ):
         category = "review" if name == "review-summary" else "discovery"
         path = artifact_writer.get_latest_working_version_path(root, category, name)
         if path is not None:

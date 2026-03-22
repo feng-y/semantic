@@ -466,5 +466,10 @@ class CommitSemanticRunner(SkillRunner):
         return super().handle_run()
 
 
+def run_commit_semantic() -> None:
+    """Entry point for the commit-semantic skill."""
+    raise SystemExit(CommitSemanticRunner().main())
+
+
 if __name__ == "__main__":
-    run_skill(CommitSemanticRunner)
+    run_commit_semantic()

@@ -1,6 +1,5 @@
 """Tests for normalize module."""
 
-import pytest
 
 from src.normalize import normalize_text
 

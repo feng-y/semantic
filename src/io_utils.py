@@ -11,7 +11,12 @@ def save_yaml(data: dict[str, Any], file_path: str) -> None:
     """Save data as YAML file."""
     Path(file_path).parent.mkdir(parents=True, exist_ok=True)
     with open(file_path, 'w', encoding='utf-8') as f:
-        yaml.dump(data, f, allow_unicode=True, default_flow_style=False, sort_keys=False)
+        yaml.dump(
+            data, f,
+            allow_unicode=True,
+            default_flow_style=False,
+            sort_keys=False,
+        )
 
 
 def load_yaml(file_path: str) -> dict[str, Any]:

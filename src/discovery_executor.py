@@ -51,7 +51,9 @@ PROMPT_ARTIFACT_MAP: dict[str, tuple[str, str]] = {
     "prompts/discover/repo-facts.prompt": ("repo-facts", "discovery"),
     "prompts/discover/domain-candidates.prompt": ("domain-candidates", "discovery"),
     "prompts/discover/repo-understanding.prompt": ("repo-understanding", "discovery"),
-    "prompts/discover/knowledge-confidence.prompt": ("knowledge-confidence", "discovery"),
+    "prompts/discover/knowledge-confidence.prompt": (
+        "knowledge-confidence", "discovery"
+    ),
     "prompts/discover/review-summary.prompt": ("review-summary", "review"),
 }
 
@@ -114,9 +116,10 @@ def _execute_prompt_step(
     sampling_mode: str,
     executor: HostExecutor,
 ) -> StepResult:
-    """Execute a single 'run' step: load prompt, build context, call executor, write artifact.
+    """Run step: load prompt, build context, call executor, write artifact.
 
-    Flow: prompt_loader -> context_builder -> host executor -> validation -> artifact_writer
+    Flow: prompt_loader -> context_builder -> host executor ->
+          validation -> artifact_writer
     """
     prompt_path = prompt_loader.resolve_prompt_path(target, root)
     try:
@@ -205,9 +208,10 @@ def _execute_augment_step(
     sampling_mode: str,
     executor: HostExecutor,
 ) -> StepResult:
-    """Execute an augmentation step: read latest artifact, build context, call executor, write next version.
+    """Augment: read latest artifact, build context, call executor, write next version.
 
-    Flow: prompt_loader -> read base artifact -> context_builder -> host executor -> validation -> artifact_writer
+    Flow: prompt_loader -> read base artifact -> context_builder ->
+          host executor -> validation -> artifact_writer
     """
     prompt_path = prompt_loader.resolve_prompt_path(target, root)
     try:
