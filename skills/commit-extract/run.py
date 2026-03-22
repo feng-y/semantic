@@ -31,7 +31,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from src.harness_state import HarnessState
-from src.skill_runner import SkillRunner, run_skill
+from src.skill_runner import SkillRunner
 from src.io_utils import save_yaml, save_json
 from src.commit_semantic.git_utils import (
     get_commit_list,
@@ -84,11 +84,11 @@ class CommitExtractRunner(SkillRunner):
         body_lines = ["# Commit batch\n\n"]
         for commit in batch:
             body_lines.append(f"## commit_id: {commit['commit_id']}")
-            body_lines.append(f"original_message: |")
+            body_lines.append("original_message: |")
             for line in (commit.get("original_message") or "").splitlines():
                 body_lines.append(f"  {line}")
             body_lines.append(f"files: {commit.get('files', [])}")
-            body_lines.append(f"diff_chunks:")
+            body_lines.append("diff_chunks:")
             for chunk in commit.get("diff_chunks", []):
                 for line in chunk.splitlines()[:50]:  # Truncate each chunk
                     body_lines.append(f"  {line}")
@@ -98,71 +98,224 @@ class CommitExtractRunner(SkillRunner):
 
         return template + "\n\n---\n\n# Batch Data\n\n" + "\n".join(body_lines)
 
+    # Map from file path prefix to readable module name
+    _MODULE_ALIASES = {
+        "skills/": "技能模块",
+        "src/": "核心模块",
+        "tests/": "测试模块",
+        "docs/": "文档模块",
+        ".github/": "CI配置",
+        ".claude-plugin/": "插件配置",
+    }
+    _META_PREFIXES = {
+        "chore", "ci", "docs", "style", "build", "perf", "typo",
+        "merge", "release",
+    }
+    _CODE_PREFIXES = {
+        "feat", "feature", "fix", "bugfix", "refactor", "test",
+        "perf", "optimize", "security",
+    }
+
     def _worker_regenerate_commit_log(
         self, commit_id: str, original_message: str, diff_chunks: list[str]
     ) -> str:
-        """Simulate a worker regenerating commit_log from diff_chunks.
+        """Regenerate commit_log from diff_chunks using heuristics.
 
-        In production this is replaced by a real Task agent call.
-        The heuristic below mirrors what an LLM would infer from a diff.
+        Better heuristic approach:
+        1. Extract structural patterns (classes, decorators, imports, constants)
+        2. Summarize by file category rather than listing every function
+        3. Use original_message prefix only as supplementary signal
+        4. Truncate aggressively to keep output concise
         """
-        # Flatten diff to find added/removed patterns
         all_lines = "\n".join(diff_chunks)
-        added = re.findall(r"^\+[^+].*", all_lines, re.MULTILINE)
-        removed = re.findall(r"^-[^-].*", all_lines, re.MULTILINE)
+        added_lines = [
+            re.sub(r"^\+", "", ln).strip()
+            for ln in all_lines.split("\n")
+            if ln.startswith("+") and not ln.startswith("++")
+        ]
+        removed_lines = [
+            re.sub(r"^-", "", ln).strip()
+            for ln in all_lines.split("\n")
+            if ln.startswith("-") and not ln.startswith("--")
+        ]
         added_files = re.findall(r"^\+\+\+ b/(.+)", all_lines, re.MULTILINE)
-        # Strip diff markers
-        added_clean = [re.sub(r"^\+", "", line).strip() for line in added]
-        removed_clean = [re.sub(r"^-", "", line).strip() for line in removed]
+
+        # Categorize files
+        modules: dict[str, list[str]] = {}  # module_name -> [file_paths]
+        for f in added_files:
+            for prefix, alias in self._MODULE_ALIASES.items():
+                if f.startswith(prefix):
+                    modules.setdefault(alias, []).append(f)
+                    break
+            else:
+                # Extract top-level directory as module
+                top = f.split("/")[0] if "/" in f else f
+                modules.setdefault(top, []).append(f)
+
+        # Detect structural patterns
+        classes_added = list(set(re.findall(
+            r"^class\s+(\w+)", "\n".join(added_lines), re.MULTILINE,
+        )))
+        funcs_added = list(set(re.findall(
+            r"^def\s+(\w+)", "\n".join(added_lines), re.MULTILINE,
+        )))
+        funcs_removed = list(set(re.findall(
+            r"^def\s+(\w+)", "\n".join(removed_lines), re.MULTILINE,
+        )))
+        decorators = list(set(re.findall(
+            r"^@(\w+)", "\n".join(added_lines), re.MULTILINE,
+        )))
+        imports_added = [
+            ln for ln in added_lines
+            if ln.startswith("import ") or ln.startswith("from ")
+        ]
+        constants_added = list(set(re.findall(
+            r"^([A-Z][A-Z0-9_]*)\s*=", "\n".join(added_lines), re.MULTILINE
+        )))
+        constants_removed = list(set(re.findall(
+            r"^([A-Z][A-Z0-9_]*)\s*=", "\n".join(removed_lines), re.MULTILINE
+        )))
+
+        # Detect meta-file changes
+        md_added = sum(
+            1 for f in added_files if f.endswith(".md") or f.endswith(".mdx")
+        )
+        yaml_files = [
+            f for f in added_files if f.endswith(".yaml") or f.endswith(".yml")
+        ]
 
         parts: list[str] = []
 
-        # Detect function-level changes
-        funcs_added = [
-            re.sub(r"def (\w+).*", r"\1", line)
-            for line in added_clean
-            if line.startswith("def ")
-        ]
-        funcs_removed = [
-            re.sub(r"def (\w+).*", r"\1", line)
-            for line in removed_clean
-            if line.startswith("def ")
-        ]
+        # --- Class-level ---
+        if classes_added:
+            cls = classes_added[:2]
+            module_str = modules.get("核心模块", modules.get("技能模块", []))
+            if module_str:
+                parts.append(f"新增 {', '.join(cls)} 类")
+            else:
+                parts.append(f"新增 {', '.join(cls)} 类")
 
+        # --- Function-level (truncate to 3) ---
         if funcs_added:
-            if added_files:
-                files_str = ", ".join(set(added_files[:3]))
-                parts.append(f"在 {files_str} 中新增 {', '.join(funcs_added)} 函数")
+            test_funcs = [f for f in funcs_added if f.startswith("test_")]
+            non_test_funcs = [f for f in funcs_added if not f.startswith("test_")]
+
+            if test_funcs and not (non_test_funcs or classes_added):
+                # Test-only commit: summarize
+                count = len(test_funcs)
+                if count == 1:
+                    parts.append(f"新增 {test_funcs[0]} 测试")
+                elif count == 2:
+                    parts.append(f"新增 {test_funcs[0]}, {test_funcs[1]} 测试")
+                else:
+                    t1, t2 = test_funcs[0], test_funcs[1]
+                    parts.append(f"新增 {t1}, {t2} 等 {count} 个测试")
             else:
-                parts.append(f"新增 {', '.join(funcs_added)} 函数")
-        if funcs_removed:
-            parts.append(f"删除 {', '.join(funcs_removed)} 函数")
+                # Code commit with functions
+                meaningful_funcs = non_test_funcs[:3]
+                if len(non_test_funcs) > 3:
+                    n = len(non_test_funcs)
+                    parts.append(f"新增 {', '.join(meaningful_funcs)} 等 {n} 个函数")
+                elif meaningful_funcs:
+                    parts.append(f"新增 {', '.join(meaningful_funcs)} 函数")
+        if funcs_removed and not parts:
+            test_funcs = [f for f in funcs_removed if f.startswith("test_")]
+            non_test_funcs = [f for f in funcs_removed if not f.startswith("test_")]
+            if test_funcs:
+                parts.append(f"删除 {len(test_funcs)} 个测试函数")
+            elif non_test_funcs:
+                truncated = non_test_funcs[:3]
+                if len(non_test_funcs) > 3:
+                    n = len(non_test_funcs)
+                    parts.append(f"删除 {', '.join(truncated)} 等 {n} 个函数")
+                else:
+                    parts.append(f"删除 {', '.join(truncated)} 函数")
 
-        # Detect return value changes
-        return_added = [l for l in added_clean if "return" in l and l.startswith("return")]
-        return_removed = [l for l in removed_clean if "return" in l and l.startswith("return")]
-        if return_added and return_removed:
-            parts.append(f"修改返回值：从 {return_removed[0]} 改为 {return_added[0]}")
+        # --- Constant/enum changes ---
+        if constants_added and not parts:
+            parts.append(f"新增 {', '.join(constants_added[:3])} 常量")
+        if constants_removed and not parts:
+            parts.append(f"删除 {', '.join(constants_removed[:3])} 常量")
 
-        # Generic fallback using original_message prefix as hint (not as commit_log)
+        # --- Import-only changes ---
+        if imports_added and not parts and not (funcs_added or classes_added):
+            # Detect what kind of imports (e.g., pytest, yaml, dataclasses)
+            libs = list(set(re.findall(
+                r"^import\s+(\w+)|^from\s+(\w+)",
+                "\n".join(imports_added), re.MULTILINE,
+            )))
+            libs = [ln[0] or ln[1] for ln in libs if ln[0] or ln[1]]
+            if libs:
+                parts.append(f"新增 {', '.join(libs[:3])} 依赖")
+
+        # --- Decorator patterns ---
+        if decorators and not parts:
+            if "dataclass" in decorators:
+                parts.append("新增数据类定义")
+            elif "property" in decorators:
+                parts.append("新增属性装饰器")
+            elif "staticmethod" in decorators or "classmethod" in decorators:
+                parts.append("新增静态/类方法")
+
+        # --- File/path level summary (for meta-prefixes or no-pattern commits) ---
+        if not parts and modules:
+            file_modules = list(modules.keys())
+            file_count = sum(len(v) for v in modules.values())
+            module_str = ", ".join(file_modules[:3])
+            if file_count > len(file_modules):
+                parts.append(f"更新 {module_str} 等 {file_count} 个文件")
+
+        # --- YAML/config files ---
+        if yaml_files and not parts:
+            parts.append(f"更新 {', '.join(yaml_files[:2])} 配置")
+
+        # --- Markdown/docs files ---
+        if md_added and not parts:
+            parts.append(f"更新 {md_added} 个文档文件")
+
+        # --- Parse prefix (lowercase, strip scope) ---
+        if ":" in original_message:
+            prefix = original_message.split(":")[0].strip().lower()
+            prefix = re.sub(r"\([^)]*\)", "", prefix).strip()
+        else:
+            prefix = ""
+
+        # --- Fallback: use prefix + module info ---
         if not parts:
-            prefix = original_message.split(":")[0].strip() if ":" in original_message else ""
-            if prefix in ("feat", "feature"):
-                parts.append("新增功能实现")
-            elif prefix in ("bugfix", "fix"):
-                parts.append("修复代码问题")
-            elif prefix in ("refactor", "refactoring"):
-                parts.append("重构代码结构")
-            elif prefix in ("test", "tests"):
-                parts.append("添加或更新测试")
-            elif prefix in ("config", "chore"):
-                parts.append("更新配置或构建文件")
-            elif prefix == "optimize":
-                parts.append("优化代码性能")
+            prefix_desc: dict[str, str] = {
+                "feat": "新增功能", "feature": "新增功能",
+                "fix": "修复问题", "bugfix": "修复问题",
+                "refactor": "重构代码", "refactoring": "重构代码",
+                "test": "添加测试", "tests": "添加测试",
+                "chore": "更新构建", "ci": "更新CI配置",
+                "docs": "更新文档", "doc": "更新文档",
+                "style": "优化代码风格",
+                "build": "更新构建配置",
+                "perf": "优化性能", "optimize": "优化性能",
+                "security": "修复安全问题",
+                "typo": "修正拼写",
+                "merge": "合并分支",
+                "release": "版本发布",
+                "simplify": "简化代码",
+                "cleanup": "清理代码",
+            }
+            desc = prefix_desc.get(prefix, "更新代码")
+            if modules:
+                module_str = ", ".join(list(modules.keys())[:2])
+                parts.append(f"{desc}（{module_str}）")
             else:
-                parts.append("更新代码")
+                parts.append(desc)
 
-        return "；".join(parts) if parts else "代码更新"
+        # --- Decorator note (append, not replace) ---
+        if decorators and parts and not any("类" in p or "装饰" in p for p in parts):
+            if "property" in decorators:
+                parts.append("含属性装饰器")
+
+        result = "；".join(parts) if parts else "更新代码"
+        # Hard cap at 200 chars
+        if len(result) > 200:
+            result = result[:197] + "..."
+        return result
 
     # -------------------------------------------------------------------------
     # Internal helpers
@@ -249,13 +402,16 @@ class CommitExtractRunner(SkillRunner):
                 print(f"     Error processing {commit_id}: {e}")
 
         # Spawn workers in batches to regenerate commit_log
-        print(f"\n  -> Spawning workers to regenerate commit_log")
+        print("\n  -> Spawning workers to regenerate commit_log")
         for month, commits in sorted(commits_by_month.items()):
             batches = self._batch_commits(commits, BATCH_SIZE)
             print(f"     {month}: {len(commits)} commits in {len(batches)} batch(es)")
 
+            total_batches = len(batches)
             for batch_idx, batch in enumerate(batches):
-                print(f"     Batch {batch_idx + 1}/{len(batches)} ({len(batch)} commits)...")
+                n_commits = len(batch)
+                msg = f"     Batch {batch_idx + 1}/{total_batches} ({n_commits}c)"
+                print(msg)
                 worker_results = self._spawn_worker(batch)
 
                 # Fill in commit_log for each commit in batch
