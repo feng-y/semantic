@@ -1,6 +1,6 @@
 {
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
-  "name": "feng-y-semantic-harness-marketplace",
+  "name": "semantic",
   "version": "0.0.1",
   "description": "Marketplace for semantic harness plugin",
   "owner": {

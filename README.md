@@ -10,7 +10,7 @@ Register the plugin marketplace and install:
 
 ```
 /plugin marketplace add feng-y/semantic
-/plugin install semantic-harness@feng-y-semantic-harness-marketplace
+/plugin install semantic-harness@semantic
 ```
 
 This exposes all 14 skills listed below.
