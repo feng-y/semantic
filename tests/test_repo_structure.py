@@ -309,3 +309,62 @@ class TestBaseline:
         assert "metadata" in data
         assert "conflicts" in data
         assert data["metadata"]["version"].startswith("v")
+
+
+class TestE2E:
+    def test_full_pipeline_produces_baseline(self, tmp_path, monkeypatch):
+        """Run full pipeline: sample -> hotspot -> extract -> augment -> validate -> baseline."""
+        import yaml
+        monkeypatch.chdir(tmp_path)
+        (tmp_path / ".git").mkdir()
+
+        # Set up all required inputs
+        (tmp_path / "data/commit-extract").mkdir(parents=True)
+        (tmp_path / "data/commit-semantic/patterns").mkdir(parents=True)
+        gsd_dir = tmp_path / ".planning/codebase"
+        gsd_dir.mkdir(parents=True)
+
+        for fname in ["STRUCTURE.md", "ARCHITECTURE.md", "CONCERNS.md",
+                      "CONVENTIONS.md", "INTEGRATIONS.md", "STACK.md", "TESTING.md"]:
+            (gsd_dir / fname).write_text(f"## Section\nTest content for {fname}.\n")
+
+        # commit-extract artifact
+        yaml.dump({"metadata": {"month": "2025-01"}, "commits": [
+            {"commit_id": "abc", "files": ["src/hermes/registry.py", "src/hermes/registry.py"]}
+        ]}, (tmp_path / "data/commit-extract/2025-01.yaml").open("w"))
+
+        # commit-semantic patterns
+        yaml.dump({"patterns": [{"pattern_id": "p1", "description": "Test pattern"}]},
+                 (tmp_path / "data/commit-semantic/patterns/canonical.yaml").open("w"))
+
+        from src.harness_state import HarnessState
+        from skills.repo_structure.run import RepoStructureRunner
+
+        runner = RepoStructureRunner()
+        state = HarnessState()
+
+        # Run all stages
+        stages = ["sample", "hotspot", "extract", "augment", "validate", "baseline"]
+        for stage in stages:
+            success = runner.run_stage(stage, state)
+            assert success, f"Stage {stage} failed"
+
+        # Verify baseline
+        baseline_dir = tmp_path / "data/repo-structure/baseline"
+        assert baseline_dir.exists()
+        baseline_files = sorted(baseline_dir.glob("facts.v*.yaml"))
+        assert len(baseline_files) >= 1, f"No baseline facts found in {baseline_dir}"
+
+        data = yaml.safe_load(baseline_files[0].read_text())
+        assert "facts" in data
+        assert "metadata" in data
+        assert "conflicts" in data
+        assert "version" in data["metadata"]
+        assert data["metadata"]["version"].startswith("v")
+        # Verify snapshot metadata
+        assert "snapshot_version" in data["metadata"]
+        assert "sources" in data["metadata"]
+        # facts.latest.yaml should exist
+        assert (baseline_dir / "facts.latest.yaml").exists()
+        # snapshot.yaml should exist
+        assert (baseline_dir / "snapshot.yaml").exists()
