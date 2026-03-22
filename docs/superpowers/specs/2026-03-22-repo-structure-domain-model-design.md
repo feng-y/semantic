@@ -262,17 +262,75 @@ Runtime Semantic Use
 ### Command
 
 ```
-/repo-structure [run|step|resume|status|reset]
+/repo-structure [run|step|resume|status|reset|check]
 /repo-structure --stage <stage>
 /repo-structure --gsd-root <path>
 ```
+
+### Preflight
+
+**原则: 先检查依赖图，再执行当前节点；不在节点内部隐式补跑上游。**
+
+`/repo-structure check` 输出结构化报告：
+
+```yaml
+ok: true|false
+stage: <target_stage>
+missing:   # 缺失依赖
+  - artifact: <path>
+    producer: <upstream skill>
+    suggestion: run <command>
+invalid:   # 存在但不合法
+  - artifact: <path>
+    reason: empty|schema_invalid|stale
+    artifact_commit: <commit>
+    current_commit: <HEAD>
+warnings:  # 可继续但有风险
+  - artifact: <path>
+    issue: stale_artifact|schema_version_mismatch
+    detail: ...
+```
+
+**repo-structure requires:**
+
+```yaml
+requires:
+  repo_root: true          # 当前目录是 git repo root
+  git_repo: true           # 存在 .git/
+  writable_dirs:
+    - data/repo-structure/
+  inputs:
+    hotpath:
+      - data/commit-extract/              # upstream: commit-extract
+    gsd:
+      - .planning/codebase/STRUCTURE.md     # upstream: gsd map-codebase
+      - .planning/codebase/ARCHITECTURE.md
+      - .planning/codebase/STACK.md
+      - .planning/codebase/CONCERNS.md
+```
+
+**freshness check:**
+
+- artifact 是否为空
+- artifact schema 是否合法
+- artifact 是否落后于当前 repo HEAD
+- artifact 的 source version 是否兼容
+
+**错误模式:**
+
+| 模式 | 行为 |
+|------|------|
+| 严格 fail-fast（默认） | 缺失依赖直接报错，列出缺什么、谁生产、怎么补 |
+| `--continue` | 警告但继续，只对 optional inputs 生效 |
+
+**不做的:** 不在 stage 内部偷偷补跑上游依赖。控制流必须透明。
 
 ### Stages
 
 | Stage | Description | Worker |
 |-------|-------------|--------|
 | `sample` | 从 gsd 输出提取 key files，生成 manifest | Python (deterministic) |
-| `hotspot` | 检查/运行 commit-extract + commit-semantic，生成 hotspot_map | Python + existing tools |
+| `hotspot` | 检查 commit-extract 产物是否满足，执行 hotspot_map 生成；严格 upstream，缺失则报错 | Python + existing tools |
 | `extract` | LLM worker 按 DocSectionTask 分批提取结构化 facts，生成 codebase_map | LLM worker (DocSectionTask batches) |
 | `augment` | LLM worker 分析 archi docs + compare with repo，生成 architect_augment | LLM worker |
 | `validate` | Schema + rule 校验，去重，冲突标记 | Python (deterministic) |
@@ -530,7 +588,8 @@ data/domain-model/assets/
 12. **archi docs optional** — augment outputs empty yaml if docs missing, pipeline continues
 13. **Three map versions independent + snapshot version** — each source can re-run without forcing others; snapshot records combination
 14. **baseline version starts at v0, increments each run** — no manual acceptance gate
-15. **commit-extract is upstream artifact** — hotspot stage checks `data/commit-extract/` exists, not `hotspot_map.yaml`
+15. **commit-extract is strict upstream artifact** — hotspot checks `data/commit-extract/` exists; missing = error, no bootstrap
 16. **sample is gsd-guided + repo fallback** — STRUCTURE.md as primary input, fallback probe if gsd files incomplete
 17. **gsd missing input error is explicit** — lists expected files and recommended action
 18. **extract output unit is fact entry with evidence binding** — not paragraph summary; includes locator_type, locator, stable_ref, rationale
+19. **preflight before execution** — check dependencies, freshness, repo state before running; do not silently bootstrap upstream
