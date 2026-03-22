@@ -65,6 +65,7 @@ select = ["E", "F"]
 ignore = [
     "E501",   # line too long (style, tracked in tech-debt-tracker.md T004)
     "F811",   # backward compat alias
+    "F841",   # unused vars in tests (tests use pragmatic patterns)
 ]
 
 [tool.mypy]
