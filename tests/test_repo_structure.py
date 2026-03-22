@@ -224,3 +224,88 @@ class TestExtract:
             ev = fact["evidence"][0]
             assert "locator_type" in ev
             assert "locator" in ev
+
+
+class TestValidate:
+    def test_validate_merges_three_maps(self, tmp_path, monkeypatch):
+        """validate stage reads all 3 maps and writes validated + conflicts."""
+        import yaml
+        monkeypatch.chdir(tmp_path)
+        (tmp_path / ".git").mkdir()
+        (tmp_path / "data/commit-extract").mkdir(parents=True)
+        maps_dir = tmp_path / "data/repo-structure/maps"
+        maps_dir.mkdir(parents=True)
+
+        yaml.dump({"metadata": {"version": "v0"}, "facts": [
+            {"fact_id": "h1", "fact_type": "hotspot_signal",
+             "statement": "module X changes often",
+             "confidence": "confirmed", "status": "active",
+             "repo_snapshot_commit": "abc", "source": "hotspot",
+             "evidence": [{"source_type": "hotspot", "locator_type": "file_path", "locator": "X", "stable_ref": "X"}]}
+        ]}, (maps_dir / "hotspot_map.v0.yaml").open("w"))
+
+        yaml.dump({"metadata": {"version": "v0"}, "facts": [
+            {"fact_id": "c1", "fact_type": "module_role",
+             "statement": "src/X/ is a core module",
+             "confidence": "confirmed", "status": "active",
+             "repo_snapshot_commit": "abc", "source": "codebase",
+             "evidence": [{"source_type": "codebase", "locator_type": "symbol", "locator": "X", "stable_ref": "X"}]}
+        ]}, (maps_dir / "codebase_map.v0.yaml").open("w"))
+
+        yaml.dump({"metadata": {"version": "v0"}, "adjudications": [
+            {"claim_id": "a1", "status": "evidence_backed",
+             "claim_text": "architect claim", "matched_evidence": []}
+        ]}, (maps_dir / "architect_augment.v0.yaml").open("w"))
+
+        from src.harness_state import HarnessState
+        from skills.repo_structure.run import RepoStructureRunner
+
+        runner = RepoStructureRunner()
+        state = HarnessState()
+        success = runner._run_validate(state)
+        assert success
+
+        facts_dir = tmp_path / "data/repo-structure/facts"
+        assert facts_dir.exists()
+        assert (facts_dir / "validated.v0.yaml").exists()
+
+
+class TestBaseline:
+    def test_baseline_produces_versioned_facts(self, tmp_path, monkeypatch):
+        """baseline stage writes facts.vN.yaml as sole source-of-truth."""
+        import yaml
+        monkeypatch.chdir(tmp_path)
+        (tmp_path / ".git").mkdir()
+        (tmp_path / "data/commit-extract").mkdir(parents=True)
+        maps_dir = tmp_path / "data/repo-structure/maps"
+        maps_dir.mkdir(parents=True)
+        facts_dir = tmp_path / "data/repo-structure/facts"
+        facts_dir.mkdir(parents=True)
+
+        yaml.dump({
+            "metadata": {"version": "v0"},
+            "facts": [{"fact_id": "f1", "fact_type": "module_role",
+                       "statement": "Test fact", "confidence": "confirmed",
+                       "status": "active", "repo_snapshot_commit": "abc",
+                       "source": "codebase",
+                       "evidence": [{"source_type": "codebase", "locator_type": "symbol", "locator": "X", "stable_ref": "X"}]}],
+            "conflicts": [],
+        }, (facts_dir / "validated.v0.yaml").open("w"))
+
+        from src.harness_state import HarnessState
+        from skills.repo_structure.run import RepoStructureRunner
+
+        runner = RepoStructureRunner()
+        state = HarnessState()
+        success = runner._run_baseline(state)
+        assert success
+
+        baseline_dir = tmp_path / "data/repo-structure/baseline"
+        baseline_files = sorted(baseline_dir.glob("facts.v*.yaml"))
+        assert len(baseline_files) >= 1
+
+        data = yaml.safe_load(baseline_files[0].read_text())
+        assert "facts" in data
+        assert "metadata" in data
+        assert "conflicts" in data
+        assert data["metadata"]["version"].startswith("v")

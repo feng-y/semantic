@@ -14,6 +14,7 @@ Output:
 from __future__ import annotations
 
 import argparse
+import shutil
 import sys
 import uuid
 import yaml
@@ -35,6 +36,11 @@ class RepoStructureRunner(SkillRunner):
 
     STAGES = ["sample", "hotspot", "extract", "augment", "validate", "baseline"]
     PIPELINE = "repo-structure"
+
+    VALID_FACT_TYPES = {
+        "module_role", "dependency_rule", "boundary_constraint",
+        "pattern_usage", "convention", "invariant", "hotspot_signal",
+    }
 
     def __init__(self):
         super().__init__()
@@ -722,14 +728,299 @@ class RepoStructureRunner(SkillRunner):
         return adjudicated
 
     def _run_validate(self, state: HarnessState) -> bool:
-        """Stage 5: Schema checks, deduplication, conflict detection."""
-        print("  [TODO] validate stage not yet implemented")
+        """Validate: schema check, deduplicate, detect conflicts from 3 maps."""
+        print("  -> Running validate stage")
+
+        maps_dir = OUTPUT_BASE / "maps"
+        if not maps_dir.exists():
+            print(f"  ERROR: maps directory not found: {maps_dir}")
+            return False
+
+        hotspot_map = self._load_latest_map(maps_dir, "hotspot_map")
+        codebase_map = self._load_latest_map(maps_dir, "codebase_map")
+        architect_aug = self._load_latest_map(maps_dir, "architect_augment")
+
+        all_facts: list = []
+        all_facts.extend(codebase_map.get("facts", []))
+        all_facts.extend(hotspot_map.get("facts", []))
+
+        # Convert architect augment adjudicated claims to facts
+        for adj in architect_aug.get("adjudications", []):
+            if adj.get("status") in ("evidence_backed", "weakly_backed"):
+                all_facts.append({
+                    "fact_id": adj.get("claim_id", str(uuid.uuid4())),
+                    "fact_type": "boundary_constraint",
+                    "domain": "architecture",
+                    "statement": adj.get("claim_text", "")[:200],
+                    "confidence": "confirmed" if adj.get("status") == "evidence_backed" else "uncertain",
+                    "status": "active",
+                    "repo_snapshot_commit": architect_aug.get("metadata", {}).get("repo_snapshot_commit", ""),
+                    "source": "architect",
+                    "evidence": adj.get("matched_evidence", []),
+                })
+
+        validated, invalid = self._schema_validate(all_facts)
+        print(f"  Schema: {len(validated)} valid, {len(invalid)} invalid")
+
+        deduplicated, duplicates = self._deduplicate(validated)
+        print(f"  Deduplication: {len(deduplicated)} unique, {len(duplicates)} duplicates removed")
+
+        conflicts = self._detect_conflicts(deduplicated)
+        print(f"  Conflict detection: {len(conflicts)} conflicts preserved")
+
+        version = self._next_version("validated")
+        facts_dir = OUTPUT_BASE / "facts"
+        facts_dir.mkdir(parents=True, exist_ok=True)
+        validated_path = facts_dir / f"validated.{version}.yaml"
+        conflicts_path = facts_dir / f"conflicts.{version}.yaml"
+        head = self._get_repo_head()
+
+        yaml.dump({
+            "metadata": {"version": version, "repo_snapshot_commit": head,
+                         "generated_at": __import__("datetime").datetime.now().isoformat(),
+                         "total_validated": len(deduplicated),
+                         "total_conflicts": len(conflicts)},
+            "facts": deduplicated,
+        }, validated_path.open("w", encoding="utf-8"),
+                  allow_unicode=True, default_flow_style=False)
+
+        yaml.dump({
+            "metadata": {"version": version, "repo_snapshot_commit": head,
+                         "generated_at": __import__("datetime").datetime.now().isoformat()},
+            "conflicts": conflicts,
+        }, conflicts_path.open("w", encoding="utf-8"),
+                  allow_unicode=True, default_flow_style=False)
+
+        print(f"  Wrote {len(deduplicated)} validated facts -> {validated_path}")
+        print(f"  Wrote {len(conflicts)} conflicts -> {conflicts_path}")
+        self.add_artifact(state, str(validated_path))
+        self.add_artifact(state, str(conflicts_path))
         return True
 
+    def _load_latest_map(self, maps_dir: Path, prefix: str) -> dict:
+        """Load the latest version of a map artifact."""
+        maps = sorted(maps_dir.glob(f"{prefix}.v*.yaml"), reverse=True)
+        if maps:
+            return yaml.safe_load(maps[0].read_text())
+        return {"metadata": {}, "facts": [], "adjudications": []}
+
+    def _schema_validate(self, facts: list) -> tuple[list, list]:
+        """Schema validation: required fields + fact_type enum + evidence shape."""
+        required_fields = {"fact_id", "fact_type", "statement", "source",
+                         "repo_snapshot_commit", "evidence"}
+        valid, invalid = [], []
+        for f in facts:
+            missing = required_fields - set(f.keys())
+            if missing:
+                invalid.append({**f, "_missing_fields": list(missing)})
+                continue
+            if f.get("fact_type") not in self.VALID_FACT_TYPES:
+                invalid.append({**f, "_invalid_fact_type": f.get("fact_type")})
+                continue
+            evidence = f.get("evidence", [])
+            if not isinstance(evidence, list):
+                invalid.append({**f, "_invalid_evidence": "not a list"})
+                continue
+            for ev in evidence:
+                if not isinstance(ev, dict):
+                    invalid.append({**f, "_invalid_evidence": "evidence item not a dict"})
+                    break
+                if "locator_type" not in ev or "locator" not in ev:
+                    invalid.append({**f, "_invalid_evidence": "missing locator_type or locator"})
+                    break
+            else:
+                valid.append(f)
+        return valid, invalid
+
+    def _deduplicate(self, facts: list) -> tuple[list, list]:
+        """Deduplicate facts by fact_id, keeping first occurrence."""
+        seen: set = set()
+        unique, duplicates = [], []
+        for f in facts:
+            fid = f.get("fact_id", "")
+            if fid in seen:
+                duplicates.append(f)
+            else:
+                seen.add(fid)
+                unique.append(f)
+        return unique, duplicates
+
+    def _detect_conflicts(self, facts: list) -> list:
+        """Detect contradictory facts based on fact_type + overlapping subjects."""
+        from collections import defaultdict
+
+        conflicts: list = []
+        groups: dict = defaultdict(list)
+        for f in facts:
+            key = (f.get("fact_type", ""), f.get("domain", ""))
+            groups[key].append(f)
+
+        for group_key, group_facts in groups.items():
+            if len(group_facts) < 2:
+                continue
+            statuses = {gf.get("status") for gf in group_facts}
+            if "active" in statuses and "filtered" in statuses:
+                conflicts.append({
+                    "fact_ids": [gf["fact_id"] for gf in group_facts],
+                    "conflict_type": "contradictory_statement",
+                    "explanation": f"Multiple facts with same type={group_key[0]} and domain={group_key[1]} have conflicting status: {statuses}",
+                    "resolution_status": "preserved",
+                })
+
+        return conflicts
+
     def _run_baseline(self, state: HarnessState) -> bool:
-        """Stage 6: Arbitration → facts.vN.yaml."""
-        print("  [TODO] baseline stage not yet implemented")
+        """Baseline: source-aware arbitration → facts.vN.yaml freeze."""
+        print("  -> Running baseline stage")
+
+        facts_dir = OUTPUT_BASE / "facts"
+        if not facts_dir.exists():
+            print(f"  ERROR: facts directory not found: {facts_dir}")
+            return False
+
+        validated_path = sorted(facts_dir.glob("validated.v*.yaml"), reverse=True)
+        conflicts_path = sorted(facts_dir.glob("conflicts.v*.yaml"), reverse=True)
+
+        if not validated_path:
+            print("  ERROR: no validated facts found")
+            return False
+
+        validated_data = yaml.safe_load(validated_path[0].read_text())
+        conflicts_data = yaml.safe_load(conflicts_path[0].read_text()) if conflicts_path else {"conflicts": []}
+
+        facts = validated_data.get("facts", [])
+        conflicts = conflicts_data.get("conflicts", [])
+
+        baseline_facts, dropped = self._arbitrate(facts)
+
+        print(f"  Arbitration: {len(baseline_facts)} accepted, {len(dropped)} dropped")
+
+        version = self._next_version("baseline_facts")
+        baseline_dir = OUTPUT_BASE / "baseline"
+        baseline_dir.mkdir(parents=True, exist_ok=True)
+        facts_out = baseline_dir / f"facts.{version}.yaml"
+
+        head = self._get_repo_head()
+        snapshot_ver = f"sf-{__import__('datetime').date.today().strftime('%Y-%m-%d')}.{version[1:]}"
+
+        yaml.dump({
+            "metadata": {
+                "version": version,
+                "repo_snapshot_commit": head,
+                "snapshot_version": snapshot_ver,
+                "sources": {
+                    "hotspot_map": self._find_latest_version("hotspot_map"),
+                    "codebase_map": self._find_latest_version("codebase_map"),
+                    "architect_augment": self._find_latest_version("architect_augment"),
+                },
+                "generated_at": __import__("datetime").datetime.now().isoformat(),
+                "arbitration": {
+                    "total_candidates": len(facts),
+                    "accepted": len(baseline_facts),
+                    "dropped": len(dropped),
+                    "conflicts_preserved": len(conflicts),
+                    "source_priority": "architect > hotspot > codebase",
+                },
+            },
+            "facts": baseline_facts,
+            "conflicts": conflicts,
+            "lineage": {f["fact_id"]: {"source": f["source"]} for f in baseline_facts},
+        }, facts_out.open("w", encoding="utf-8"),
+                  allow_unicode=True, default_flow_style=False)
+
+        latest = baseline_dir / "facts.latest.yaml"
+        shutil.copy(facts_out, latest)
+
+        snapshot_path = baseline_dir / "snapshot.yaml"
+        yaml.dump({
+            "snapshot_version": snapshot_ver,
+            "repo_snapshot_commit": head,
+            "generated_at": __import__("datetime").datetime.now().isoformat(),
+            "sources": {
+                "hotspot_map": self._find_latest_version("hotspot_map"),
+                "codebase_map": self._find_latest_version("codebase_map"),
+                "architect_augment": self._find_latest_version("architect_augment"),
+            },
+        }, snapshot_path.open("w", encoding="utf-8"),
+                  allow_unicode=True, default_flow_style=False)
+
+        print(f"  Wrote baseline facts -> {facts_out}")
+        print(f"  facts.latest.yaml -> {latest}")
+        print(f"  snapshot.yaml -> {snapshot_path}")
+        self.add_artifact(state, str(facts_out))
+        self.add_artifact(state, str(latest))
+        self.add_artifact(state, str(snapshot_path))
         return True
+
+    def _arbitrate(self, facts: list) -> tuple[list, list]:
+        """Apply source-aware arbitration rules (all 4 axes)."""
+        from collections import defaultdict
+
+        current_head = self._get_repo_head()
+        source_order = {"architect": 0, "hotspot": 1, "codebase": 2}
+
+        def arbitration_key(fact: dict) -> tuple:
+            source_rank = source_order.get(fact.get("source", ""), 99)
+            is_hotspot_signal = fact.get("fact_type") == "hotspot_signal"
+            if is_hotspot_signal:
+                strength_rank = 0
+            elif fact.get("confidence") == "confirmed":
+                strength_rank = 1
+            else:
+                strength_rank = 2
+            is_current = 0 if fact.get("repo_snapshot_commit") == current_head else 1
+            return (source_rank, strength_rank, is_current)
+
+        groups: dict = defaultdict(list)
+        for f in facts:
+            key = (f.get("fact_type", ""), f.get("statement", "")[:80])
+            groups[str(key)].append(f)
+
+        baseline: list = []
+        dropped: list = []
+
+        for group_key, group_facts in groups.items():
+            if len(group_facts) == 1:
+                baseline.append(group_facts[0])
+                continue
+
+            group_facts.sort(key=arbitration_key)
+            winner = group_facts[0]
+            losers = group_facts[1:]
+
+            for loser in losers:
+                winner_words = set(winner.get("statement", "").lower().split())
+                loser_words = set(loser.get("statement", "").lower().split())
+                overlap = (
+                    len(winner_words & loser_words) /
+                    max(len(winner_words), len(loser_words))
+                    if winner_words and loser_words else 0
+                )
+                if overlap < 0.3:
+                    baseline.append(winner)
+                    baseline.append(loser)
+                    break
+            else:
+                baseline.append(winner)
+                for loser in losers:
+                    dropped.append({
+                        **loser,
+                        "_reason": f"dominated by {winner.get('fact_id')} "
+                                   f"source={winner.get('source')} "
+                                   f"snapshot={winner.get('repo_snapshot_commit')}",
+                    })
+
+        return baseline, dropped
+
+    def _find_latest_version(self, prefix: str) -> str:
+        """Find latest version string for a map prefix."""
+        maps_dir = OUTPUT_BASE / "maps"
+        if not maps_dir.exists():
+            return "unknown"
+        maps = sorted(maps_dir.glob(f"{prefix}.v*.yaml"), reverse=True)
+        if maps:
+            return maps[0].stem.split(".")[-1]
+        return "unknown"
 
     # -------------------------------------------------------------------------
     # Helpers
