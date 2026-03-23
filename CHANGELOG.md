@@ -1,5 +1,17 @@
 # Changelog
 
+## v1.0.1 - 2026-03-23
+
+### Changed
+- Reworked the commit history pipeline around `commit-extract` monthly JSONL output and the domain-based `commit-semantic` 5-stage flow.
+- Switched `commit-semantic` to LLM-only discover/classify semantics with explicit runtime provenance in `summary.json`.
+- Updated `repo-structure` hotspot ingestion to read the new JSONL-based upstream artifacts.
+
+### Fixed
+- Hardened LLM classification trust boundaries by rejecting unknown domains and malformed IDs.
+- Made SHA-to-file-path parsing delimiter-safe to avoid silent mis-parsing of hex-like file names.
+- Aligned semantic hotspot consumption with the actual `domains-aggregated.jsonl` schema.
+
 ## v1.0.0
 
 Stable release. 108 tests passing across all safety boundaries.

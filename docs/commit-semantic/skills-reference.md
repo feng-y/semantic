@@ -1,6 +1,9 @@
 # commit-semantic Skills 参考
 
-本文档描述三个 Claude Code skill 的接口与行为。这些 skill 在 Claude Code 对话框中通过 `/` 命令调用，由 Claude 解析自然语言参数后执行。
+本文档描述旧版 `commit-semantic-collect / generate / export` 三段式 skill 接口。
+
+> 注意：当前推荐入口已经切换为：`/commit-extract run` → `/commit-semantic run`。
+> 本文档保留作为历史接口参考，不是当前主路径说明。
 
 ---
 
