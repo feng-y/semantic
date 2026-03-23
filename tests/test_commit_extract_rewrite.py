@@ -503,7 +503,6 @@ class TestSchemaValidation:
 
         # Missing sha → would be skipped by merge
         mod = _load_extract_module()
-        import io
         tmp = Path("/tmp/test_schema_validation")
         tmp.mkdir(parents=True, exist_ok=True)
         tmp_dir = tmp / "tmp"
