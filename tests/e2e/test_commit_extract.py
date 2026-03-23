@@ -76,6 +76,58 @@ class TestCommitExtractSkill:
             assert len(manifest["batches"]) == 1
             assert len(manifest["batches"][0]["shas"]) == 1
 
+    def test_collect_local_fallback_writes_monthly_jsonl(self):
+        """Full local collect path writes schema-valid monthly JSONL output."""
+        mod = load_commit_extract_module()
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            repo_path = Path(tmpdir) / "test_repo"
+            repo_path.mkdir()
+            subprocess.run(["git", "init"], cwd=repo_path, capture_output=True, check=True)
+            subprocess.run(["git", "config", "user.email", "t@t.com"], cwd=repo_path, capture_output=True, check=True)
+            subprocess.run(["git", "config", "user.name", "Test User"], cwd=repo_path, capture_output=True, check=True)
+
+            (repo_path / "f.txt").write_text("hello\n")
+            subprocess.run(["git", "add", "."], cwd=repo_path, capture_output=True, check=True)
+            subprocess.run(
+                ["git", "commit", "-m", "feat: add login\n\nEnsure auth stays enabled."],
+                cwd=repo_path,
+                capture_output=True,
+                check=True,
+            )
+
+            runner = mod.CommitExtractRunner()
+            runner.repo_path = str(repo_path)
+
+            saved_base = mod.OUTPUT_BASE
+            saved_tmp = mod.TMP_DIR
+            mod.OUTPUT_BASE = Path(tmpdir) / "output"
+            mod.TMP_DIR = mod.OUTPUT_BASE / "tmp"
+
+            from src.harness_state import HarnessState
+            state = HarnessState(stage="init", metadata={"completed_stages": [], "artifacts_written": [], "status": "ok"})
+            result = runner._run_collect(state)
+
+            month_files = list((Path(tmpdir) / "output").glob("*.jsonl"))
+
+            mod.OUTPUT_BASE = saved_base
+            mod.TMP_DIR = saved_tmp
+
+            assert result is True
+            assert len(month_files) == 1
+
+            records = [json.loads(line) for line in month_files[0].read_text().splitlines() if line.strip()]
+            assert len(records) == 1
+            record = records[0]
+            assert record["sha"]
+            assert record["author"] == "Test User"
+            assert "T" in record["date"]
+            assert record["sections"]
+            assert record["sections"][0]["items"][0]["op"] == "feat"
+            assert record["rules_invariants"] == [
+                {"kind": "rule", "statement": "Ensure auth stays enabled.", "enforced_by_commit": False}
+            ]
+
 
 class TestCommitExtractParseStat:
     """Tests for git show --stat parsing."""

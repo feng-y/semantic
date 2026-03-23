@@ -1,6 +1,7 @@
 """tests/test_repo_structure.py — repo-structure skill tests."""
 from __future__ import annotations
 
+import json
 from pathlib import Path
 import subprocess
 import sys
@@ -155,13 +156,14 @@ class TestHotspot:
         monkeypatch.chdir(tmp_path)
         (tmp_path / ".git").mkdir()
         (tmp_path / "data/commit-extract").mkdir(parents=True)
-        (tmp_path / "data/commit-semantic/patterns").mkdir(parents=True)
+        (tmp_path / "data/commit-semantic").mkdir(parents=True)
 
-        yaml.dump({"metadata": {"month": "2025-01"}, "commits": [
-            {"commit_id": "abc", "files": ["src/hermes/registry.py", "src/hermes/registry.py"]}
-        ]}, (tmp_path / "data/commit-extract/2025-01.yaml").open("w"))
-        yaml.dump({"patterns": [{"pattern_id": "p1", "description": "Test pattern"}]},
-                 (tmp_path / "data/commit-semantic/patterns/canonical.yaml").open("w"))
+        (tmp_path / "data/commit-extract/2025-01.jsonl").write_text(
+            json.dumps({"sha": "abc", "file_paths": ["src/hermes/registry.py", "src/hermes/registry.py"]}) + "\n"
+        )
+        (tmp_path / "data/commit-semantic/domains-aggregated.jsonl").write_text(
+            json.dumps({"domain": "registry", "commit_count": 2, "file_paths": ["src/hermes/registry.py"]}) + "\n"
+        )
 
         from src.harness_state import HarnessState
         from skills.repo_structure.run import RepoStructureRunner
@@ -319,7 +321,7 @@ class TestE2E:
 
         # Set up all required inputs
         (tmp_path / "data/commit-extract").mkdir(parents=True)
-        (tmp_path / "data/commit-semantic/patterns").mkdir(parents=True)
+        (tmp_path / "data/commit-semantic").mkdir(parents=True)
         gsd_dir = tmp_path / ".planning/codebase"
         gsd_dir.mkdir(parents=True)
 
@@ -328,13 +330,14 @@ class TestE2E:
             (gsd_dir / fname).write_text(f"## Section\nTest content for {fname}.\n")
 
         # commit-extract artifact
-        yaml.dump({"metadata": {"month": "2025-01"}, "commits": [
-            {"commit_id": "abc", "files": ["src/hermes/registry.py", "src/hermes/registry.py"]}
-        ]}, (tmp_path / "data/commit-extract/2025-01.yaml").open("w"))
+        (tmp_path / "data/commit-extract/2025-01.jsonl").write_text(
+            json.dumps({"sha": "abc", "file_paths": ["src/hermes/registry.py", "src/hermes/registry.py"]}) + "\n"
+        )
 
-        # commit-semantic patterns
-        yaml.dump({"patterns": [{"pattern_id": "p1", "description": "Test pattern"}]},
-                 (tmp_path / "data/commit-semantic/patterns/canonical.yaml").open("w"))
+        # commit-semantic aggregated domains
+        (tmp_path / "data/commit-semantic/domains-aggregated.jsonl").write_text(
+            json.dumps({"domain": "registry", "commit_count": 2, "file_paths": ["src/hermes/registry.py"]}) + "\n"
+        )
 
         from src.harness_state import HarnessState
         from skills.repo_structure.run import RepoStructureRunner

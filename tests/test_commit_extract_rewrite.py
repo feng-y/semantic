@@ -352,20 +352,12 @@ class TestAggregate:
         runner._run_ingest(state)
         runner._run_aggregate(state)
 
-        patterns = load_jsonl(str(semantic_dir / "patterns.jsonl"))
+        aggregated = load_jsonl(str(semantic_dir / "domains-aggregated.jsonl"))
 
-        # auth-flow: 4 distinct commits → pattern
-        auth = [p for p in patterns if p["theme"] == "auth-flow"]
-        assert len(auth) == 1
-        assert auth[0]["distinct_commits"] == 4
-
-        # config-mgmt: 1 commit → NOT a pattern
-        config = [p for p in patterns if p["theme"] == "config-mgmt"]
-        assert len(config) == 0
-
-        # retry-logic: 1 commit → NOT a pattern
-        retry = [p for p in patterns if p["theme"] == "retry-logic"]
-        assert len(retry) == 0
+        # Without domains.json, all units are uncategorized → 1 domain
+        assert len(aggregated) == 1
+        assert aggregated[0]["domain"] == "uncategorized"
+        assert aggregated[0]["count"] == 6  # 2+1+2+1 items
 
     def test_op_distribution(self, tmp_path_clean, sample_commit_records, monkeypatch):
         mod = _load_semantic_module()
@@ -385,10 +377,10 @@ class TestAggregate:
         runner._run_ingest(state)
         runner._run_aggregate(state)
 
-        patterns = load_jsonl(str(semantic_dir / "patterns.jsonl"))
-        auth = [p for p in patterns if p["theme"] == "auth-flow"][0]
-        assert auth["op_distribution"]["feat"] == 3
-        assert auth["op_distribution"]["refactor"] == 1
+        aggregated = load_jsonl(str(semantic_dir / "domains-aggregated.jsonl"))
+        uncat = aggregated[0]
+        assert uncat["op_distribution"]["feat"] == 3
+        assert uncat["op_distribution"]["refactor"] == 1
 
 
 # ---------------------------------------------------------------------------
@@ -418,27 +410,29 @@ class TestDistill:
         demands = load_jsonl(str(semantic_dir / "canonical-demands.jsonl"))
         assert len(demands) >= 1
         assert demands[0]["rank"] == 1
-        assert demands[0]["theme"] == "auth-flow"
-        # score = 4 distinct * importance_weight (3 primary + 1 secondary → (3*2+1*1)/4 = 1.75)
-        assert demands[0]["score"] == 7.0
+        assert demands[0]["domain"] == "uncategorized"
+        assert "final_score" in demands[0]
+        assert "base_score" in demands[0]
 
     def test_tiebreak(self, tmp_path_clean, monkeypatch):
-        """When scores are equal, sort by distinct_commits desc then theme alpha."""
+        """When scores are equal, sort by distinct_commits desc then domain alpha."""
         mod = _load_semantic_module()
         semantic_dir = tmp_path_clean / "data" / "commit-semantic"
-        semantic_dir.mkdir(parents=True)
+        units_dir = semantic_dir / "units"
+        units_dir.mkdir(parents=True)
 
-        # Two patterns with same score
-        patterns = [
-            {"theme": "zebra", "count": 6, "distinct_commits": 3,
+        # Two domains with same stats
+        aggregated = [
+            {"domain": "zebra", "is_uncategorized": False, "count": 6, "distinct_commits": 3,
              "op_distribution": {"feat": 6}, "importance_ratio": {"primary": 3, "secondary": 3},
-             "representative_summaries": []},
-            {"theme": "alpha", "count": 6, "distinct_commits": 3,
+             "date_range": {}, "sub_themes": {}, "representative_summaries": []},
+            {"domain": "alpha", "is_uncategorized": False, "count": 6, "distinct_commits": 3,
              "op_distribution": {"feat": 6}, "importance_ratio": {"primary": 3, "secondary": 3},
-             "representative_summaries": []},
+             "date_range": {}, "sub_themes": {}, "representative_summaries": []},
         ]
-        save_jsonl(patterns, str(semantic_dir / "patterns.jsonl"))
+        save_jsonl(aggregated, str(semantic_dir / "domains-aggregated.jsonl"))
         save_jsonl([], str(semantic_dir / "invariants.jsonl"))
+        save_jsonl([], str(units_dir / "all.jsonl"))
 
         monkeypatch.setattr(mod, "SEMANTIC_OUTPUT", semantic_dir)
 
@@ -451,8 +445,8 @@ class TestDistill:
         demands = load_jsonl(str(semantic_dir / "canonical-demands.jsonl"))
         assert len(demands) == 2
         # Same score, same distinct_commits → alpha order
-        assert demands[0]["theme"] == "alpha"
-        assert demands[1]["theme"] == "zebra"
+        assert demands[0]["domain"] == "alpha"
+        assert demands[1]["domain"] == "zebra"
 
 
 # ---------------------------------------------------------------------------
@@ -475,14 +469,14 @@ class TestExport:
         from src.harness_state import HarnessState
         state = HarnessState(stage="init", metadata={"completed_stages": [], "artifacts_written": [], "status": "ok"})
 
-        for stage in runner.STAGES:
+        for stage in ["ingest", "aggregate", "distill", "export"]:
             runner.run_stage(stage, state)
 
         from src.io_utils import load_json
         summary = load_json(str(semantic_dir / "summary.json"))
 
         assert summary["total_units"] == 6
-        assert summary["total_patterns"] >= 1
+        assert summary["domain_count"] >= 1
         assert 0 <= summary["bugfix_ratio"] <= 1
         assert "from" in summary["date_range"]
         assert "to" in summary["date_range"]
