@@ -162,7 +162,7 @@ class TestHotspot:
             json.dumps({"sha": "abc", "file_paths": ["src/hermes/registry.py", "src/hermes/registry.py"]}) + "\n"
         )
         (tmp_path / "data/commit-semantic/domains-aggregated.jsonl").write_text(
-            json.dumps({"domain": "registry", "commit_count": 2, "file_paths": ["src/hermes/registry.py"]}) + "\n"
+            json.dumps({"domain": "registry", "distinct_commits": 2, "count": 3}) + "\n"
         )
 
         from src.harness_state import HarnessState
@@ -180,6 +180,12 @@ class TestHotspot:
         data = yaml.safe_load(hotspot_maps[0].read_text())
         assert "metadata" in data
         assert "facts" in data
+
+        semantic_fact = next(fact for fact in data["facts"] if fact["domain"] == "semantic_domain")
+        assert semantic_fact["distinct_commits"] == 2
+        assert semantic_fact["statement"] == "Domain 'registry' is a semantic hotspot across 2 commits"
+        assert "commit_count" not in semantic_fact
+        assert "files" not in semantic_fact
 
 
 class TestExtract:
@@ -336,7 +342,7 @@ class TestE2E:
 
         # commit-semantic aggregated domains
         (tmp_path / "data/commit-semantic/domains-aggregated.jsonl").write_text(
-            json.dumps({"domain": "registry", "commit_count": 2, "file_paths": ["src/hermes/registry.py"]}) + "\n"
+            json.dumps({"domain": "registry", "distinct_commits": 2, "count": 3}) + "\n"
         )
 
         from src.harness_state import HarnessState

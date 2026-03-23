@@ -1495,6 +1495,88 @@ class TestCommitSemanticFullPipeline:
         assert state.metadata["needs_llm_classify"] == 1
         assert not (semantic_dir / "units" / "all.jsonl").exists()
 
+    def test_classify_rejects_unknown_domain(self, tmp_path):
+        mod = load_commit_semantic_module()
+        semantic_dir = tmp_path / "data" / "commit-semantic"
+        semantic_dir.mkdir(parents=True)
+        save_json(
+            {
+                "domains": [
+                    {
+                        "domain": "auth",
+                        "description": "Authentication and sessions",
+                        "paths": ["src/auth/"],
+                        "keywords": ["auth", "login"],
+                    }
+                ]
+            },
+            str(semantic_dir / "domains.json"),
+        )
+        mod.SEMANTIC_OUTPUT = semantic_dir
+
+        from src.harness_state import HarnessState
+        runner = mod.CommitSemanticRunner()
+        state = HarnessState(
+            stage="init",
+            metadata={
+                "completed_stages": [],
+                "artifacts_written": [],
+                "status": "ok",
+                "classify_unit_indices": [0],
+            },
+        )
+        units = [{"summary": "Add login"}]
+
+        ok = runner._apply_classify_responses(
+            [json.dumps([{"id": "0", "domain": "unknown"}])],
+            state,
+            units=units,
+        )
+
+        assert ok is False
+        assert "domain" not in units[0]
+
+    def test_classify_rejects_malformed_id(self, tmp_path):
+        mod = load_commit_semantic_module()
+        semantic_dir = tmp_path / "data" / "commit-semantic"
+        semantic_dir.mkdir(parents=True)
+        save_json(
+            {
+                "domains": [
+                    {
+                        "domain": "auth",
+                        "description": "Authentication and sessions",
+                        "paths": ["src/auth/"],
+                        "keywords": ["auth", "login"],
+                    }
+                ]
+            },
+            str(semantic_dir / "domains.json"),
+        )
+        mod.SEMANTIC_OUTPUT = semantic_dir
+
+        from src.harness_state import HarnessState
+        runner = mod.CommitSemanticRunner()
+        state = HarnessState(
+            stage="init",
+            metadata={
+                "completed_stages": [],
+                "artifacts_written": [],
+                "status": "ok",
+                "classify_unit_indices": [0],
+            },
+        )
+        units = [{"summary": "Add login"}]
+
+        ok = runner._apply_classify_responses(
+            [json.dumps([{"id": "not-an-int", "domain": "auth"}])],
+            state,
+            units=units,
+        )
+
+        assert ok is False
+        assert "domain" not in units[0]
+
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
