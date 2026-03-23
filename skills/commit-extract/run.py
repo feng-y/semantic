@@ -1,14 +1,5 @@
 #!/usr/bin/env python3
-"""commit-extract skill implementation.
-
-三角色单向数据流：Main Agent (orchestrator) → Worker Agent ×N → Merge (orchestrator)
-
-Main agent 的 context 只有 SHA 列表 + stat 数字 + worker 完成状态。不接触任何 patch 内容。
-Worker 逐个处理 SHA，按 docs/generate_commit.md prompt 分析，产出 JSON object 后立即 append。
-
-Output:
-  - data/commit-extract/YYYY-MM.jsonl
-"""
+"""commit-extract skill - LLM-only extraction with interactive range selection."""
 
 from __future__ import annotations
 
@@ -19,6 +10,7 @@ import re
 import subprocess
 import sys
 from collections import defaultdict
+from datetime import datetime, timedelta
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
@@ -41,21 +33,11 @@ BINARY_FILE_WEIGHT = 500
 
 
 def parse_stat(stat_output: str) -> int:
-    """Parse git show --stat output to extract weight (insertions + deletions).
-
-    Handles:
-    - Normal: "N files changed, X insertions(+), Y deletions(-)"
-    - Binary: "Bin X -> Y bytes" → fixed weight 500 per binary file
-    - Empty commit: no summary line → weight 0
-    - Missing insertions or deletions → treat as 0
-    """
+    """Parse git show --stat output to extract weight."""
     weight = 0
-
-    # Count binary files
     binary_count = len(re.findall(r'Bin \d+ -> \d+ bytes', stat_output))
     weight += binary_count * BINARY_FILE_WEIGHT
 
-    # Parse summary line
     summary_match = re.search(
         r'(\d+) files? changed(?:, (\d+) insertions?\(\+\))?(?:, (\d+) deletions?\(-\))?',
         stat_output
@@ -81,18 +63,12 @@ def get_stat_weight(repo_path: str, sha: str) -> int:
 
 
 def adaptive_batch(sha_weights: list[tuple[str, int]]) -> list[list[str]]:
-    """Split SHAs into batches by weight budget and count cap.
-
-    - accumulated_weight + next_weight > budget → flush
-    - count >= max → flush
-    - single commit > budget → solo batch
-    """
+    """Split SHAs into batches by weight budget and count cap."""
     batches: list[list[str]] = []
     current_batch: list[str] = []
     current_weight = 0
 
     for sha, weight in sha_weights:
-        # Single commit exceeds budget → solo batch
         if weight > WEIGHT_BUDGET:
             if current_batch:
                 batches.append(current_batch)
@@ -101,7 +77,6 @@ def adaptive_batch(sha_weights: list[tuple[str, int]]) -> list[list[str]]:
             batches.append([sha])
             continue
 
-        # Would exceed budget or count cap → flush
         if (current_weight + weight > WEIGHT_BUDGET
                 or len(current_batch) >= MAX_COMMITS_PER_BATCH):
             if current_batch:
@@ -134,18 +109,11 @@ def get_existing_shas(output_base: Path) -> set[str]:
 
 
 def merge_tmp_files(output_base: Path, tmp_dir: Path) -> int:
-    """Merge tmp/*.jsonl into YYYY-MM.jsonl files.
-
-    - Dedup by sha (later overwrites earlier)
-    - Skip invalid JSON lines
-    - Incremental append to existing YYYY-MM.jsonl
-    - Clean up tmp/
-    """
+    """Merge tmp/*.jsonl into YYYY-MM.jsonl files."""
     tmp_files = sorted(tmp_dir.glob("*.jsonl"))
     if not tmp_files:
         return 0
 
-    # Collect all records, dedup by sha
     all_records: dict[str, dict] = {}
     for tmp_file in tmp_files:
         try:
@@ -159,17 +127,15 @@ def merge_tmp_files(output_base: Path, tmp_dir: Path) -> int:
     if not all_records:
         return 0
 
-    # Group by YYYY-MM from date field
     by_month: dict[str, list[dict]] = defaultdict(list)
     for record in all_records.values():
         date_str = record.get("date", "")
         if date_str and len(date_str) >= 7:
-            month_key = date_str[:7]  # YYYY-MM
+            month_key = date_str[:7]
         else:
             month_key = "unknown"
         by_month[month_key].append(record)
 
-    # Append to existing YYYY-MM.jsonl (skip already-existing SHAs)
     total_new = 0
     for month_key, records in sorted(by_month.items()):
         month_file = output_base / f"{month_key}.jsonl"
@@ -184,7 +150,6 @@ def merge_tmp_files(output_base: Path, tmp_dir: Path) -> int:
             append_jsonl(new_records, str(month_file))
             total_new += len(new_records)
 
-    # Clean up tmp
     for tmp_file in tmp_files:
         tmp_file.unlink()
     try:
@@ -196,7 +161,7 @@ def merge_tmp_files(output_base: Path, tmp_dir: Path) -> int:
 
 
 class CommitExtractRunner(SkillRunner):
-    """Runner for commit-extract pipeline with adaptive batching + LLM workers."""
+    """Runner for commit-extract pipeline - LLM only, no git fallback."""
 
     STAGES = ["collect"]
     PIPELINE = "commit-extract"
@@ -206,6 +171,8 @@ class CommitExtractRunner(SkillRunner):
         self.repo_path: str = "."
         self.commit_range: str | None = None
         self._prompt_content: str | None = None
+        self._pending_shas: list[str] = []
+        self.auto_confirm: bool = False
 
     def run_stage(self, stage: str, state: HarnessState) -> bool:
         if stage == "collect":
@@ -213,13 +180,23 @@ class CommitExtractRunner(SkillRunner):
         return True
 
     def _get_prompt(self) -> str:
-        """Load docs/generate_commit.md prompt."""
+        """Load prompt from skill directory (prompt.md) or fallback to docs/."""
         if self._prompt_content is None:
-            prompt_path = Path("docs/generate_commit.md")
-            if prompt_path.exists():
-                self._prompt_content = prompt_path.read_text(encoding="utf-8")
+            # Priority 1: skill directory
+            skill_prompt = Path(__file__).parent / "prompt.md"
+            if skill_prompt.exists():
+                self._prompt_content = skill_prompt.read_text(encoding="utf-8")
             else:
-                self._prompt_content = ""
+                # Priority 2: docs directory (backward compatibility)
+                docs_prompt = Path("docs/generate_commit.md")
+                if docs_prompt.exists():
+                    self._prompt_content = docs_prompt.read_text(encoding="utf-8")
+                else:
+                    raise FileNotFoundError(
+                        "prompt.md not found in skill directory and "
+                        "docs/generate_commit.md not found. "
+                        "This file is required for LLM extraction."
+                    )
         return self._prompt_content
 
     def _build_worker_prompt(self, shas: list[str]) -> str:
@@ -240,11 +217,68 @@ class CommitExtractRunner(SkillRunner):
         )
         return prefix + prompt
 
+    def _select_range_interactive(self) -> str | None:
+        """Interactive range selection. Returns commit range string or None."""
+        print("\n  Select commit range:")
+        print("    1) Last 30 commits")
+        print("    2) Last 90 commits")
+        print("    3) Last 30 days")
+        print("    4) Last 90 days")
+        print("    5) All commits")
+        print("    6) Custom range (e.g., HEAD~50..HEAD)")
+        print("    7) Date range (YYYY-MM-DD to YYYY-MM-DD)")
+        print()
+
+        choice = input("  Choice [1-7]: ").strip()
+
+        if choice == "1":
+            return "HEAD~30..HEAD"
+        elif choice == "2":
+            return "HEAD~90..HEAD"
+        elif choice == "3":
+            since = (datetime.now() - timedelta(days=30)).strftime("%Y-%m-%d")
+            return f"--since={since}"
+        elif choice == "4":
+            since = (datetime.now() - timedelta(days=90)).strftime("%Y-%m-%d")
+            return f"--since={since}"
+        elif choice == "5":
+            return None  # all commits
+        elif choice == "6":
+            custom = input("  Enter range (e.g., HEAD~50..HEAD): ").strip()
+            return custom if custom else None
+        elif choice == "7":
+            start = input("  Start date (YYYY-MM-DD): ").strip()
+            end = input("  End date (YYYY-MM-DD): ").strip()
+            if start and end:
+                return f"--since={start} --until={end}"
+            elif start:
+                return f"--since={start}"
+            return None
+        else:
+            print("  Invalid choice, using all commits")
+            return None
+
+    def _confirm_extraction(self, count: int) -> bool:
+        """Ask user to confirm before LLM extraction."""
+        if self.auto_confirm:
+            print(f"  Auto-confirming extraction of {count} commits (--yes)")
+            return True
+
+        print(f"\n  About to extract {count} commits using LLM analysis.")
+        print("  This will:")
+        print("    - Read docs/generate_commit.md as the analysis prompt")
+        print("    - Use Claude to analyze each commit diff")
+        print("    - Take approximately ~30s per commit")
+        print(f"    - Estimated time: ~{count * 30 // 60} minutes")
+        print()
+
+        confirm = input("  Continue? [Y/n]: ").strip().lower()
+        return confirm in ("y", "yes", "")
+
     def _run_collect(self, state: HarnessState) -> bool:
         """Orchestrator: SHA collection → stat estimation → adaptive batching → worker manifest."""
         print(f"\n[{self.PIPELINE}] Collecting commits")
         print(f"  Repo: {self.repo_path}")
-        print(f"  Range: {self.commit_range or 'all'}")
 
         OUTPUT_BASE.mkdir(parents=True, exist_ok=True)
 
@@ -263,6 +297,8 @@ class CommitExtractRunner(SkillRunner):
         # 2. Resume: exclude already-processed SHAs
         existing_shas = get_existing_shas(OUTPUT_BASE)
         new_shas = [s for s in all_shas if s not in existing_shas]
+        self._pending_shas = new_shas
+
         if existing_shas:
             print(f"  Already processed: {len(existing_shas)}, new: {len(new_shas)}")
 
@@ -275,25 +311,30 @@ class CommitExtractRunner(SkillRunner):
             print("  Found interrupted tmp files, merging first...")
             merged = merge_tmp_files(OUTPUT_BASE, TMP_DIR)
             print(f"  Merged {merged} records from previous run")
-            # Update existing set incrementally instead of re-scanning
             existing_shas = get_existing_shas(OUTPUT_BASE)
             new_shas = [s for s in all_shas if s not in existing_shas]
+            self._pending_shas = new_shas
             if not new_shas:
                 print("  All commits now processed after merge")
                 return True
 
-        # 4. Weight estimation via git show --stat
+        # 4. Confirm before LLM extraction
+        if not self._confirm_extraction(len(new_shas)):
+            print("  Cancelled by user")
+            return True
+
+        # 5. Weight estimation via git show --stat
         print(f"  Estimating weights for {len(new_shas)} commits...")
         sha_weights = []
         for sha in new_shas:
             weight = get_stat_weight(self.repo_path, sha)
             sha_weights.append((sha, weight))
 
-        # 5. Adaptive batching
+        # 6. Adaptive batching
         batches = adaptive_batch(sha_weights)
         print(f"  Created {len(batches)} batches")
 
-        # 6. Create batch manifest for workers
+        # 7. Create batch manifest for workers
         TMP_DIR.mkdir(parents=True, exist_ok=True)
         prompt_content = self._get_prompt()
         manifest = {
@@ -321,154 +362,14 @@ class CommitExtractRunner(SkillRunner):
         save_json(manifest, manifest_path)
         print(f"\n  Manifest written to {manifest_path}")
 
-        if self._use_task_agents():
-            print(f"  Task-agent orchestration enabled via {USE_TASK_AGENTS_ENV}=1")
-            print(f"  Workers should write to {TMP_DIR}/batch_NNNN.jsonl")
-            print("  After all workers complete, run merge to consolidate.")
-        else:
-            print("  Running local worker fallback...")
-            processed = self._run_local_workers(manifest)
-            merged = merge_tmp_files(OUTPUT_BASE, TMP_DIR)
-            print(f"  Local fallback wrote {processed} records")
-            print(f"  Merged {merged} new records into monthly JSONL")
+        # 8. Enable LLM extraction (task-agent mode)
+        print(f"  Task-agent orchestration enabled (LLM extraction)")
+        print(f"  Workers should write to {TMP_DIR}/batch_NNNN.jsonl")
+        print("  After all workers complete, run merge to consolidate.")
+        os.environ[USE_TASK_AGENTS_ENV] = "1"
 
         self.add_artifact(state, str(OUTPUT_BASE))
         return True
-
-    def _use_task_agents(self) -> bool:
-        """Return True when external task-agent orchestration is explicitly enabled."""
-        return os.environ.get(USE_TASK_AGENTS_ENV, "").lower() in ("1", "true", "yes")
-
-    def _run_local_workers(self, manifest: dict) -> int:
-        """Process manifest batches locally with deterministic git-derived extraction."""
-        total = 0
-        for batch in manifest.get("batches", []):
-            output_path = batch.get("output_path")
-            if not output_path:
-                continue
-
-            records = []
-            for sha in batch.get("shas", []):
-                record = self._extract_commit_record(sha)
-                if record is not None:
-                    records.append(record)
-
-            if records:
-                append_jsonl(records, output_path)
-                total += len(records)
-
-        return total
-
-    def _extract_commit_record(self, sha: str) -> dict | None:
-        """Build a schema-valid commit-extract record from git metadata."""
-        try:
-            meta_result = subprocess.run(
-                [
-                    "git", "-C", self.repo_path,
-                    "show", "--no-patch",
-                    "--format=%an%x00%aI%x00%B",
-                    sha,
-                ],
-                capture_output=True,
-                text=True,
-                check=True,
-            )
-            stat_result = subprocess.run(
-                ["git", "-C", self.repo_path, "show", "--stat", "--summary", "--format=", sha],
-                capture_output=True,
-                text=True,
-                check=True,
-            )
-        except subprocess.CalledProcessError as e:
-            logger.warning("Failed to extract commit %s: %s", sha, e)
-            return None
-
-        parts = meta_result.stdout.split("\x00", 2)
-        author = parts[0].strip() if len(parts) > 0 else ""
-        date = parts[1].strip() if len(parts) > 1 else ""
-        message = parts[2].strip() if len(parts) > 2 else ""
-        summary = next((line.strip() for line in message.splitlines() if line.strip()), "")
-        body_lines = [line.strip() for line in message.splitlines()[1:] if line.strip()]
-
-        weight = parse_stat(stat_result.stdout)
-        summary_lower = summary.lower()
-        op = self._classify_op(summary_lower)
-        theme = self._derive_theme(summary)
-        section_name = self._derive_section_name(summary)
-        item_summary = body_lines[0] if body_lines else (summary or f"Update in {theme}")
-
-        rules_invariants = []
-        for line in body_lines[1:]:
-            if any(keyword in line.lower() for keyword in ("must", "should", "ensure", "always", "never")):
-                rules_invariants.append({
-                    "kind": "rule",
-                    "statement": line,
-                    "enforced_by_commit": False,
-                })
-
-        if not rules_invariants:
-            for line in body_lines:
-                if any(keyword in line.lower() for keyword in ("must", "should", "ensure", "always", "never")):
-                    rules_invariants.append({
-                        "kind": "rule",
-                        "statement": line,
-                        "enforced_by_commit": False,
-                    })
-
-        return {
-            "sha": sha,
-            "author": author,
-            "date": date,
-            "is_large_aggregate": weight >= WEIGHT_BUDGET,
-            "is_mixed": False,
-            "sections": [{
-                "name": section_name,
-                "theme": theme,
-                "importance": "primary",
-                "items": [{
-                    "op": op,
-                    "summary": item_summary,
-                }],
-            }],
-            "rules_invariants": rules_invariants,
-        }
-
-    def _classify_op(self, summary_lower: str) -> str:
-        """Map commit summary text to the existing commit-extract op taxonomy."""
-        if any(token in summary_lower for token in ("bugfix", "fix", "hotfix")):
-            return "bugfix"
-        if "refactor" in summary_lower:
-            return "refactor"
-        if any(token in summary_lower for token in ("test", "spec")):
-            return "test"
-        if any(token in summary_lower for token in ("config", "ci", "build", "infra")):
-            return "config"
-        if any(token in summary_lower for token in ("feat", "feature", "add", "implement")):
-            return "feat"
-        return "other"
-
-    def _derive_theme(self, summary: str) -> str:
-        """Derive a stable-ish theme slug from commit summary text."""
-        text = summary.strip()
-        if not text:
-            return "misc"
-        if ":" in text:
-            text = text.split(":", 1)[1].strip() or text
-        slug = re.sub(r"[^a-z0-9]+", "-", text.lower()).strip("-")
-        return slug or "misc"
-
-    def _derive_section_name(self, summary: str) -> str:
-        """Create a readable section name from the commit summary."""
-        text = summary.strip()
-        if not text:
-            return "General changes"
-        if ":" in text:
-            prefix, rest = text.split(":", 1)
-            label = rest.strip() or prefix.strip()
-        else:
-            label = text
-        label = label[:1].upper() + label[1:]
-        return label
 
     def handle_merge(self) -> int:
         """Merge tmp files after workers complete."""
@@ -486,13 +387,34 @@ class CommitExtractRunner(SkillRunner):
         parser.add_argument("--repo", default=".")
         parser.add_argument("--range", help="Commit range (e.g. HEAD~10..HEAD)")
         parser.add_argument("--merge", action="store_true", help="Merge tmp files only")
+        parser.add_argument("--interactive", "-i", action="store_true",
+                          help="Interactive mode: select range and confirm")
+        parser.add_argument("--yes", "-y", action="store_true",
+                          help="Auto-confirm extraction without prompting")
         args = parser.parse_args(argv)
 
         if args.merge:
             return self.handle_merge()
 
         self.repo_path = args.repo
-        self.commit_range = args.range
+        self.auto_confirm = args.yes
+
+        if args.interactive:
+            # Interactive mode
+            self.commit_range = self._select_range_interactive()
+            if self.commit_range:
+                print(f"  Selected range: {self.commit_range}")
+        elif args.range:
+            self.commit_range = args.range
+        elif args.yes:
+            # Auto mode with --yes: use default range
+            self.commit_range = "HEAD~30..HEAD"
+            print(f"  Auto-selecting default range: {self.commit_range}")
+        else:
+            # No range, no --yes: enter interactive mode
+            self.commit_range = self._select_range_interactive()
+            if self.commit_range:
+                print(f"  Selected range: {self.commit_range}")
 
         return super().handle_run()
 

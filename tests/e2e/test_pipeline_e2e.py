@@ -19,28 +19,22 @@ class TestFullPipelineE2E:
     """Test full pipeline with temp git repo."""
 
     def test_commit_extract_produces_manifest(self, temp_git_repo: Path, tmp_path: Path):
-        """commit-extract run completes locally and writes monthly JSONL output."""
+        """commit-extract run creates manifest for LLM workers."""
         result = subprocess.run(
             [sys.executable, str(repo_root / "skills/commit-extract/run.py"), "run",
-             "--repo", str(temp_git_repo)],
+             "--repo", str(temp_git_repo), "--range", "HEAD", "--yes"],
             capture_output=True, text=True, cwd=tmp_path,
         )
         assert result.returncode == 0, f"commit-extract failed: {result.stderr}\n{result.stdout}"
 
         extract_dir = tmp_path / "data" / "commit-extract"
         manifest = extract_dir / "tmp" / "manifest.json"
-        monthly_files = sorted(extract_dir.glob("????-??.jsonl"))
 
         assert manifest.exists(), f"manifest.json not found at {manifest}"
-        assert monthly_files, f"monthly JSONL not found in {extract_dir}"
 
         data = json.loads(manifest.read_text())
         assert data["total_shas"] >= 1
         assert len(data["batches"]) >= 1
-
-        records = [json.loads(line) for line in monthly_files[0].read_text().splitlines() if line.strip()]
-        assert records, "monthly JSONL should contain at least one record"
-        assert {"sha", "author", "date", "sections", "rules_invariants"}.issubset(records[0])
 
     def test_commit_semantic_ingest_stage(self, temp_git_repo: Path, tmp_path: Path):
         """commit-semantic ingest reads JSONL and produces units."""

@@ -52,6 +52,7 @@ class TestCommitExtractSkill:
 
             runner = mod.CommitExtractRunner()
             runner.repo_path = str(repo_path)
+            runner.auto_confirm = True  # Skip interactive confirmation
 
             # Patch output to tmp
             saved_base = mod.OUTPUT_BASE
@@ -77,7 +78,7 @@ class TestCommitExtractSkill:
             assert len(manifest["batches"][0]["shas"]) == 1
 
     def test_collect_local_fallback_writes_monthly_jsonl(self):
-        """Full local collect path writes schema-valid monthly JSONL output."""
+        """LLM mode creates manifest and batch files, not direct monthly output."""
         mod = load_commit_extract_module()
 
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -98,6 +99,7 @@ class TestCommitExtractSkill:
 
             runner = mod.CommitExtractRunner()
             runner.repo_path = str(repo_path)
+            runner.auto_confirm = True  # Skip interactive confirmation
 
             saved_base = mod.OUTPUT_BASE
             saved_tmp = mod.TMP_DIR
@@ -108,25 +110,21 @@ class TestCommitExtractSkill:
             state = HarnessState(stage="init", metadata={"completed_stages": [], "artifacts_written": [], "status": "ok"})
             result = runner._run_collect(state)
 
-            month_files = list((Path(tmpdir) / "output").glob("*.jsonl"))
+            # LLM mode: manifest created with batch definitions
+            # Batch files are written by workers, not orchestrator
+            manifest_path = Path(tmpdir) / "output" / "tmp" / "manifest.json"
 
             mod.OUTPUT_BASE = saved_base
             mod.TMP_DIR = saved_tmp
 
             assert result is True
-            assert len(month_files) == 1
+            assert manifest_path.exists(), "Manifest should be created"
 
-            records = [json.loads(line) for line in month_files[0].read_text().splitlines() if line.strip()]
-            assert len(records) == 1
-            record = records[0]
-            assert record["sha"]
-            assert record["author"] == "Test User"
-            assert "T" in record["date"]
-            assert record["sections"]
-            assert record["sections"][0]["items"][0]["op"] == "feat"
-            assert record["rules_invariants"] == [
-                {"kind": "rule", "statement": "Ensure auth stays enabled.", "enforced_by_commit": False}
-            ]
+            # Verify manifest structure
+            manifest = json.loads(manifest_path.read_text())
+            assert manifest["total_shas"] == 1
+            assert len(manifest["batches"]) == 1
+            assert manifest["batches"][0]["batch_id"] == "batch_0000"
 
 
 class TestCommitExtractParseStat:
