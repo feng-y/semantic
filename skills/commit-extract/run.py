@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import logging
 import os
 import re
@@ -264,6 +265,12 @@ class CommitExtractRunner(SkillRunner):
             print(f"  Auto-confirming extraction of {count} commits (--yes)")
             return True
 
+        # Non-TTY without --yes: cannot prompt, require explicit confirmation
+        if not sys.stdin.isatty():
+            print(f"\n  Error: Non-interactive mode requires --yes flag to confirm")
+            print(f"  (About to extract {count} commits)")
+            return False
+
         print(f"\n  About to extract {count} commits using LLM analysis.")
         print("  This will:")
         print("    - Read docs/generate_commit.md as the analysis prompt")
@@ -371,6 +378,52 @@ class CommitExtractRunner(SkillRunner):
         self.add_artifact(state, str(OUTPUT_BASE))
         return True
 
+    def handle_status(self) -> int:
+        """Show current extraction status and progress."""
+        print(f"\n[{self.PIPELINE}] Status")
+        print(f"  Repo: {self.repo_path}")
+
+        # 1. Check existing output
+        output_files = sorted(OUTPUT_BASE.glob("*.jsonl"))
+        total_extracted = 0
+        for f in output_files:
+            if f.name != "tmp":
+                records = list(load_jsonl(str(f), skip_errors=True))
+                total_extracted += len(records)
+                print(f"  ✓ {f.name}: {len(records)} commits")
+
+        # 2. Check manifest and workers
+        manifest_path = TMP_DIR / "manifest.json"
+        if manifest_path.exists():
+            manifest = json.loads(manifest_path.read_text())
+            total_batches = manifest.get("total_batches", 0)
+            total_shas = manifest.get("total_shas", 0)
+
+            # Count completed batches
+            completed = 0
+            for batch in manifest.get("batches", []):
+                output_file = Path(batch.get("output_path", ""))
+                if output_file.exists() and output_file.stat().st_size > 0:
+                    completed += 1
+
+            print(f"\n  Workers:")
+            print(f"    Total batches: {total_batches}")
+            print(f"    Completed: {completed}/{total_batches}")
+            print(f"    Pending: {total_batches - completed}")
+            print(f"    Total SHAs to extract: {total_shas}")
+
+            if completed < total_batches:
+                print(f"\n  Run workers to process pending batches:")
+                print(f"    Workers read: {TMP_DIR}/manifest.json")
+                print(f"    Workers write: {TMP_DIR}/batch_*.jsonl")
+                print(f"    Then merge: python skills/commit-extract/run.py --merge")
+        else:
+            print(f"\n  No active extraction. Run with:")
+            print(f"    python skills/commit-extract/run.py")
+
+        print(f"\n  Output directory: {OUTPUT_BASE}")
+        return 0
+
     def handle_merge(self) -> int:
         """Merge tmp files after workers complete."""
         if not TMP_DIR.exists():
@@ -387,6 +440,7 @@ class CommitExtractRunner(SkillRunner):
         parser.add_argument("--repo", default=".")
         parser.add_argument("--range", help="Commit range (e.g. HEAD~10..HEAD)")
         parser.add_argument("--merge", action="store_true", help="Merge tmp files only")
+        parser.add_argument("--status", action="store_true", help="Show extraction status")
         parser.add_argument("--interactive", "-i", action="store_true",
                           help="Interactive mode: select range and confirm")
         parser.add_argument("--yes", "-y", action="store_true",
@@ -395,6 +449,8 @@ class CommitExtractRunner(SkillRunner):
 
         if args.merge:
             return self.handle_merge()
+        if args.status:
+            return self.handle_status()
 
         self.repo_path = args.repo
         self.auto_confirm = args.yes
@@ -405,13 +461,16 @@ class CommitExtractRunner(SkillRunner):
             if self.commit_range:
                 print(f"  Selected range: {self.commit_range}")
         elif args.range:
+            # Specified range but still need confirmation (unless --yes)
             self.commit_range = args.range
-        elif args.yes:
-            # Auto mode with --yes: use default range
-            self.commit_range = "HEAD~30..HEAD"
-            print(f"  Auto-selecting default range: {self.commit_range}")
+            print(f"  Using specified range: {self.commit_range}")
+        elif not sys.stdin.isatty():
+            # Non-TTY without range: error out, don't auto-run
+            print("Error: Non-interactive mode requires --range flag")
+            print("  --range='HEAD~30..HEAD'")
+            return 1
         else:
-            # No range, no --yes: enter interactive mode
+            # TTY but no args: enter interactive mode
             self.commit_range = self._select_range_interactive()
             if self.commit_range:
                 print(f"  Selected range: {self.commit_range}")
