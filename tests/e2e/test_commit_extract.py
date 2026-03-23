@@ -1,5 +1,9 @@
-"""E2E tests for commit-extract skill."""
+"""E2E tests for commit-extract skill (rewritten architecture).
 
+Tests the new orchestrator + adaptive batching + JSONL output.
+"""
+
+import json
 import subprocess
 import sys
 import tempfile
@@ -7,9 +11,10 @@ from pathlib import Path
 
 import pytest
 
-# Helper to load skill module
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+
+
 def load_commit_extract_module():
-    """Load commit-extract skill module."""
     import importlib.util
     repo_root = Path(__file__).parent.parent.parent
     spec = importlib.util.spec_from_file_location(
@@ -23,255 +28,169 @@ def load_commit_extract_module():
 
 
 class TestCommitExtractSkill:
-    """E2E tests for commit-extract skill."""
-
-    @pytest.fixture
-    def mock_repo(self):
-        """Create a temporary git repo with test commits."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            repo_path = Path(tmpdir) / "test_repo"
-            repo_path.mkdir()
-
-            # Init git repo
-            subprocess.run(["git", "init"], cwd=repo_path, check=True)
-            subprocess.run(["git", "config", "user.email", "test@test.com"], cwd=repo_path, check=True)
-            subprocess.run(["git", "config", "user.name", "Test User"], cwd=repo_path, check=True)
-
-            # Create initial commit (last month)
-            (repo_path / "README.md").write_text("# Test Repo\n")
-            subprocess.run(["git", "add", "."], cwd=repo_path, check=True)
-            subprocess.run(["git", "commit", "-m", "Initial commit", "--date", "2024-01-15T10:00:00"], cwd=repo_path, check=True)
-
-            # Create feature commit
-            (repo_path / "src").mkdir()
-            (repo_path / "src/parser.py").write_text("def parse(): pass\n")
-            subprocess.run(["git", "add", "."], cwd=repo_path, check=True)
-            subprocess.run(["git", "commit", "-m", "feat: add parser module", "--date", "2024-01-16T11:00:00"], cwd=repo_path, check=True)
-
-            # Create bugfix commit
-            (repo_path / "src/parser.py").write_text("def parse(input): return input.strip()\n")
-            subprocess.run(["git", "add", "."], cwd=repo_path, check=True)
-            subprocess.run(["git", "commit", "-m", "bugfix: fix parser boundary", "--date", "2024-01-17T12:00:00"], cwd=repo_path, check=True)
-
-            yield repo_path
+    """Basic skill structure tests."""
 
     def test_skill_exists(self):
-        """Test that commit-extract skill exists."""
         mod = load_commit_extract_module()
         runner = mod.CommitExtractRunner()
         assert runner.PIPELINE == "commit-extract"
         assert runner.STAGES == ["collect"]
 
-    def test_collect_groups_by_month(self, mock_repo, tmp_path):
-        """Test that commits are grouped by month."""
+    def test_collect_produces_manifest(self):
+        """Collect stage produces a batch manifest for workers."""
         mod = load_commit_extract_module()
 
-        # Setup sys.path for src imports
-        repo_root = Path(__file__).parent.parent.parent
-        sys.path.insert(0, str(repo_root))
-
-        from src.harness_state import HarnessState
-
-        runner = mod.CommitExtractRunner()
-        runner.repo_path = str(mock_repo)
-
-        state = HarnessState(
-            stage="init",
-            metadata={"completed_stages": [], "artifacts_written": []}
-        )
-
-        # Run collect stage
-        result = runner._run_collect(state)
-        assert result is True
-
-        # Check output exists
-        output_dir = Path("data/commit-extract")
-        assert output_dir.exists()
-
-        # Check month file exists
-        month_file = output_dir / "2024-01.yaml"
-        assert month_file.exists()
-
-        # Load and verify structure
-        import yaml
-        with open(month_file) as f:
-            data = yaml.safe_load(f)
-
-        assert "metadata" in data
-        assert "commits" in data
-        assert data["metadata"]["month"] == "2024-01"
-        assert data["metadata"]["total_commits"] == 3
-
-        # Verify commit structure
-        commits = data["commits"]
-        assert len(commits) == 3
-        for commit in commits:
-            assert "commit_id" in commit
-            assert "timestamp" in commit
-            assert "author" in commit
-            assert "original_message" in commit
-            assert "files" in commit
-            assert "diff_chunks" in commit
-            assert "commit_log" in commit
-
-        # Cleanup
-        import shutil
-        shutil.rmtree(output_dir, ignore_errors=True)
-
-
-class TestCommitExtractWorkerSpawn:
-    """Tests for worker batching and spawning architecture."""
-
-    def test_batch_commits(self):
-        """Test that commits are batched into groups of 30."""
-        import importlib.util
-        repo_root = Path(__file__).parent.parent.parent
-        spec = importlib.util.spec_from_file_location(
-            "commit_extract2",
-            str(repo_root / "skills/commit-extract/run.py")
-        )
-        mod = importlib.util.module_from_spec(spec)
-        sys.modules["commit_extract2"] = mod
-        spec.loader.exec_module(mod)
-
-        runner = mod.CommitExtractRunner()
-        commits = [{"commit_id": f"abc{i:03d}", "original_message": f"msg{i}"} for i in range(65)]
-        batches = runner._batch_commits(commits, batch_size=30)
-        assert len(batches) == 3
-        assert len(batches[0]) == 30
-        assert len(batches[1]) == 30
-        assert len(batches[2]) == 5
-
-    def test_commit_log_regenerated_from_diff_not_original_message(self):
-        """Worker regenerates commit_log from diff, not from original_message.
-
-        The critical constraint: commit_log must NEVER be taken from the
-        original commit message or issue text. Workers receive diff_chunks
-        and regenerate commit_log from code changes alone.
-        """
-        import importlib.util
-        repo_root = Path(__file__).parent.parent.parent
-        spec = importlib.util.spec_from_file_location(
-            "commit_extract3",
-            str(repo_root / "skills/commit-extract/run.py")
-        )
-        mod = importlib.util.module_from_spec(spec)
-        sys.modules["commit_extract3"] = mod
-        spec.loader.exec_module(mod)
-
-        runner = mod.CommitExtractRunner()
-
-        # Simulate a worker response where commit_log is regenerated from diff
-        original_message = "feat: add stuff"
-        commit_log = runner._worker_regenerate_commit_log(
-            commit_id="abc123",
-            original_message=original_message,
-            diff_chunks=["+def foo(): pass", "-def foo(): pass"]
-        )
-
-        # commit_log should be present (not None/empty)
-        assert commit_log is not None
-        assert len(commit_log) > 0
-        # The implementation should NOT simply copy original_message as commit_log
-        # It should regenerate from diff_chunks. The actual value depends on the
-        # prompt, but at minimum the field exists and is populated.
-
-    def test_worker_prompt_includes_diff_chunks_not_original_message(self):
-        """Verify worker prompt focuses on diff_chunks, not original_message."""
-        import importlib.util
-        repo_root = Path(__file__).parent.parent.parent
-        spec = importlib.util.spec_from_file_location(
-            "commit_extract4",
-            str(repo_root / "skills/commit-extract/run.py")
-        )
-        mod = importlib.util.module_from_spec(spec)
-        sys.modules["commit_extract4"] = mod
-        spec.loader.exec_module(mod)
-
-        runner = mod.CommitExtractRunner()
-
-        # Build a worker batch payload
-        commits = [
-            {
-                "commit_id": "abc123",
-                "original_message": "fix: add parser legacy support",
-                "diff_chunks": ["+if version < 3: pass  # legacy compat"],
-                "files": ["src/parser.py"],
-            }
-        ]
-        prompt = runner._build_worker_prompt(commits)
-
-        # The prompt should include diff_chunks content
-        assert "diff" in prompt.lower() or "legacy" in prompt.lower()
-        # The prompt should reference original_message as context (not the source)
-        assert "original_message" in prompt
-
-
-class TestCommitExtractOutputSchema:
-    """Tests for the output YAML schema."""
-
-    def test_output_schema_has_correct_fields(self, tmp_path):
-        """Output YAML must have metadata + commits, each commit with specific fields."""
-        import importlib.util
-        repo_root = Path(__file__).parent.parent.parent
-        spec = importlib.util.spec_from_file_location(
-            "commit_extract5",
-            str(repo_root / "skills/commit-extract/run.py")
-        )
-        mod = importlib.util.module_from_spec(spec)
-        sys.modules["commit_extract5"] = mod
-        spec.loader.exec_module(mod)
-
-        # Create a minimal temp repo
         with tempfile.TemporaryDirectory() as tmpdir:
-            repo_path = Path(tmpdir) / "repo"
+            repo_path = Path(tmpdir) / "test_repo"
             repo_path.mkdir()
-            subprocess.run(["git", "init"], cwd=repo_path, check=True)
-            subprocess.run(["git", "config", "user.email", "t@t.com"], cwd=repo_path, check=True)
-            subprocess.run(["git", "config", "user.name", "T"], cwd=repo_path, check=True)
+            subprocess.run(["git", "init"], cwd=repo_path, capture_output=True, check=True)
+            subprocess.run(["git", "config", "user.email", "t@t.com"], cwd=repo_path, capture_output=True, check=True)
+            subprocess.run(["git", "config", "user.name", "T"], cwd=repo_path, capture_output=True, check=True)
             (repo_path / "f.txt").write_text("hello\n")
-            subprocess.run(["git", "add", "."], cwd=repo_path, check=True)
-            subprocess.run(["git", "commit", "-m", "feat: initial", "--date", "2024-03-15T10:30:00"], cwd=repo_path, check=True)
+            subprocess.run(["git", "add", "."], cwd=repo_path, capture_output=True, check=True)
+            subprocess.run(["git", "commit", "-m", "feat: initial"], cwd=repo_path, capture_output=True, check=True)
 
             runner = mod.CommitExtractRunner()
             runner.repo_path = str(repo_path)
 
-            # Patch output base to use tmp_path
+            # Patch output to tmp
             saved_base = mod.OUTPUT_BASE
-            mod.OUTPUT_BASE = tmp_path / "data" / "commit-extract"
+            saved_tmp = mod.TMP_DIR
+            mod.OUTPUT_BASE = Path(tmpdir) / "output"
+            mod.TMP_DIR = mod.OUTPUT_BASE / "tmp"
 
-            sys.path.insert(0, str(repo_root))
             from src.harness_state import HarnessState
-            state = HarnessState(stage="init", metadata={"completed_stages": [], "artifacts_written": []})
-            runner._run_collect(state)
+            state = HarnessState(stage="init", metadata={"completed_stages": [], "artifacts_written": [], "status": "ok"})
+            result = runner._run_collect(state)
 
-            # Verify schema
-            month_file = tmp_path / "data" / "commit-extract" / "2024-03.yaml"
-            assert month_file.exists()
-
-            import yaml
-            data = yaml.safe_load(month_file.read_text())
-
-            # Top-level structure
-            assert "metadata" in data
-            assert "commits" in data
-
-            # Metadata fields
-            assert data["metadata"]["month"] == "2024-03"
-            assert "total_commits" in data["metadata"]
-
-            # Each commit must have these fields
-            for commit in data["commits"]:
-                assert "commit_id" in commit
-                assert "timestamp" in commit
-                assert "author" in commit
-                assert "original_message" in commit
-                assert "files" in commit
-                assert "diff_chunks" in commit
-                assert "commit_log" in commit
-
-            # Restore
             mod.OUTPUT_BASE = saved_base
+            mod.TMP_DIR = saved_tmp
+
+            assert result is True
+
+            manifest_path = Path(tmpdir) / "output" / "tmp" / "manifest.json"
+            assert manifest_path.exists()
+
+            manifest = json.loads(manifest_path.read_text())
+            assert manifest["total_shas"] == 1
+            assert len(manifest["batches"]) == 1
+            assert len(manifest["batches"][0]["shas"]) == 1
+
+
+class TestCommitExtractParseStat:
+    """Tests for git show --stat parsing."""
+
+    def setup_method(self):
+        self.mod = load_commit_extract_module()
+
+    def test_normal(self):
+        assert self.mod.parse_stat(" 3 files changed, 100 insertions(+), 50 deletions(-)") == 150
+
+    def test_insertions_only(self):
+        assert self.mod.parse_stat(" 1 file changed, 10 insertions(+)") == 10
+
+    def test_deletions_only(self):
+        assert self.mod.parse_stat(" 2 files changed, 30 deletions(-)") == 30
+
+    def test_binary(self):
+        assert self.mod.parse_stat(" Bin 0 -> 1024 bytes") == 500
+
+    def test_empty(self):
+        assert self.mod.parse_stat("") == 0
+
+
+class TestCommitExtractAdaptiveBatch:
+    """Tests for adaptive batching by weight."""
+
+    def setup_method(self):
+        self.mod = load_commit_extract_module()
+
+    def test_within_budget(self):
+        batches = self.mod.adaptive_batch([("a", 500), ("b", 500), ("c", 500)])
+        assert batches == [["a", "b", "c"]]
+
+    def test_budget_overflow(self):
+        batches = self.mod.adaptive_batch([("a", 1000), ("b", 1000), ("c", 1000), ("d", 500)])
+        assert batches == [["a", "b", "c"], ["d"]]
+
+    def test_count_cap(self):
+        sha_weights = [(f"s{i}", 1) for i in range(20)]
+        batches = self.mod.adaptive_batch(sha_weights)
+        assert len(batches[0]) == 15
+        assert len(batches[1]) == 5
+
+    def test_oversized_solo(self):
+        batches = self.mod.adaptive_batch([("a", 100), ("b", 5000), ("c", 100)])
+        assert ["b"] in batches
+
+    def test_empty(self):
+        assert self.mod.adaptive_batch([]) == []
+
+
+class TestCommitExtractMerge:
+    """Tests for merge_tmp_files."""
+
+    def setup_method(self):
+        self.mod = load_commit_extract_module()
+
+    def test_dedup_by_sha(self, tmp_path):
+        tmp_dir = tmp_path / "tmp"
+        tmp_dir.mkdir()
+
+        with open(tmp_dir / "b0.jsonl", "w") as f:
+            f.write(json.dumps({"sha": "aaa", "date": "2026-03-01"}) + "\n")
+        with open(tmp_dir / "b1.jsonl", "w") as f:
+            f.write(json.dumps({"sha": "aaa", "date": "2026-03-01", "extra": True}) + "\n")
+            f.write(json.dumps({"sha": "bbb", "date": "2026-03-01"}) + "\n")
+
+        merged = self.mod.merge_tmp_files(tmp_path, tmp_dir)
+        assert merged == 2  # aaa (deduped) + bbb
+
+    def test_skip_invalid_json(self, tmp_path):
+        tmp_dir = tmp_path / "tmp"
+        tmp_dir.mkdir()
+
+        with open(tmp_dir / "b0.jsonl", "w") as f:
+            f.write(json.dumps({"sha": "aaa", "date": "2026-03-01"}) + "\n")
+            f.write("TRUNCATED{invalid\n")
+
+        merged = self.mod.merge_tmp_files(tmp_path, tmp_dir)
+        assert merged == 1
+
+    def test_incremental_append(self, tmp_path):
+        from src.io_utils import save_jsonl, load_jsonl
+        tmp_dir = tmp_path / "tmp"
+        tmp_dir.mkdir()
+
+        save_jsonl([{"sha": "existing", "date": "2026-03-01"}], str(tmp_path / "2026-03.jsonl"))
+
+        with open(tmp_dir / "b0.jsonl", "w") as f:
+            f.write(json.dumps({"sha": "existing", "date": "2026-03-01"}) + "\n")
+            f.write(json.dumps({"sha": "new_one", "date": "2026-03-01"}) + "\n")
+
+        merged = self.mod.merge_tmp_files(tmp_path, tmp_dir)
+        assert merged == 1
+
+        records = load_jsonl(str(tmp_path / "2026-03.jsonl"))
+        assert len(records) == 2
+
+
+class TestCommitExtractWorkerPrompt:
+    """Tests for worker prompt construction."""
+
+    def test_prompt_includes_sha_list(self):
+        mod = load_commit_extract_module()
+        runner = mod.CommitExtractRunner()
+        prompt = runner._build_worker_prompt(["abc123", "def456"])
+        assert "abc123" in prompt
+        assert "def456" in prompt
+
+    def test_prompt_includes_generate_commit_content(self):
+        mod = load_commit_extract_module()
+        runner = mod.CommitExtractRunner()
+        prompt = runner._build_worker_prompt(["abc123"])
+        # Should include content from docs/generate_commit.md
+        assert "sections" in prompt.lower() or "json" in prompt.lower()
 
 
 if __name__ == "__main__":

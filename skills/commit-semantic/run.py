@@ -1,23 +1,20 @@
 #!/usr/bin/env python3
 """commit-semantic skill implementation.
 
-跨 commits 分析、拆分、聚合、提取 canonical patterns，生成统计摘要。
+4 阶段消费 commit-extract JSONL 输出：
+  1. ingest    - 展开 sections 为 semantic units + 收集 rules_invariants
+  2. aggregate - 按 theme 聚合，统计 op 分布 + importance 分布
+  3. distill   - 提取 canonical demands，评分排序
+  4. export    - 汇总统计，生成 summary.json
 
-Stages:
-  1. split    - 按模块拆分 commits
-  2. analyze  - LLM 语义分析
-  3. aggregate- 聚合 patterns
-  4. distill  - 提取 canonical demands
-  5. export   - 生成 summary.yaml 统计摘要
-
-Input: data/commit-extract/*.yaml
+Input: data/commit-extract/*.jsonl
 Output: data/commit-semantic/
 """
 
 from __future__ import annotations
 
 import argparse
-import os
+import logging
 import sys
 from collections import defaultdict
 from datetime import datetime
@@ -25,50 +22,32 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from dataclasses import asdict, dataclass, field
-from typing import Any
-
-from src.harness_state import HarnessState
+from src.harness_state import HarnessState, save_state
 from src.skill_runner import SkillRunner, run_skill
-from src.io_utils import load_yaml, save_yaml, save_json
-from src.types import ExportSummary
+from src.io_utils import load_jsonl, save_jsonl, save_json
 
+logger = logging.getLogger(__name__)
 
 EXTRACT_OUTPUT = Path("data/commit-extract")
 SEMANTIC_OUTPUT = Path("data/commit-semantic")
 
-FUNCTIONAL_PREFIXES = ("feat", "bugfix", "optimize")
-TIER_NAMES = ("high", "medium", "low")
-
-MODULE_KEYWORDS = {
-    "schedule": ["schedule", "timer", "callback"],
-    "reader": ["reader", "dynamic"],
-    "parser": ["parser", "parse"],
-    "config": ["config", "configuration"],
-    "server": ["server", "service"],
-    "client": ["client"],
-    "db": ["database", "db", "storage"],
-    "api": ["api", "endpoint"],
-}
-
 
 class CommitSemanticRunner(SkillRunner):
-    """Runner for commit-semantic pipeline."""
+    """Runner for commit-semantic pipeline (4 stages)."""
 
-    STAGES = ["split", "analyze", "aggregate", "distill", "export"]
+    STAGES = ["ingest", "aggregate", "distill", "export"]
     PIPELINE = "commit-semantic"
 
     def _check_prerequisites(self) -> tuple[bool, str]:
-        """Check if commit-extract output exists."""
+        """Check if commit-extract JSONL output exists."""
         if not EXTRACT_OUTPUT.exists():
             return False, "commit-extract output not found"
-        month_files = list(EXTRACT_OUTPUT.glob("*.yaml"))
-        if not month_files:
-            return False, f"No month files in {EXTRACT_OUTPUT}"
+        jsonl_files = list(EXTRACT_OUTPUT.glob("*.jsonl"))
+        if not jsonl_files:
+            return False, f"No JSONL files in {EXTRACT_OUTPUT}"
         return True, ""
 
     def _require_prerequisites(self) -> bool:
-        """Check prerequisites and print message. Returns True if ok."""
         ok, msg = self._check_prerequisites()
         if not ok:
             print(f"[{self.PIPELINE}] {msg}")
@@ -76,363 +55,254 @@ class CommitSemanticRunner(SkillRunner):
         return True
 
     def run_stage(self, stage: str, state: HarnessState) -> bool:
-        """Execute a single stage."""
         print(f"\n[{self.PIPELINE}] Running stage: {stage}")
-
-        if stage == "split":
-            return self._run_split(state)
-        elif stage == "analyze":
-            return self._run_analyze(state)
-        elif stage == "aggregate":
-            return self._run_aggregate(state)
-        elif stage == "distill":
-            return self._run_distill(state)
-        elif stage == "export":
-            return self._run_export(state)
-
+        dispatch = {
+            "ingest": self._run_ingest,
+            "aggregate": self._run_aggregate,
+            "distill": self._run_distill,
+            "export": self._run_export,
+        }
+        handler = dispatch.get(stage)
+        if handler:
+            return handler(state)
         return True
 
-    # -----------------------------------------------------------------------
-    # Team Agent Architecture Hooks
-    # -----------------------------------------------------------------------
+    # -------------------------------------------------------------------
+    # Stage 1: ingest
+    # -------------------------------------------------------------------
 
-    def _batch_units(
-        self, units: list[dict], batch_size: int = 10
-    ) -> list[list[dict]]:
-        """Split units into batches for worker processing."""
-        return [
-            units[i : i + batch_size] for i in range(0, len(units), batch_size)
-        ]
-
-    def _spawn_worker(self, batch: list[dict], prompt_template: str) -> list[dict]:
-        """Spawn a worker agent for a batch of units.
-
-        In production this is replaced by a real Task agent call.
-        In tests/CLI, falls back to local processing.
-
-        Args:
-            batch: List of unit dicts to process
-            prompt_template: Name of prompt template to use
-
-        Returns:
-            List of processed units with worker-added fields.
-        """
-        # Check if we should use real Task agents
-        use_task = os.environ.get("COMMIT_SEMANTIC_USE_TASK_AGENTS", "").lower() in (
-            "1",
-            "true",
-            "yes",
-        )
-
-        if use_task and not results:
-            print("  [commit-semantic] WARNING: _spawn_worker called with use_task=True but returned no results. Ensure this runs within a Task agent context.")
-
-        # Local processing (default): run _score_unit directly
-        results: list[dict] = []
-        for unit in batch:
-            scored = dict(unit)
-            scored["score"] = self._score_unit(scored)
-            results.append(scored)
-        return results
-
-    def _get_worker_prompt_template(self, name: str) -> str:
-        """Lazy-load a worker prompt template."""
-        prompt_path = Path(__file__).parent / "prompts" / f"{name}.md"
-        if prompt_path.exists():
-            return prompt_path.read_text(encoding="utf-8")
-        return ""
-
-
-    def _detect_modules(self, message: str) -> list[str]:
-        """从 commit message 检测模块."""
-        if not message:
-            return []
-        message_lower = message.lower()
-        return [
-            module
-            for module, keywords in MODULE_KEYWORDS.items()
-            if any(kw in message_lower for kw in keywords)
-        ]
-
-    def _classify_type(self, commit_message: str) -> str:
-        """Classify commit by prefix."""
-        prefix = commit_message.split(":")[0].lower()
-        if any(f in prefix for f in FUNCTIONAL_PREFIXES):
-            return "functional"
-        if "+" in prefix:
-            return "functional"
-        return "non-functional"
-
-    def _score_unit(self, unit: dict) -> int:
-        """Score a functional unit (0-10)."""
-        commit_log = unit.get("commit_log", "")
-        score = 5
-        if 20 < len(commit_log) < 200:
-            score += 2
-        if unit.get("module") != "unknown":
-            score += 2
-        if any(kw in commit_log.lower() for kw in ("fix", "add", "support")):
-            score += 1
-        return min(score, 10)
-
-    def _run_split(self, state: HarnessState) -> bool:
-        """按模块拆分 commits 为 change units."""
-        print("  -> Splitting commits by module")
+    def _run_ingest(self, state: HarnessState) -> bool:
+        """Read JSONL → expand sections into semantic units + collect invariants."""
+        print("  -> Ingesting commit-extract JSONL")
 
         units_dir = SEMANTIC_OUTPUT / "units"
         units_dir.mkdir(parents=True, exist_ok=True)
 
-        all_commits = []
-        for month_file in sorted(EXTRACT_OUTPUT.glob("*.yaml")):
-            data = load_yaml(str(month_file))
-            all_commits.extend(data.get("commits", []))
+        all_units: list[dict] = []
+        all_invariants: list[dict] = []
 
-        print(f"     Loaded {len(all_commits)} commits")
+        for jsonl_file in sorted(EXTRACT_OUTPUT.glob("*.jsonl")):
+            for record in load_jsonl(str(jsonl_file), skip_errors=True):
+                sha = record.get("sha", "")
+                date = record.get("date", "")
+                author = record.get("author", "")
+                is_large = record.get("is_large_aggregate", False)
+                is_mixed = record.get("is_mixed", False)
+                sections = record.get("sections", [])
 
-        units = []
-        for commit in all_commits:
-            # Primary: read commit_log (LLM-regenerated by commit-extract workers)
-            # Fallback: original_message (raw git message) if commit_log missing
-            msg = commit.get("commit_log") or commit.get("original_message", "")
-            modules = self._detect_modules(msg)
+                # Expand each section's items into units
+                for section in sections:
+                    section_name = section.get("name", "")
+                    theme = section.get("theme", "")
+                    importance = section.get("importance", "secondary")
 
-            if not modules:
-                units.append({
-                    "unit_id": commit["commit_id"][:8],
-                    "commit_id": commit["commit_id"],
-                    "timestamp": commit["timestamp"],
-                    "module": "unknown",
-                    "commit_log": msg,
-                    "files": commit.get("files", []),
-                    "diff_chunks": commit.get("diff_chunks", []),
-                })
-            else:
-                for module in modules:
-                    units.append({
-                        "unit_id": f"{commit['commit_id'][:8]}-{module}",
-                        "commit_id": commit["commit_id"],
-                        "timestamp": commit["timestamp"],
-                        "module": module,
-                        "commit_log": msg,
-                        "files": commit.get("files", []),
-                        "diff_chunks": commit.get("diff_chunks", []),
+                    for item in section.get("items", []):
+                        all_units.append({
+                            "sha": sha,
+                            "date": date,
+                            "author": author,
+                            "section_name": section_name,
+                            "theme": theme,
+                            "importance": importance,
+                            "op": item.get("op", "other"),
+                            "summary": item.get("summary", ""),
+                            "is_large_aggregate": is_large,
+                            "is_mixed": is_mixed,
+                        })
+
+                # Collect rules_invariants
+                for inv in record.get("rules_invariants", []):
+                    all_invariants.append({
+                        "sha": sha,
+                        "date": date,
+                        "kind": inv.get("kind", "other"),
+                        "statement": inv.get("statement", ""),
+                        "enforced_by_commit": inv.get("enforced_by_commit", False),
                     })
 
-        save_yaml({
-            "metadata": {
-                "total_units": len(units),
-                "generated_at": datetime.now().isoformat(),
-            },
-            "units": units,
-        }, str(units_dir / "all.yaml"))
+        save_jsonl(all_units, str(units_dir / "all.jsonl"))
+        save_jsonl(all_invariants, str(SEMANTIC_OUTPUT / "invariants.jsonl"))
 
-        print(f"  Split into {len(units)} units")
+        print(f"  Ingested {len(all_units)} units, {len(all_invariants)} invariants")
         self.add_artifact(state, str(units_dir))
         return True
 
-    def _run_analyze(self, state: HarnessState) -> bool:
-        """LLM 语义分析和评分."""
-        print("  -> Analyzing units with scoring")
-
-        units_file = SEMANTIC_OUTPUT / "units" / "all.yaml"
-        if not units_file.exists():
-            print("  ! No units to analyze")
-            return True
-
-        data = load_yaml(str(units_file))
-        units = data.get("units", [])
-
-        for subdir in ["functional/high", "functional/medium", "functional/low", "non-functional/all"]:
-            (SEMANTIC_OUTPUT / subdir).mkdir(parents=True, exist_ok=True)
-
-        high, medium, low, non_functional = [], [], [], []
-
-        for unit in units:
-            commit_log = unit.get("commit_log", "")
-            if self._classify_type(commit_log) == "functional":
-                scored = dict(unit)
-                scored["score"] = self._score_unit(scored)
-                if scored["score"] >= 8:
-                    high.append(scored)
-                elif scored["score"] >= 5:
-                    medium.append(scored)
-                else:
-                    low.append(scored)
-            else:
-                non_functional.append({**unit, "score": None})
-
-        for tier, units_list in [("high", high), ("medium", medium), ("low", low)]:
-            save_yaml({
-                "metadata": {"tier": tier, "count": len(units_list)},
-                "units": units_list,
-            }, str(SEMANTIC_OUTPUT / "functional" / tier / "units.yaml"))
-            print(f"    {tier}: {len(units_list)} units")
-
-        save_yaml({
-            "metadata": {"count": len(non_functional)},
-            "units": non_functional,
-        }, str(SEMANTIC_OUTPUT / "non-functional" / "all" / "units.yaml"))
-        print(f"    non-functional: {len(non_functional)} units")
-
-        save_json({
-            "last_analyzed": datetime.now().isoformat(),
-            "total_units": len(units),
-            "functional": len(high) + len(medium) + len(low),
-            "non_functional": len(non_functional),
-            "by_tier": {
-                "high": len(high),
-                "medium": len(medium),
-                "low": len(low),
-            },
-        }, str(SEMANTIC_OUTPUT / "state.json"))
-
-        print(f"  Analyzed {len(units)} units")
-        self.add_artifact(state, str(SEMANTIC_OUTPUT / "functional"))
-        self.add_artifact(state, str(SEMANTIC_OUTPUT / "non-functional"))
-        return True
+    # -------------------------------------------------------------------
+    # Stage 2: aggregate
+    # -------------------------------------------------------------------
 
     def _run_aggregate(self, state: HarnessState) -> bool:
-        """按模块聚合 patterns."""
-        print("  -> Aggregating by module")
+        """Group units by theme, compute op distribution + importance ratio."""
+        print("  -> Aggregating by theme")
 
-        patterns_dir = SEMANTIC_OUTPUT / "patterns"
-        patterns_dir.mkdir(parents=True, exist_ok=True)
-
-        high_file = SEMANTIC_OUTPUT / "functional" / "high" / "units.yaml"
-        if not high_file.exists():
-            print("  ! No high-scored units")
+        units_file = SEMANTIC_OUTPUT / "units" / "all.jsonl"
+        if not units_file.exists():
+            print("  ! No units to aggregate")
             return True
 
-        data = load_yaml(str(high_file))
-        units = data.get("units", [])
+        units = load_jsonl(str(units_file))
 
-        by_module: dict[str, list] = defaultdict(list)
+        # Group by theme
+        by_theme: dict[str, list[dict]] = defaultdict(list)
         for unit in units:
-            by_module[unit.get("module", "unknown")].append(unit)
+            theme = unit.get("theme", "unknown")
+            by_theme[theme].append(unit)
 
-        for module, module_units in sorted(by_module.items()):
-            save_yaml({
-                "metadata": {
-                    "module": module,
-                    "count": len(module_units),
-                    "generated_at": datetime.now().isoformat(),
-                },
-                "patterns": module_units,
-            }, str(patterns_dir / f"{module}.yaml"))
-            print(f"    {module}: {len(module_units)} patterns")
+        patterns: list[dict] = []
+        for theme, theme_units in sorted(by_theme.items()):
+            distinct_commits = len(set(u["sha"] for u in theme_units))
 
-        print(f"  Aggregated {len(by_module)} modules")
-        self.add_artifact(state, str(patterns_dir))
+            # Threshold: >= 3 distinct commits
+            if distinct_commits < 3:
+                continue
+
+            # Op distribution
+            op_dist: dict[str, int] = defaultdict(int)
+            importance_counts = {"primary": 0, "secondary": 0}
+            summaries: list[str] = []
+
+            for u in theme_units:
+                op_dist[u.get("op", "other")] += 1
+                imp = u.get("importance", "secondary")
+                if imp in importance_counts:
+                    importance_counts[imp] += 1
+                if u.get("summary") and len(summaries) < 3:
+                    summaries.append(u["summary"])
+
+            patterns.append({
+                "theme": theme,
+                "count": len(theme_units),
+                "distinct_commits": distinct_commits,
+                "op_distribution": dict(op_dist),
+                "importance_ratio": importance_counts,
+                "representative_summaries": summaries,
+            })
+
+        save_jsonl(patterns, str(SEMANTIC_OUTPUT / "patterns.jsonl"))
+        print(f"  Found {len(patterns)} patterns (threshold >= 3 distinct commits)")
+        self.add_artifact(state, str(SEMANTIC_OUTPUT / "patterns.jsonl"))
         return True
 
+    # -------------------------------------------------------------------
+    # Stage 3: distill
+    # -------------------------------------------------------------------
+
     def _run_distill(self, state: HarnessState) -> bool:
-        """提取 canonical demands."""
+        """Extract canonical demands from patterns, scored and ranked."""
         print("  -> Distilling canonical demands")
 
-        patterns_dir = SEMANTIC_OUTPUT / "patterns"
-        if not patterns_dir.exists():
+        patterns_file = SEMANTIC_OUTPUT / "patterns.jsonl"
+        if not patterns_file.exists():
             print("  ! No patterns to distill")
             return True
 
-        demands = []
-        for pattern_file in sorted(patterns_dir.glob("*.yaml")):
-            data = load_yaml(str(pattern_file))
-            module = data.get("metadata", {}).get("module", "unknown")
-            patterns = data.get("patterns", [])
+        patterns = load_jsonl(str(patterns_file))
 
-            for i, pattern in enumerate(patterns[:5], 1):
-                demands.append({
-                    "demand_id": f"{module}-{i:02d}",
-                    "module": module,
-                    "rank": i,
-                    "score": pattern.get("score", 0),
-                    "commit_log": pattern.get("commit_log", "")[:100],
-                    "source_commit": pattern.get("commit_id", "")[:8],
-                })
+        # Score each pattern
+        demands: list[dict] = []
+        for pattern in patterns:
+            distinct = pattern.get("distinct_commits", 0)
+            imp_ratio = pattern.get("importance_ratio", {})
+            primary = imp_ratio.get("primary", 0)
+            secondary = imp_ratio.get("secondary", 0)
+            total_imp = primary + secondary
+            if total_imp > 0:
+                importance_weight = (primary * 2 + secondary * 1) / total_imp
+            else:
+                importance_weight = 1.0
 
-        save_yaml({
-            "metadata": {
-                "total_demands": len(demands),
-                "generated_at": datetime.now().isoformat(),
-            },
-            "demands": demands,
-        }, str(SEMANTIC_OUTPUT / "canonical-demands.yaml"))
+            score = distinct * importance_weight
 
+            demands.append({
+                "theme": pattern["theme"],
+                "score": round(score, 2),
+                "distinct_commits": distinct,
+                "op_distribution": pattern.get("op_distribution", {}),
+                "importance_weight": round(importance_weight, 2),
+                "representative_summaries": pattern.get("representative_summaries", []),
+            })
+
+        # Sort: score desc → distinct_commits desc → theme alpha
+        demands.sort(key=lambda d: (-d["score"], -d["distinct_commits"], d["theme"]))
+
+        # Add rank
+        for i, d in enumerate(demands, 1):
+            d["rank"] = i
+
+        save_jsonl(demands, str(SEMANTIC_OUTPUT / "canonical-demands.jsonl"))
         print(f"  Distilled {len(demands)} canonical demands")
-        self.add_artifact(state, str(SEMANTIC_OUTPUT / "canonical-demands.yaml"))
+        self.add_artifact(state, str(SEMANTIC_OUTPUT / "canonical-demands.jsonl"))
         return True
+
+    # -------------------------------------------------------------------
+    # Stage 4: export
+    # -------------------------------------------------------------------
 
     def _run_export(self, state: HarnessState) -> bool:
-        """Generate summary statistics from canonical-demands and patterns."""
+        """Generate summary statistics."""
         print("  -> Generating export summary")
 
-        demands_file = SEMANTIC_OUTPUT / "canonical-demands.yaml"
-        if not demands_file.exists():
-            print("  ! No canonical-demands.yaml found — run distill first")
-            return False
+        # Load units for stats
+        units_file = SEMANTIC_OUTPUT / "units" / "all.jsonl"
+        units = load_jsonl(str(units_file)) if units_file.exists() else []
 
-        demands_data = load_yaml(str(demands_file))
-        demands: list[dict] = demands_data.get("demands", [])
+        patterns_file = SEMANTIC_OUTPUT / "patterns.jsonl"
+        patterns = load_jsonl(str(patterns_file)) if patterns_file.exists() else []
 
-        # Count by development type heuristic (prefix in commit_log)
-        dev_type_dist: dict[str, int] = {"feature": 0, "bugfix": 0, "refactor": 0, "other": 0}
-        for d in demands:
-            msg = d.get("commit_log", "").lower()
-            if msg.startswith("feat") or msg.startswith("add") or msg.startswith("support"):
-                dev_type_dist["feature"] += 1
-            elif msg.startswith("fix") or msg.startswith("bug"):
-                dev_type_dist["bugfix"] += 1
-            elif msg.startswith("refactor") or msg.startswith("clean"):
-                dev_type_dist["refactor"] += 1
-            else:
-                dev_type_dist["other"] += 1
+        invariants_file = SEMANTIC_OUTPUT / "invariants.jsonl"
+        invariants = load_jsonl(str(invariants_file)) if invariants_file.exists() else []
 
-        bugfix_count = dev_type_dist["bugfix"]
-        total = len(demands) or 1
-        bugfix_ratio = bugfix_count / total
+        # Op distribution across all units
+        op_dist: dict[str, int] = defaultdict(int)
+        min_date: str = ""
+        max_date: str = ""
+        for u in units:
+            op_dist[u.get("op", "other")] += 1
+            d = u.get("date", "")
+            if d:
+                if not min_date or d < min_date:
+                    min_date = d
+                if not max_date or d > max_date:
+                    max_date = d
 
-        # High-frequency patterns: modules with most demands
-        by_module: dict[str, int] = {}
-        for d in demands:
-            m = d.get("module", "unknown")
-            by_module[m] = by_module.get(m, 0) + 1
+        bugfix_count = op_dist.get("bugfix", 0)
+        total = len(units) or 1
+        bugfix_ratio = round(bugfix_count / total, 4)
 
-        high_freq = sorted(
-            [{"pattern_id": m, "domain": m, "count": c,
-              "representative_issue_text": ""}
-             for m, c in by_module.items() if c >= 2],
-            key=lambda x: -x["count"],
-        )[:10]
+        # Top patterns by score
+        demands_file = SEMANTIC_OUTPUT / "canonical-demands.jsonl"
+        demands = load_jsonl(str(demands_file)) if demands_file.exists() else []
+        top_patterns = [
+            {"theme": d["theme"], "score": d["score"], "distinct_commits": d["distinct_commits"]}
+            for d in demands[:10]
+        ]
 
-        summary = ExportSummary(
-            total_cases=len(demands),
-            unique_cases=len(demands),
-            duplicate_cases=0,
-            duplicate_groups=0,
-            valid_cases=len(demands),
-            invalid_cases=0,
-            low_value_cases=0,
-            validation_pass_rate=1.0,
-            development_type_distribution=dev_type_dist,
-            bugfix_count=bugfix_count,
-            bugfix_ratio=bugfix_ratio,
-            needs_split_count=0,
-            needs_split_ratio=0.0,
-            pattern_count=len(by_module),
-            domain_pattern_stats={
-                m: {"pattern_count": c, "pattern_count_status": "good", "action": "none"}
-                for m, c in by_module.items()
-            },
-            high_frequency_patterns=high_freq,
-            invalid_reason_top_n={},
-        )
+        # Date range
+        date_range = {}
+        if min_date:
+            date_range = {"from": min_date, "to": max_date}
 
-        summary_path = SEMANTIC_OUTPUT / "summary.yaml"
-        save_yaml(asdict(summary), str(summary_path))
-        print(f"  Exported summary: {len(demands)} cases, {len(by_module)} patterns, "
+        summary = {
+            "total_units": len(units),
+            "total_patterns": len(patterns),
+            "op_distribution": dict(op_dist),
+            "top_patterns": top_patterns,
+            "bugfix_ratio": bugfix_ratio,
+            "invariant_count": len(invariants),
+            "date_range": date_range,
+        }
+
+        save_json(summary, str(SEMANTIC_OUTPUT / "summary.json"))
+        print(f"  Exported: {len(units)} units, {len(patterns)} patterns, "
               f"bugfix ratio {bugfix_ratio:.1%}")
-        self.add_artifact(state, str(summary_path))
+        self.add_artifact(state, str(SEMANTIC_OUTPUT / "summary.json"))
         return True
+
+    # -------------------------------------------------------------------
+    # Overrides
+    # -------------------------------------------------------------------
+
+    def handle_step(self) -> int:
         if not self._require_prerequisites():
             return 1
         return super().handle_step()
@@ -442,23 +312,20 @@ class CommitSemanticRunner(SkillRunner):
             return 1
         return super().handle_resume()
 
-
     def handle_run(self, remaining: list[str] | None = None) -> int:
-        """Override to handle command-line args including --stage."""
         argv = remaining or []
         parser = argparse.ArgumentParser()
-        parser.add_argument("--stage", help="Run a specific stage instead of all")
+        parser.add_argument("--stage", help="Run a specific stage")
         args = parser.parse_args(argv)
 
         if args.stage:
-            # Run single stage
             if args.stage not in self.STAGES:
-                print(f"[{self.PIPELINE}] Unknown stage: {args.stage}. Available: {', '.join(self.STAGES)}")
+                print(f"[{self.PIPELINE}] Unknown stage: {args.stage}. "
+                      f"Available: {', '.join(self.STAGES)}")
                 return 1
             if not self._require_prerequisites():
                 return 1
             state = self.init_state()
-            from src.harness_state import save_state
             save_state(self.PIPELINE, state)
             success = self.run_stage(args.stage, state)
             return 0 if success else 1
