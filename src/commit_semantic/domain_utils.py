@@ -149,8 +149,9 @@ def build_sha_file_map(repo_path: str, shas: list[str]) -> tuple[dict[str, list[
     if not shas:
         return {}, True
 
+    sha_marker = "__SEMANTIC_HARNESS_SHA__="
     result = subprocess.run(
-        ["git", "log", "--name-only", "--format=%H", "--stdin", "--no-walk"],
+        ["git", "log", "--name-only", f"--format={sha_marker}%H", "--stdin", "--no-walk"],
         input="\n".join(shas),
         capture_output=True, text=True, cwd=repo_path,
     )
@@ -160,12 +161,12 @@ def build_sha_file_map(repo_path: str, shas: list[str]) -> tuple[dict[str, list[
 
     sha_map: dict[str, list[str]] = {}
     current_sha = None
-    for line in result.stdout.splitlines():
-        line = line.strip()
+    for raw_line in result.stdout.splitlines():
+        line = raw_line.strip()
         if not line:
             continue
-        if len(line) == 40 and all(c in "0123456789abcdef" for c in line):
-            current_sha = line
+        if line.startswith(sha_marker):
+            current_sha = line[len(sha_marker):]
             sha_map[current_sha] = []
         elif current_sha:
             sha_map[current_sha].append(line)

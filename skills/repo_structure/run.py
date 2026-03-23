@@ -320,13 +320,12 @@ class RepoStructureRunner(SkillRunner):
 
         for domain in aggregated_domains[:10]:
             domain_name = domain.get("domain") or domain.get("domain_id") or "unknown"
-            commit_count = domain.get("commit_count") or len(domain.get("commit_shas", []) or [])
-            file_list = domain.get("file_paths") or domain.get("files") or []
+            distinct_commits = domain.get("distinct_commits", 0)
             hotspots.append({
                 "fact_id": str(uuid.uuid4()),
                 "fact_type": "hotspot_signal",
                 "domain": "semantic_domain",
-                "statement": f"Domain '{domain_name}' is a semantic hotspot across {commit_count} commits",
+                "statement": f"Domain '{domain_name}' is a semantic hotspot across {distinct_commits} commits",
                 "confidence": "confirmed",
                 "status": "active",
                 "repo_snapshot_commit": head,
@@ -339,8 +338,7 @@ class RepoStructureRunner(SkillRunner):
                     "stable_ref": f"domain:{domain_name}",
                     "rationale": "From commit-semantic aggregated domain output",
                 }],
-                "commit_count": commit_count,
-                "files": sorted(str(path) for path in file_list) if isinstance(file_list, list) else [],
+                "distinct_commits": distinct_commits,
             })
 
         return hotspots

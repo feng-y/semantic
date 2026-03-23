@@ -74,6 +74,24 @@ class TestBuildShaFileMap:
         assert ok is False
         assert sha_map == {"abc123": []}
 
+    def test_40_char_hex_file_path_is_not_treated_as_commit_header(self, monkeypatch):
+        """Hex-looking file paths stay attached to the current commit."""
+        repo = str(Path(__file__).parent.parent)
+        sha = "a" * 40
+        hex_path = "deadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
+
+        class Completed:
+            returncode = 0
+            stdout = f"__SEMANTIC_HARNESS_SHA__={sha}\n{hex_path}\nsrc/normal.py\n"
+            stderr = ""
+
+        monkeypatch.setattr(subprocess, "run", lambda *args, **kwargs: Completed())
+
+        sha_map, ok = build_sha_file_map(repo, [sha])
+
+        assert ok is True
+        assert sha_map == {sha: [hex_path, "src/normal.py"]}
+
 
 # ---------------------------------------------------------------
 # T12-T14: assign_domain_by_path
