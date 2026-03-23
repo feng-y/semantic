@@ -37,8 +37,8 @@ Semantic Harness is a **Claude Code skill repository** for extracting structured
 # Install
 pip install -e ".[test]"
 
-# Tests (46 passing)
-pytest tests/test_system.py -q
+# Tests
+pytest tests -q
 
 # Skill commands (via Claude Code)
 /semantic-fact-pipeline    # discover → review → refine → baseline

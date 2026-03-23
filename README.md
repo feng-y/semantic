@@ -85,31 +85,36 @@ Requires: semantic assets from capability 2.
 
 ---
 
-### 4. commit-semantic — Git History → Domain Cases
+### 4. commit — Git History Analysis
 
-Extracts structured semantic cases from git commit history. Produces deduplicated, pattern-aggregated case libraries for few-shot samples, rule extraction, and training data.
+The commit capability currently has two linked stages:
 
-**Pipeline:**
-```
-/commit-semantic-pipeline 最近 50 个 commit
-/commit-semantic-pipeline HEAD~100..HEAD，排除 config 目录
-/commit-semantic-pipeline 最近一个月，增量模式
-```
+**A. `commit-extract`**
+- Reads git history
+- Produces structured monthly JSONL artifacts in `data/commit-extract/YYYY-MM.jsonl`
+- Output includes `sections`, `rules_invariants`, and commit-level metadata
 
-**Individual steps:**
-```
-/commit-semantic-collect   # git history → semantic_case_inputs/
-/commit-semantic-generate  # semantic_case_inputs/ → semantic_cases/
-/commit-semantic-export    # semantic_cases/ → exports/ (dedup + patterns)
-```
+**B. `commit-semantic`**
+- Consumes `data/commit-extract/*.jsonl`
+- Runs a 5-stage pipeline: `discover → ingest → aggregate → distill → export`
+- Produces domain-oriented outputs in `data/commit-semantic/`
 
-**Python API:**
-```python
-from src.commit_semantic.pipeline import run_pipeline
-run_pipeline(repo_path=".", commit_range="HEAD~50..HEAD", executor=my_llm)
+**Commands:**
+```
+/commit-extract run
+/commit-semantic run
 ```
 
-→ Details: `README-commit-semantic.md`, `docs/commit-semantic/user-guide.md`
+**Key outputs:**
+```
+data/commit-extract/YYYY-MM.jsonl
+data/commit-semantic/domains.json
+data/commit-semantic/domains-aggregated.jsonl
+data/commit-semantic/canonical-demands.jsonl
+data/commit-semantic/summary.json
+```
+
+→ Details: `skills/commit-extract/SKILL.md`, `skills/commit-semantic/SKILL.md`
 
 ---
 
@@ -134,10 +139,11 @@ skills/                    # skill definitions (SKILL.md per skill)
   semantic-fact-pipeline/  # capability 1 pipeline
   semantic-pipeline/       # capability 2 pipeline
   demand-pipeline/         # capability 3 pipeline
-  commit-semantic-pipeline/# capability 4 pipeline
+  commit-extract/          # commit history extraction
+  commit-semantic/         # commit domain aggregation pipeline
   semantic-extract/        # capability 5: commit + rules extraction
   semantic-*/              # fact + semantic individual skills
-  commit-semantic-*/       # git history individual skills
+  commit-semantic-*/       # legacy / transitional git-history docs and helpers
 
 src/                       # Python runtime
   semantic/                # semantic layer implementation
