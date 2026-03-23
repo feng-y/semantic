@@ -557,6 +557,11 @@ class CommitSemanticRunner(SkillRunner):
         classified = 0
         classified_ids: set[int] = set()
         staged_units = [dict(unit) for unit in current_units]
+        allowed_domains = {
+            domain.get("domain")
+            for domain in self._load_domains()
+            if domain.get("domain")
+        }
         for response in llm_responses:
             mapping = parse_llm_classifications(response)
             if not mapping:
@@ -570,7 +575,14 @@ class CommitSemanticRunner(SkillRunner):
                 print("  ! LLM classification batch returned invalid output")
                 return False
             for id_str, domain in mapping.items():
-                idx = int(id_str)
+                if not isinstance(domain, str) or domain not in allowed_domains:
+                    print(f"  ! LLM classification returned unknown domain: {domain}")
+                    return False
+                try:
+                    idx = int(id_str)
+                except (TypeError, ValueError):
+                    print(f"  ! LLM classification returned malformed id: {id_str}")
+                    return False
                 if 0 <= idx < len(indices) and indices[idx] < len(staged_units):
                     staged_units[indices[idx]]["domain"] = domain
                     classified += 1
