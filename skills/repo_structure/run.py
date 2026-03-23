@@ -20,18 +20,15 @@ import subprocess
 import sys
 import uuid
 from collections import defaultdict
-from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime, date
+from datetime import date, datetime
 from pathlib import Path
 from typing import Any
 
-import yaml
-
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from src.io_utils import save_yaml, load_yaml
-from src.skill_runner import SkillRunner, run_skill
 from src.harness_state import HarnessState
+from src.io_utils import load_jsonl, load_yaml, save_yaml
+from src.skill_runner import SkillRunner
 from .preflight import check as preflight_check, REQUIRED_GSD_FILES
 
 
@@ -238,22 +235,19 @@ class RepoStructureRunner(SkillRunner):
             print(f"  ERROR: commit-extract output not found at {commit_extract_dir}")
             return False
 
-        monthly_files = sorted(commit_extract_dir.glob("????-??.yaml"))
+        monthly_files = sorted(commit_extract_dir.glob("????-??.jsonl"))
         print(f"  Found {len(monthly_files)} monthly commit files")
 
-        patterns_dir = Path("data/commit-semantic/patterns")
-        patterns: list = []
-        if patterns_dir.exists():
-            for pf in patterns_dir.glob("*.yaml"):
-                try:
-                    data = load_yaml(str(pf))
-                    if "patterns" in data:
-                        patterns.extend(data["patterns"])
-                except Exception as e:
-                    print(f"  WARNING: could not load {pf}: {e}")
+        aggregated_domains_path = Path("data/commit-semantic/domains-aggregated.jsonl")
+        aggregated_domains: list[dict[str, Any]] = []
+        if aggregated_domains_path.exists():
+            try:
+                aggregated_domains = load_jsonl(str(aggregated_domains_path), skip_errors=True)
+            except Exception as e:
+                print(f"  WARNING: could not load {aggregated_domains_path}: {e}")
 
         head = self._get_repo_head()
-        hotspots = self._aggregate_hotspots(monthly_files, patterns, head)
+        hotspots = self._aggregate_hotspots(monthly_files, aggregated_domains, head)
 
         version = self._next_version("hotspot_map")
         maps_dir = OUTPUT_BASE / "maps"
@@ -265,7 +259,8 @@ class RepoStructureRunner(SkillRunner):
                 "repo_snapshot_commit": head,
                 "generated_at": datetime.now().isoformat(),
                 "monthly_files": [str(f) for f in monthly_files],
-                "total_patterns": len(patterns),
+                "aggregated_domains_path": str(aggregated_domains_path),
+                "total_domains": len(aggregated_domains),
             },
             "facts": hotspots,
         }, str(out_path))
@@ -274,20 +269,24 @@ class RepoStructureRunner(SkillRunner):
         return True
 
     def _aggregate_hotspots(
-        self, monthly_files: list[Path], patterns: list, head: str
+        self, monthly_files: list[Path], aggregated_domains: list[dict[str, Any]], head: str
     ) -> list[dict[str, Any]]:
-        """Aggregate commit-extract data and commit-semantic patterns into hotspot facts."""
+        """Aggregate commit-extract JSONL and commit-semantic domain output into hotspot facts."""
         module_commit_count: dict[str, int] = defaultdict(int)
         module_files: dict[str, set[str]] = defaultdict(set)
 
         for mf in monthly_files:
             try:
-                data = load_yaml(str(mf))
-                for commit in data.get("commits", []):
-                    for f in commit.get("files", []):
-                        module = str(f).split("/")[0] if "/" in str(f) else "root"
+                commits = load_jsonl(str(mf), skip_errors=True)
+                for commit in commits:
+                    file_list = commit.get("file_paths") or commit.get("files") or []
+                    if not isinstance(file_list, list):
+                        continue
+                    for file_path in file_list:
+                        file_path = str(file_path)
+                        module = file_path.split("/")[0] if "/" in file_path else "root"
                         module_commit_count[module] += 1
-                        module_files[module].add(str(f))
+                        module_files[module].add(file_path)
             except Exception as e:
                 print(f"  WARNING: skipped malformed file {mf}: {e}")
 
@@ -308,7 +307,7 @@ class RepoStructureRunner(SkillRunner):
                 "source": "hotspot",
                 "evidence": [{
                     "source_type": "hotspot",
-                    "file_path": "data/commit-extract/*.yaml",
+                    "file_path": "data/commit-extract/*.jsonl",
                     "locator_type": "file_path",
                     "locator": module,
                     "stable_ref": f"module:{module}",
@@ -319,25 +318,29 @@ class RepoStructureRunner(SkillRunner):
                 "files": sorted(module_files[module]),
             })
 
-        for pattern in patterns[:10]:
-            pid = pattern.get("pattern_id", "unknown")
+        for domain in aggregated_domains[:10]:
+            domain_name = domain.get("domain") or domain.get("domain_id") or "unknown"
+            commit_count = domain.get("commit_count") or len(domain.get("commit_shas", []) or [])
+            file_list = domain.get("file_paths") or domain.get("files") or []
             hotspots.append({
                 "fact_id": str(uuid.uuid4()),
                 "fact_type": "hotspot_signal",
-                "domain": "semantic_pattern",
-                "statement": f"Recurring pattern: {pattern.get('description', pid)}",
+                "domain": "semantic_domain",
+                "statement": f"Domain '{domain_name}' is a semantic hotspot across {commit_count} commits",
                 "confidence": "confirmed",
                 "status": "active",
                 "repo_snapshot_commit": head,
                 "source": "hotspot",
                 "evidence": [{
                     "source_type": "hotspot",
-                    "file_path": "data/commit-semantic/patterns/",
+                    "file_path": "data/commit-semantic/domains-aggregated.jsonl",
                     "locator_type": "section_ref",
-                    "locator": pid,
-                    "stable_ref": f"pattern:{pid}",
-                    "rationale": "From commit-semantic pattern extraction",
+                    "locator": str(domain_name),
+                    "stable_ref": f"domain:{domain_name}",
+                    "rationale": "From commit-semantic aggregated domain output",
                 }],
+                "commit_count": commit_count,
+                "files": sorted(str(path) for path in file_list) if isinstance(file_list, list) else [],
             })
 
         return hotspots
@@ -348,7 +351,7 @@ class RepoStructureRunner(SkillRunner):
         manifest_path = OUTPUT_BASE / "sample" / "manifest.yaml"
         if not manifest_path.exists():
             print(f"  ERROR: sample manifest not found at {manifest_path}")
-            print(f"  Run 'repo-structure --stage sample' first")
+            print("  Run 'repo-structure --stage sample' first")
             return False
 
         manifest = load_yaml(str(manifest_path))
@@ -943,7 +946,10 @@ class RepoStructureRunner(SkillRunner):
         """Get next version number for an artifact."""
         maps_dir = OUTPUT_BASE / "maps"
         existing = sorted(maps_dir.glob(f"{artifact_name}.v*.yaml"))
-        return "v0" if not existing else f"v{int(existing[-1].stem.split(".")[-1][1:]) + 1}"
+        if not existing:
+            return "v0"
+        latest_version = existing[-1].stem.split(".")[-1]
+        return f"v{int(latest_version[1:]) + 1}"
 
     # -------------------------------------------------------------------------
     # Override run to inject preflight

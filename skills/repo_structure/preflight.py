@@ -14,7 +14,6 @@ from __future__ import annotations
 import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Literal
 
 
 @dataclass
@@ -139,13 +138,13 @@ def check(repo_root: Path | str = ".") -> PreflightResult:
                 result.ok = False
                 result.invalid.append(PreflightIssue(
                     "EMPTY_ARTIFACT", str(fpath.relative_to(root)),
-                    f"gsd file is empty",
+                    "gsd file is empty",
                     producer="gsd::map-codebase"))
         except FileNotFoundError:
             result.ok = False
             result.missing.append(PreflightIssue(
                 "MISSING_INPUT", str(fpath.relative_to(root)),
-                f"gsd file not found",
+                "gsd file not found",
                 producer="gsd::map-codebase",
                 suggestion="Run gsd map-codebase first"))
 

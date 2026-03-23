@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import argparse
 import logging
+import os
 import re
 import subprocess
 import sys
@@ -31,6 +32,7 @@ logger = logging.getLogger(__name__)
 
 OUTPUT_BASE = Path("data/commit-extract")
 TMP_DIR = OUTPUT_BASE / "tmp"
+USE_TASK_AGENTS_ENV = "COMMIT_EXTRACT_USE_TASK_AGENTS"
 
 # Adaptive batching constants
 WEIGHT_BUDGET = 3000
@@ -318,11 +320,155 @@ class CommitExtractRunner(SkillRunner):
         manifest_path = str(TMP_DIR / "manifest.json")
         save_json(manifest, manifest_path)
         print(f"\n  Manifest written to {manifest_path}")
-        print(f"  Workers should write to {TMP_DIR}/batch_NNNN.jsonl")
-        print(f"  After all workers complete, run merge to consolidate.")
+
+        if self._use_task_agents():
+            print(f"  Task-agent orchestration enabled via {USE_TASK_AGENTS_ENV}=1")
+            print(f"  Workers should write to {TMP_DIR}/batch_NNNN.jsonl")
+            print("  After all workers complete, run merge to consolidate.")
+        else:
+            print("  Running local worker fallback...")
+            processed = self._run_local_workers(manifest)
+            merged = merge_tmp_files(OUTPUT_BASE, TMP_DIR)
+            print(f"  Local fallback wrote {processed} records")
+            print(f"  Merged {merged} new records into monthly JSONL")
 
         self.add_artifact(state, str(OUTPUT_BASE))
         return True
+
+    def _use_task_agents(self) -> bool:
+        """Return True when external task-agent orchestration is explicitly enabled."""
+        return os.environ.get(USE_TASK_AGENTS_ENV, "").lower() in ("1", "true", "yes")
+
+    def _run_local_workers(self, manifest: dict) -> int:
+        """Process manifest batches locally with deterministic git-derived extraction."""
+        total = 0
+        for batch in manifest.get("batches", []):
+            output_path = batch.get("output_path")
+            if not output_path:
+                continue
+
+            records = []
+            for sha in batch.get("shas", []):
+                record = self._extract_commit_record(sha)
+                if record is not None:
+                    records.append(record)
+
+            if records:
+                append_jsonl(records, output_path)
+                total += len(records)
+
+        return total
+
+    def _extract_commit_record(self, sha: str) -> dict | None:
+        """Build a schema-valid commit-extract record from git metadata."""
+        try:
+            meta_result = subprocess.run(
+                [
+                    "git", "-C", self.repo_path,
+                    "show", "--no-patch",
+                    "--format=%an%x00%aI%x00%B",
+                    sha,
+                ],
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+            stat_result = subprocess.run(
+                ["git", "-C", self.repo_path, "show", "--stat", "--summary", "--format=", sha],
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+        except subprocess.CalledProcessError as e:
+            logger.warning("Failed to extract commit %s: %s", sha, e)
+            return None
+
+        parts = meta_result.stdout.split("\x00", 2)
+        author = parts[0].strip() if len(parts) > 0 else ""
+        date = parts[1].strip() if len(parts) > 1 else ""
+        message = parts[2].strip() if len(parts) > 2 else ""
+        summary = next((line.strip() for line in message.splitlines() if line.strip()), "")
+        body_lines = [line.strip() for line in message.splitlines()[1:] if line.strip()]
+
+        weight = parse_stat(stat_result.stdout)
+        summary_lower = summary.lower()
+        op = self._classify_op(summary_lower)
+        theme = self._derive_theme(summary)
+        section_name = self._derive_section_name(summary)
+        item_summary = body_lines[0] if body_lines else (summary or f"Update in {theme}")
+
+        rules_invariants = []
+        for line in body_lines[1:]:
+            if any(keyword in line.lower() for keyword in ("must", "should", "ensure", "always", "never")):
+                rules_invariants.append({
+                    "kind": "rule",
+                    "statement": line,
+                    "enforced_by_commit": False,
+                })
+
+        if not rules_invariants:
+            for line in body_lines:
+                if any(keyword in line.lower() for keyword in ("must", "should", "ensure", "always", "never")):
+                    rules_invariants.append({
+                        "kind": "rule",
+                        "statement": line,
+                        "enforced_by_commit": False,
+                    })
+
+        return {
+            "sha": sha,
+            "author": author,
+            "date": date,
+            "is_large_aggregate": weight >= WEIGHT_BUDGET,
+            "is_mixed": False,
+            "sections": [{
+                "name": section_name,
+                "theme": theme,
+                "importance": "primary",
+                "items": [{
+                    "op": op,
+                    "summary": item_summary,
+                }],
+            }],
+            "rules_invariants": rules_invariants,
+        }
+
+    def _classify_op(self, summary_lower: str) -> str:
+        """Map commit summary text to the existing commit-extract op taxonomy."""
+        if any(token in summary_lower for token in ("bugfix", "fix", "hotfix")):
+            return "bugfix"
+        if "refactor" in summary_lower:
+            return "refactor"
+        if any(token in summary_lower for token in ("test", "spec")):
+            return "test"
+        if any(token in summary_lower for token in ("config", "ci", "build", "infra")):
+            return "config"
+        if any(token in summary_lower for token in ("feat", "feature", "add", "implement")):
+            return "feat"
+        return "other"
+
+    def _derive_theme(self, summary: str) -> str:
+        """Derive a stable-ish theme slug from commit summary text."""
+        text = summary.strip()
+        if not text:
+            return "misc"
+        if ":" in text:
+            text = text.split(":", 1)[1].strip() or text
+        slug = re.sub(r"[^a-z0-9]+", "-", text.lower()).strip("-")
+        return slug or "misc"
+
+    def _derive_section_name(self, summary: str) -> str:
+        """Create a readable section name from the commit summary."""
+        text = summary.strip()
+        if not text:
+            return "General changes"
+        if ":" in text:
+            prefix, rest = text.split(":", 1)
+            label = rest.strip() or prefix.strip()
+        else:
+            label = text
+        label = label[:1].upper() + label[1:]
+        return label
 
     def handle_merge(self) -> int:
         """Merge tmp files after workers complete."""

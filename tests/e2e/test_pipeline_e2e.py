@@ -19,7 +19,7 @@ class TestFullPipelineE2E:
     """Test full pipeline with temp git repo."""
 
     def test_commit_extract_produces_manifest(self, temp_git_repo: Path, tmp_path: Path):
-        """commit-extract produces batch manifest for workers."""
+        """commit-extract run completes locally and writes monthly JSONL output."""
         result = subprocess.run(
             [sys.executable, str(repo_root / "skills/commit-extract/run.py"), "run",
              "--repo", str(temp_git_repo)],
@@ -29,11 +29,18 @@ class TestFullPipelineE2E:
 
         extract_dir = tmp_path / "data" / "commit-extract"
         manifest = extract_dir / "tmp" / "manifest.json"
+        monthly_files = sorted(extract_dir.glob("????-??.jsonl"))
+
         assert manifest.exists(), f"manifest.json not found at {manifest}"
+        assert monthly_files, f"monthly JSONL not found in {extract_dir}"
 
         data = json.loads(manifest.read_text())
         assert data["total_shas"] >= 1
         assert len(data["batches"]) >= 1
+
+        records = [json.loads(line) for line in monthly_files[0].read_text().splitlines() if line.strip()]
+        assert records, "monthly JSONL should contain at least one record"
+        assert {"sha", "author", "date", "sections", "rules_invariants"}.issubset(records[0])
 
     def test_commit_semantic_ingest_stage(self, temp_git_repo: Path, tmp_path: Path):
         """commit-semantic ingest reads JSONL and produces units."""
@@ -91,6 +98,6 @@ class TestFullPipelineE2E:
         semantic_dir = tmp_path / "data" / "commit-semantic"
         assert (semantic_dir / "units" / "all.jsonl").exists()
         assert (semantic_dir / "invariants.jsonl").exists()
-        assert (semantic_dir / "patterns.jsonl").exists()
+        assert (semantic_dir / "domains-aggregated.jsonl").exists()
         assert (semantic_dir / "canonical-demands.jsonl").exists()
         assert (semantic_dir / "summary.json").exists()

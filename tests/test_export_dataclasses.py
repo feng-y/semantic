@@ -173,7 +173,7 @@ class TestRunExport:
     def _write_fixtures(self, units, patterns=None, demands=None, invariants=None):
         from src.io_utils import save_jsonl
         save_jsonl(units, str(self.semantic_dir / "units" / "all.jsonl"))
-        save_jsonl(patterns or [], str(self.semantic_dir / "patterns.jsonl"))
+        save_jsonl(patterns or [], str(self.semantic_dir / "domains-aggregated.jsonl"))
         save_jsonl(demands or [], str(self.semantic_dir / "canonical-demands.jsonl"))
         save_jsonl(invariants or [], str(self.semantic_dir / "invariants.jsonl"))
 
@@ -237,19 +237,62 @@ class TestRunExport:
         assert "total_units" in summary
         assert "bugfix_ratio" in summary
 
-    def test_top_patterns_in_summary(self):
+    def test_top_domains_in_summary(self):
         self._write_fixtures(
-            units=[{"sha": "a", "date": "2026-03-01", "op": "feat", "summary": "s1"}],
+            units=[{"sha": "a", "date": "2026-03-01", "op": "feat", "summary": "s1", "domain": "auth"}],
             demands=[
-                {"theme": "auth", "score": 10.0, "distinct_commits": 5, "rank": 1},
-                {"theme": "api", "score": 8.0, "distinct_commits": 4, "rank": 2},
+                {"domain": "auth", "final_score": 10.0, "distinct_commits": 5, "rank": 1},
+                {"domain": "api", "final_score": 8.0, "distinct_commits": 4, "rank": 2},
             ],
         )
         runner = CommitSemanticRunner()
         runner._run_export(HarnessState())
         from src.io_utils import load_json
         summary = load_json(str(self.semantic_dir / "summary.json"))
-        top = summary["top_patterns"]
+        top = summary["top_domains"]
         assert len(top) == 2
-        assert top[0]["theme"] == "auth"
-        assert top[0]["score"] == 10.0
+        assert top[0]["domain"] == "auth"
+        assert top[0]["final_score"] == 10.0
+
+    def test_export_removes_legacy_artifacts_and_keeps_new_outputs(self):
+        self._write_fixtures([
+            {"sha": "a", "date": "2026-03-01", "op": "feat", "summary": "s1", "domain": "auth"},
+        ])
+        (self.semantic_dir / "patterns").mkdir()
+        (self.semantic_dir / "patterns" / "legacy.json").write_text("{}", encoding="utf-8")
+        (self.semantic_dir / "canonical-demands.yaml").write_text("legacy: true\n", encoding="utf-8")
+        (self.semantic_dir / "functional").mkdir()
+        (self.semantic_dir / "functional" / "legacy.md").write_text("legacy", encoding="utf-8")
+        (self.semantic_dir / "non-functional").mkdir()
+        (self.semantic_dir / "non-functional" / "legacy.md").write_text("legacy", encoding="utf-8")
+
+        runner = CommitSemanticRunner()
+        runner._run_export(HarnessState())
+
+        assert (self.semantic_dir / "summary.json").exists()
+        assert (self.semantic_dir / "canonical-demands.jsonl").exists()
+        assert not (self.semantic_dir / "patterns").exists()
+        assert not (self.semantic_dir / "canonical-demands.yaml").exists()
+        assert not (self.semantic_dir / "functional").exists()
+        assert not (self.semantic_dir / "non-functional").exists()
+
+        from src.io_utils import load_json
+        summary = load_json(str(self.semantic_dir / "summary.json"))
+        assert summary["removed_legacy_paths"] == [
+            "patterns",
+            "canonical-demands.yaml",
+            "functional",
+            "non-functional",
+        ]
+
+    def test_export_is_idempotent_when_no_legacy_artifacts_exist(self):
+        self._write_fixtures([
+            {"sha": "a", "date": "2026-03-01", "op": "feat", "summary": "s1", "domain": "auth"},
+        ])
+
+        runner = CommitSemanticRunner()
+        runner._run_export(HarnessState())
+
+        from src.io_utils import load_json
+        summary = load_json(str(self.semantic_dir / "summary.json"))
+        assert "removed_legacy_paths" not in summary
