@@ -14,7 +14,6 @@ Output: data/commit-semantic/
 from __future__ import annotations
 
 import argparse
-import json
 import logging
 import sys
 from collections import defaultdict
@@ -81,63 +80,49 @@ class CommitSemanticRunner(SkillRunner):
 
         all_units: list[dict] = []
         all_invariants: list[dict] = []
-        skipped = 0
 
         for jsonl_file in sorted(EXTRACT_OUTPUT.glob("*.jsonl")):
-            with open(jsonl_file, encoding="utf-8") as f:
-                for line_num, line in enumerate(f, 1):
-                    line = line.strip()
-                    if not line:
-                        continue
-                    try:
-                        record = json.loads(line)
-                    except json.JSONDecodeError:
-                        logger.warning("Skipping invalid JSON at %s:%d", jsonl_file.name, line_num)
-                        skipped += 1
-                        continue
+            for record in load_jsonl(str(jsonl_file), skip_errors=True):
+                sha = record.get("sha", "")
+                date = record.get("date", "")
+                author = record.get("author", "")
+                is_large = record.get("is_large_aggregate", False)
+                is_mixed = record.get("is_mixed", False)
+                sections = record.get("sections", [])
 
-                    sha = record.get("sha", "")
-                    date = record.get("date", "")
-                    author = record.get("author", "")
-                    is_large = record.get("is_large_aggregate", False)
-                    is_mixed = record.get("is_mixed", False)
-                    sections = record.get("sections", [])
+                # Expand each section's items into units
+                for section in sections:
+                    section_name = section.get("name", "")
+                    theme = section.get("theme", "")
+                    importance = section.get("importance", "secondary")
 
-                    # Expand each section's items into units
-                    for section in sections:
-                        section_name = section.get("name", "")
-                        theme = section.get("theme", "")
-                        importance = section.get("importance", "secondary")
-
-                        for item in section.get("items", []):
-                            all_units.append({
-                                "sha": sha,
-                                "date": date,
-                                "author": author,
-                                "section_name": section_name,
-                                "theme": theme,
-                                "importance": importance,
-                                "op": item.get("op", "other"),
-                                "summary": item.get("summary", ""),
-                                "is_large_aggregate": is_large,
-                                "is_mixed": is_mixed,
-                            })
-
-                    # Collect rules_invariants
-                    for inv in record.get("rules_invariants", []):
-                        all_invariants.append({
+                    for item in section.get("items", []):
+                        all_units.append({
                             "sha": sha,
                             "date": date,
-                            "kind": inv.get("kind", "other"),
-                            "statement": inv.get("statement", ""),
-                            "enforced_by_commit": inv.get("enforced_by_commit", False),
+                            "author": author,
+                            "section_name": section_name,
+                            "theme": theme,
+                            "importance": importance,
+                            "op": item.get("op", "other"),
+                            "summary": item.get("summary", ""),
+                            "is_large_aggregate": is_large,
+                            "is_mixed": is_mixed,
                         })
+
+                # Collect rules_invariants
+                for inv in record.get("rules_invariants", []):
+                    all_invariants.append({
+                        "sha": sha,
+                        "date": date,
+                        "kind": inv.get("kind", "other"),
+                        "statement": inv.get("statement", ""),
+                        "enforced_by_commit": inv.get("enforced_by_commit", False),
+                    })
 
         save_jsonl(all_units, str(units_dir / "all.jsonl"))
         save_jsonl(all_invariants, str(SEMANTIC_OUTPUT / "invariants.jsonl"))
 
-        if skipped:
-            print(f"  Skipped {skipped} invalid JSON lines")
         print(f"  Ingested {len(all_units)} units, {len(all_invariants)} invariants")
         self.add_artifact(state, str(units_dir))
         return True

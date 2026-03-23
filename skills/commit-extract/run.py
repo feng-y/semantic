@@ -13,7 +13,6 @@ Output:
 from __future__ import annotations
 
 import argparse
-import json
 import logging
 import re
 import subprocess
@@ -148,20 +147,10 @@ def merge_tmp_files(output_base: Path, tmp_dir: Path) -> int:
     all_records: dict[str, dict] = {}
     for tmp_file in tmp_files:
         try:
-            with open(tmp_file, encoding="utf-8") as f:
-                for line_num, line in enumerate(f, 1):
-                    line = line.strip()
-                    if not line:
-                        continue
-                    try:
-                        record = json.loads(line)
-                        sha = record.get("sha")
-                        if sha:
-                            all_records[sha] = record
-                    except json.JSONDecodeError:
-                        logger.warning(
-                            "Skipping invalid JSON at %s:%d", tmp_file.name, line_num
-                        )
+            for record in load_jsonl(str(tmp_file), skip_errors=True):
+                sha = record.get("sha")
+                if sha:
+                    all_records[sha] = record
         except Exception as e:
             logger.warning("Error reading tmp file %s: %s", tmp_file, e)
 
@@ -184,12 +173,9 @@ def merge_tmp_files(output_base: Path, tmp_dir: Path) -> int:
         month_file = output_base / f"{month_key}.jsonl"
         existing_shas = set()
         if month_file.exists():
-            try:
-                for existing in load_jsonl(str(month_file)):
-                    if "sha" in existing:
-                        existing_shas.add(existing["sha"])
-            except Exception:
-                pass
+            for existing in load_jsonl(str(month_file), skip_errors=True):
+                if "sha" in existing:
+                    existing_shas.add(existing["sha"])
 
         new_records = [r for r in records if r["sha"] not in existing_shas]
         if new_records:
