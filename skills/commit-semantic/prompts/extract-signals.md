@@ -63,9 +63,14 @@ Evidence refs: `sha:<commit>`, `summary:<commit>:<section>:<item>`, `rule:<commi
 - The change is about logic/behavior, not about the container of that logic
 
 ### Do NOT emit as primary signal when:
-- The commit is **config-only** (`.yaml`, `.json`, `.toml`, `.ini`, env vars): the operation is "set a value" — only the resulting state carries semantic weight, and only if that state has independent meaning
+- The commit is **pure configuration** (`.yaml`, `.json`, `.toml`, `.ini`, `.conf`, env vars, flags, defaults): the operation is "set a value" — only the resulting state carries semantic weight, and only if that state has independent meaning
 - The commit is **doc-only**: the operation is "write docs" — writing docs is the work itself, not a side-effect of meaningful work
 - The commit is **low-signal boilerplate**: "Modified N file(s)", "Changes in:", generic wording with no concrete semantic object
+
+### ALWAYS emit (these ARE process operations):
+- Removing deprecated code or infrastructure — this IS a meaningful process operation: "eliminate X capability"
+- Deprecating flags, features, or APIs — meaningful: "X is no longer available"
+- Cleanup that eliminates or restricts behavior — meaningful: "X is no longer permitted"
 
 ### Down-rank rules:
 - Config change with clear final-state semantics (e.g., "security rule now enforces X", "feature Y disabled") → `confidence: medium` or `low`

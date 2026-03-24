@@ -33,6 +33,26 @@ Writing rules:
 - Avoid framing changes as internal helper extraction, plumbing, enablement, instrumentation, or implementation mechanics unless that is the real historical meaning
 - Omit helper names, local symbols, defaults, thresholds, test internals, commented-out code, and implementation tracing unless essential
 
+### Process operation priority
+
+Focus on **what the commit does** — the operation performed — not on the mechanical fact of changing files.
+
+**Emit as meaningful sections when the commit:**
+- Adds, removes, or changes a capability or behavior
+- Fixes incorrect behavior or safety issues
+- Improves performance or resource usage
+- Changes a contract, boundary, or invariant
+- **Removes deprecated code or infrastructure** — this IS a meaningful operation: "eliminate X"
+- **Deprecates flags or features** — meaningful: "X is no longer available"
+- Restricts or eliminates previously allowed behavior
+
+**De-emphasize when the commit is:**
+- Pure config/flag/declaration with no stated intent or consequence — the operation is "set a value", not a capability change. Config files: `.yaml`, `.json`, `.toml`, `.ini`, `.conf`, env vars
+- Doc-only — writing docs is the work itself
+- Pure lint/formatting/cleanup with no behavioral or capability impact
+
+The question to ask: "If I removed this change, what would the system lose?" If the answer is a capability, boundary, or behavioral constraint — emit it. If the answer is nothing meaningful — de-emphasize.
+
 Section rules:
 - Section names must be generic functional blocks or change themes, not repo-specific domains and not low-level issue labels
 - Prefer names such as:
@@ -74,7 +94,7 @@ Op classification rules:
 - Prefer `bugfix` when the change corrects wrong behavior, wrong routing, stale references, incorrect access paths, incorrect fallback behavior, or previously broken logic
 - Prefer `safety` when the change primarily prevents crashes, use-after-free, invalid lifetime, invalid ownership, unsafe reuse, or unsafe partial-failure behavior
 - Prefer `compat` when the main meaning is aligning with an existing contract, output format, protocol, or downstream expectation
-- Prefer `config` only when the change meaningfully changes operator-facing behavior or runtime control, not for mere declaration of a flag or constant
+- Prefer `config` only when the change meaningfully changes operator-facing behavior or runtime control, not for mere declaration of a flag, constant, or config file (`.yaml`, `.json`, `.toml`, `.ini`, `.conf`, env vars)
 - Prefer `optimize` only when the change meaningfully improves performance or resource usage and that is part of the historical meaning
 - If a change mainly enforces a required rule or invariant, classify it as `bugfix` or `safety` rather than `refactor`
 
