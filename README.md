@@ -18,6 +18,15 @@ Each capability is independent. Use them in order for a full picture, or run any
 
 ## Quick Start
 
+### Install from marketplace in Claude Code
+
+```bash
+/plugin marketplace add feng-y/semantic
+/plugin install semantic-harness@semantic-harness-marketplace
+```
+
+### Local development setup
+
 ```bash
 git clone <repo-url> && cd semantic-harness
 pip install -e ".[test]"
