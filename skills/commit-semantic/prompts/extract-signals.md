@@ -69,27 +69,28 @@ then you should anchor your semantic interpretation on the **high-information it
 
 If a commit is low-signal overall, emit at most weak or low-confidence signals rather than inventing a strong capability.
 
-## Signal strength: logical operations vs. configuration/docs
+## Signal strength: process operations as the semantic unit
 
-The strength of a commit's semantic signal comes from **what logical operation it performs**, not from the mechanical fact of changing files. Prioritize commits that introduce, refine, harden, or evolve logical behavior.
+A commit's semantic content comes from the **process operation it performs** — the intent, the logic applied, the behavioral change. Not from the mechanical fact of modifying files.
 
-**Strong signals — logical operations:**
+The question to ask: **"What operation did this commit perform, and what does that operation mean?"**
+
+**Strong signals — process operations:**
 - `feat`, `fix`, `bugfix`, `optimize`, `refactor` with concrete semantic content
-- Changes where the meaningful content is the logic, not the container
+- The operation's intent and logic are the signal — what capability was added, removed, or changed
+- Any change where the meaningful content is the logic, not the container
 
-**Weak signals — configuration and documentation:**
-- Pure config changes (`.yaml`, `.json`, `.toml`, `.ini`, env vars) where the change is the work itself
-  - The config may have been set, but the **intent** and **outcome** are what matter
-  - If a config change has no clear logical consequence described, treat it as low-signal
-- Doc-only changes, README updates, comment-only changes
-  - Writing documentation is the work; it does not independently constitute meaningful commit semantics
+**Weak signals — pure configuration or documentation:**
+- Pure config changes (`.yaml`, `.json`, `.toml`, `.ini`, env vars): the operation is "set a value"
+  - The semantic value comes from the **final state**, not the process of setting it
+  - Only strong if the resulting state has independent semantic meaning (e.g., "security rule now enforces X", "feature Y is disabled")
+  - If only the value was changed with no stated intent or consequence, the operation itself carries little signal
+- Doc-only changes: the operation is "write documentation" — writing docs is the work, not a side-effect of meaningful work
 
 **Down-rank but do not eliminate:**
-- Config-only commits where the intent and outcome are clear → medium/low confidence
-- Config-only commits with no clear logical consequence → low confidence or skip
+- Config changes with clear final-state semantics → medium/low confidence
+- Config changes with no stated intent or consequence → low confidence or skip
 - Docs-only changes → low confidence unless they clarify a significant semantic distinction
-
-The question to ask: "If I removed this change, what logical capability would be missing?" If nothing meaningful is missing, the signal is weak.
 
 ## Noise suppression
 
