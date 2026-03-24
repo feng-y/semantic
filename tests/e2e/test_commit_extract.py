@@ -142,7 +142,7 @@ class TestCommitExtractSkill:
             assert manifest["total_shas"] == 1
             assert len(manifest["batches"]) == 1
             assert manifest["batches"][0]["batch_id"] == "batch_0000"
-            assert "## Shared Hints" not in manifest["prompt"]
+            assert "## Shared Hints" not in manifest["batches"][0]["prompt"]
             assert repo_context["summary"]["bootstrap_status"] == "degraded"
             assert repo_context["summary"]["degraded_reasons"] == ["empty-shared-hints"]
             assert repo_context["summary"]["source_counts"]["docs"] >= 0
@@ -185,7 +185,7 @@ class TestCommitExtractSkill:
             mod.TMP_DIR = saved_tmp
 
             assert result is True
-            assert "## Shared Hints" not in manifest["prompt"]
+            assert "## Shared Hints" not in manifest["batches"][0]["prompt"]
             assert repo_context["summary"]["bootstrap_status"] == "bypass"
             assert repo_context["summary"]["bypass_reason"] == "skip-bootstrap"
 
@@ -230,8 +230,8 @@ class TestCommitExtractSkill:
             mod.TMP_DIR = saved_tmp
 
             assert result is True
-            assert "## Shared Hints" in manifest["prompt"]
-            shared_hints_block = manifest["prompt"].split("## Shared Hints\n\n", 1)[1].split("\n\n## SHA List", 1)[0]
+            assert "## Shared Hints" in manifest["batches"][0]["prompt"]
+            shared_hints_block = manifest["batches"][0]["prompt"].split("## Shared Hints\n\n", 1)[1].split("\n\n## SHA List", 1)[0]
             shared_hints = json.loads(shared_hints_block)
             assert shared_hints["local_capabilities"] == ["commit-extract"]
             assert repo_context["summary"]["bootstrap_status"] == "degraded"

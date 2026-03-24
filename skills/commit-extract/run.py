@@ -357,7 +357,7 @@ class CommitExtractRunner(SkillRunner):
                     repo_context["shared_hints"],
                     fingerprint=current_fingerprint,
                     bootstrap_status=built_mode["bootstrap_status"],
-                    used_cached_context=built_mode["used_cached_context"],
+                    used_cached_context=False,
                     degraded_reasons=built_mode["degraded_reasons"],
                     bypass_reason=built_mode["bypass_reason"],
                 )
@@ -436,7 +436,6 @@ class CommitExtractRunner(SkillRunner):
             "repo_path": self.repo_path,
             "total_shas": len(new_shas),
             "total_batches": len(batches),
-            "prompt": self._build_worker_prompt(new_shas),
             "batches": [],
         }
 
@@ -448,6 +447,7 @@ class CommitExtractRunner(SkillRunner):
                 "batch_id": batch_id,
                 "shas": batch_shas,
                 "output_path": output_path,
+                "prompt": self._build_worker_prompt(batch_shas),
             })
 
             print(f"  Batch {i}: {len(batch_shas)} SHAs → {output_path}")

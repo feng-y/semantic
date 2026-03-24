@@ -258,7 +258,7 @@ class CommitSemanticRunner(SkillRunner):
             if not isinstance(payload, dict):
                 continue
             semantic_context = payload.get("semantic_context")
-            if isinstance(semantic_context, dict):
+            if isinstance(semantic_context, dict) and any(semantic_context.values()):
                 return semantic_context
             if path == shared_context_file:
                 continue
