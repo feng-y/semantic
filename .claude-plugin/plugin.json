@@ -1,6 +1,6 @@
 {
   "name": "semantic-harness",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "Evidence-driven semantic construction pipeline for Claude Code",
   "author": {
     "name": "feng-y",

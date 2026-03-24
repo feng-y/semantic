@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "semantic-harness"
-version = "0.0.2"
+version = "0.0.3"
 description = "Evidence-driven semantic construction pipeline for Claude Code"
 requires-python = ">=3.10"
 license = {text = "MIT"}

@@ -506,8 +506,8 @@ class CommitExtractRunner(SkillRunner):
                 # Batch files deleted — merge already ran; use merged output
                 completed = total_batches
                 total_shas = sum(
-                    1 for _ in load_jsonl(str(f), skip_errors=True)
-                    for f in OUTPUT_BASE.glob("*.jsonl")
+                    1 for f in OUTPUT_BASE.glob("*.jsonl")
+                    for _ in load_jsonl(str(f), skip_errors=True)
                 )
 
             print(f"\n  Workers:")
