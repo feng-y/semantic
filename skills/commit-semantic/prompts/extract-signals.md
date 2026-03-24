@@ -69,12 +69,32 @@ then you should anchor your semantic interpretation on the **high-information it
 
 If a commit is low-signal overall, emit at most weak or low-confidence signals rather than inventing a strong capability.
 
+## Signal strength: logical operations vs. configuration/docs
+
+The strength of a commit's semantic signal comes from **what logical operation it performs**, not from the mechanical fact of changing files. Prioritize commits that introduce, refine, harden, or evolve logical behavior.
+
+**Strong signals — logical operations:**
+- `feat`, `fix`, `bugfix`, `optimize`, `refactor` with concrete semantic content
+- Changes where the meaningful content is the logic, not the container
+
+**Weak signals — configuration and documentation:**
+- Pure config changes (`.yaml`, `.json`, `.toml`, `.ini`, env vars) where the change is the work itself
+  - The config may have been set, but the **intent** and **outcome** are what matter
+  - If a config change has no clear logical consequence described, treat it as low-signal
+- Doc-only changes, README updates, comment-only changes
+  - Writing documentation is the work; it does not independently constitute meaningful commit semantics
+
+**Down-rank but do not eliminate:**
+- Config-only commits where the intent and outcome are clear → medium/low confidence
+- Config-only commits with no clear logical consequence → low confidence or skip
+- Docs-only changes → low confidence unless they clarify a significant semantic distinction
+
+The question to ask: "If I removed this change, what logical capability would be missing?" If nothing meaningful is missing, the signal is weak.
+
 ## Noise suppression
 
 Unless they are clearly the historical semantic center of the commit, strongly down-rank or ignore changes whose main meaning is limited to:
 - `.claude/*`, `.planning/*`, agent metadata, generated workflow scaffolding
-- docs-only rewrites
-- test-only support changes
 - generated files
 - broad formatting / cleanup / review-note churn
 
