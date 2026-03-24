@@ -187,6 +187,33 @@ def test_load_repo_context_invalid_shared_without_local_returns_empty(tmp_path):
     assert runner._load_repo_context() == {}
 
 
+def test_load_repo_context_malformed_shared_falls_back_to_local(tmp_path):
+    mod = load_commit_semantic_module()
+    extract_dir = tmp_path / "data" / "commit-extract"
+    semantic_dir = tmp_path / "data" / "commit-semantic"
+    extract_dir.mkdir(parents=True)
+    semantic_dir.mkdir(parents=True)
+
+    local_payload = {
+        "semantic_context": {
+            "local_capabilities": ["local-semantic"],
+            "ownership_hints": [{"capability": "commit-semantic"}],
+            "aliases": [],
+            "seed_concepts": [],
+            "confidence": "medium",
+        }
+    }
+    (extract_dir / "repo-context.json").write_text("{invalid-json", encoding="utf-8")
+    (semantic_dir / "repo-context.json").write_text(json.dumps(local_payload), encoding="utf-8")
+
+    mod.EXTRACT_OUTPUT = extract_dir
+    mod.SEMANTIC_OUTPUT = semantic_dir
+    runner = mod.CommitSemanticRunner()
+
+    resolved = runner._load_repo_context()
+
+    assert resolved == local_payload["semantic_context"]
+    assert resolved["local_capabilities"] == ["local-semantic"]
 
 
 def test_load_repo_context_empty_shared_semantic_context_falls_back_to_local(tmp_path):
@@ -198,7 +225,7 @@ def test_load_repo_context_empty_shared_semantic_context_falls_back_to_local(tmp
 
     shared_payload = {
         "shared_hints": {"local_capabilities": ["shared-extract"]},
-        "semantic_context": {},
+        "semantic_context": {"confidence": "low"},
         "summary": {"bootstrap_status": "bypass"},
     }
     local_payload = {

@@ -254,15 +254,26 @@ class CommitSemanticRunner(SkillRunner):
         for path in (shared_context_file, _repo_context_file()):
             if not path.exists():
                 continue
-            payload = load_json(str(path))
+            try:
+                payload = load_json(str(path))
+            except Exception:
+                if path == shared_context_file:
+                    continue
+                return {}
             if not isinstance(payload, dict):
                 continue
             semantic_context = payload.get("semantic_context")
-            if isinstance(semantic_context, dict) and any(semantic_context.values()):
+            summary = payload.get("summary") if isinstance(payload.get("summary"), dict) else {}
+            bootstrap_status = summary.get("bootstrap_status")
+            if (
+                isinstance(semantic_context, dict)
+                and semantic_context.get("local_capabilities")
+                and bootstrap_status not in {"bypass"}
+            ):
                 return semantic_context
             if path == shared_context_file:
                 continue
-            return payload
+            return payload if isinstance(payload, dict) else {}
         return {}
 
     def _load_capability_candidates(self) -> list[dict[str, Any]]:
