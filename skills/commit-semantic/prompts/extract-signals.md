@@ -2,9 +2,35 @@
 
 You are performing **commit-first semantic analysis** over structured `commit-extract` records.
 
-Return **JSON only**.
+**Return JSON only. No markdown fences. No explanation text outside the JSON.**
 
-## Required output shape
+---
+
+## Task
+
+For each commit record, extract semantic signals about **what operation was performed and what it means**. These signals feed into downstream capability synthesis.
+
+**You are not classifying commits into buckets.** You are extracting signals that can be aggregated across commits.
+
+---
+
+## What to extract
+
+### capability
+A stable functional unit this commit builds, refines, hardens, or evolves. The signal comes from the *operation* (what was added/removed/changed), not from the file that was modified.
+
+### concept
+A semantic object, artifact, or entity being manipulated.
+
+### rule
+A constraint, invariant, or judgment logic being enforced or clarified.
+
+### domain_hint
+A weak clue about problem space. Not a final domain.
+
+---
+
+## Output schema
 
 ```json
 {
@@ -23,107 +49,271 @@ Return **JSON only**.
 }
 ```
 
-## Core principle
+Evidence refs: `sha:<commit>`, `summary:<commit>:<section>:<item>`, `rule:<commit>:<index>`
 
-You are not classifying commits into buckets. You are extracting **semantic signals** that can later be aggregated across commits.
+---
 
-For each commit, first decide whether there is a **primary capability/change vector**. If there is, anchor the extraction on that semantic center and treat the remaining edits as supporting evidence or secondary signals instead of flattening everything into many equal fragments.
+## Signal strength rules (hard constraints)
 
-## What to extract
+**Ask first: "What operation was performed and what does it mean?"**
 
-### capability
-A stable functional unit that this commit appears to build, refine, harden, or evolve.
-A capability may use a repo-specific subsystem name **when that subsystem is itself the real stable semantic container** (for example, a subsystem that represents an externally meaningful runtime/service/module boundary). Do not ban repo-specific names mechanically.
+### Emit as primary signal only when:
+- The commit performs a **process operation** with clear intent: feat, fix, bugfix, optimize, refactor with concrete semantic content
+- The operation's intent and logic are the semantic content — what capability was added, removed, or changed
+- The change is about logic/behavior, not about the container of that logic
 
-### concept
-A semantic object, artifact, or entity being manipulated.
+### Do NOT emit as primary signal when:
+- The commit is **config-only** (`.yaml`, `.json`, `.toml`, `.ini`, env vars): the operation is "set a value" — only the resulting state carries semantic weight, and only if that state has independent meaning
+- The commit is **doc-only**: the operation is "write docs" — writing docs is the work itself, not a side-effect of meaningful work
+- The commit is **low-signal boilerplate**: "Modified N file(s)", "Changes in:", generic wording with no concrete semantic object
 
-### rule
-A constraint, invariant, or judgment logic being enforced or clarified.
+### Down-rank rules:
+- Config change with clear final-state semantics (e.g., "security rule now enforces X", "feature Y disabled") → `confidence: medium` or `low`
+- Config change with no stated intent or consequence → do not emit as capability signal
+- Docs-only → `confidence: low` unless it clarifies a significant semantic distinction
+- Low-signal overall → emit at most weak/low-confidence signals, do not invent strong capabilities
 
-### domain_hint
-A weak clue about problem space. This is not a final domain.
+---
 
-## Important constraints
+## Per-commit extraction strategy
 
-- Use semantic understanding, not keyword/path matching as the primary reasoning mechanism.
-- Prefer high-information semantic content over boilerplate or low-information summaries.
-- If a record is mostly vague, mark it with low confidence and relevant flags instead of over-claiming.
-- Preserve mixedness when a commit clearly spans multiple semantic concerns.
-- `domain_hint` is always weak and provisional.
+For each commit, first identify the **primary capability/change vector** if one exists. Then:
 
-## Low-signal handling
+1. Anchor on the semantic center — this becomes the primary signal
+2. Treat remaining edits as supporting evidence or secondary signals
+3. Do NOT flatten everything into many equally-weighted fragments
 
-Low-signal phrases include things like:
-- `Modified N file(s)`
-- `Changes in:`
-- generic quality/review/fix wording with no concrete semantic object
+For mixed commits (multiple semantic concerns):
+- Record the dominant signal
+- Add `"mixed"` to `flags`
+- Use `related_capability_names` to preserve secondary concerns
 
-Do not let low-signal text dominate extraction.
+For commits with both high-information and low-signal content:
+- Anchor on the high-information item
+- Treat the low-signal item only as weak supporting evidence
 
-When a commit record contains both:
-- a low-signal item (`Modified N file(s)`, `Changes in:`)
-- and a high-information item in the same commit/section set
+---
 
-then you should anchor your semantic interpretation on the **high-information item**, and treat the low-signal item only as weak supporting evidence.
+## Noise suppression (hard constraints — do NOT treat as primary signal)
 
-If a commit is low-signal overall, emit at most weak or low-confidence signals rather than inventing a strong capability.
-
-## Signal strength: process operations as the semantic unit
-
-A commit's semantic content comes from the **process operation it performs** — the intent, the logic applied, the behavioral change. Not from the mechanical fact of modifying files.
-
-The question to ask: **"What operation did this commit perform, and what does that operation mean?"**
-
-**Strong signals — process operations:**
-- `feat`, `fix`, `bugfix`, `optimize`, `refactor` with concrete semantic content
-- The operation's intent and logic are the signal — what capability was added, removed, or changed
-- Any change where the meaningful content is the logic, not the container
-
-**Weak signals — pure configuration or documentation:**
-- Pure config changes (`.yaml`, `.json`, `.toml`, `.ini`, env vars): the operation is "set a value"
-  - The semantic value comes from the **final state**, not the process of setting it
-  - Only strong if the resulting state has independent semantic meaning (e.g., "security rule now enforces X", "feature Y is disabled")
-  - If only the value was changed with no stated intent or consequence, the operation itself carries little signal
-- Doc-only changes: the operation is "write documentation" — writing docs is the work, not a side-effect of meaningful work
-
-**Down-rank but do not eliminate:**
-- Config changes with clear final-state semantics → medium/low confidence
-- Config changes with no stated intent or consequence → low confidence or skip
-- Docs-only changes → low confidence unless they clarify a significant semantic distinction
-
-## Noise suppression
-
-Unless they are clearly the historical semantic center of the commit, strongly down-rank or ignore changes whose main meaning is limited to:
 - `.claude/*`, `.planning/*`, agent metadata, generated workflow scaffolding
 - generated files
 - broad formatting / cleanup / review-note churn
+- test-only support changes
 
-These may remain as weak supporting evidence, but should not become the dominant capability signal unless the commit is truly about documentation, harness behavior, or review infrastructure itself.
+These may remain as supporting evidence but must not become the dominant capability signal.
 
-## Mixed handling
+---
 
-When a commit clearly spans multiple semantic concerns:
-- record the dominant signal as usual
-- add `mixed` in `flags`
-- use `related_capability_names` to preserve the secondary semantic concern
+## Observability and runtime-control
 
-When the commit has one clear primary capability plus multiple supporting edits, prefer **one strong primary capability signal** plus supporting related capability names rather than many equally weighted weak signals.
+Do NOT treat as mere plumbing by default. If observability, metrics, runtime controls, scheduling, or operator-facing behavior materially changes how operators control, observe, or reason about the runtime → emit as capability signal.
 
-## Observability and runtime-control changes
+---
 
-Do not treat observability, metrics, runtime controls, scheduling, or operator-facing behavior as mere plumbing by default.
-If they materially change how operators control, observe, or reason about the runtime, they may represent a real capability signal.
+## Confidence calibration
 
-## Evidence refs
+| Situation | Confidence |
+|-----------|-----------|
+| Concrete process operation with clear intent | `high` |
+| Config change with clear final-state semantics | `medium` or `low` |
+| Config change with no stated intent | do not emit as capability |
+| Low-signal overall, no clear operation | `low` or skip |
+| Doc-only | `low` unless it clarifies significant semantics |
 
-Each emitted signal must include evidence refs tied to the source commit. Use stable lightweight references such as:
-- `sha:<commit>`
-- `summary:<commit>:<section_index>:<item_index>`
-- `rule:<commit>:<rule_index>`
+---
 
-## Output rules
+## Few-shot examples
 
-- JSON only
-- No markdown fences
-- No explanation text outside the JSON
+### Example 1: Strong process operation → emit capability
+
+**Input:**
+```json
+{
+  "sha": "abc123",
+  "sections": [
+    {
+      "name": "Auth",
+      "theme": "auth",
+      "importance": "primary",
+      "items": [
+        {"op": "feat", "summary": "Add login with OAuth2 and session management"}
+      ]
+    }
+  ]
+}
+```
+
+**Output:**
+```json
+{
+  "signals": [
+    {
+      "kind": "capability",
+      "name": "oauth2-login",
+      "description": "Add OAuth2 login with session management",
+      "source_commit": "abc123",
+      "evidence_refs": ["sha:abc123", "summary:abc123:0:0"],
+      "confidence": "high",
+      "flags": [],
+      "related_capability_names": []
+    }
+  ]
+}
+```
+
+### Example 2: Config-only → low confidence or skip
+
+**Input:**
+```json
+{
+  "sha": "def456",
+  "sections": [
+    {
+      "name": "Config",
+      "theme": "config",
+      "importance": "primary",
+      "items": [
+        {"op": "chore", "summary": "Set timeout to 30s"}
+      ]
+    }
+  ]
+}
+```
+
+**Output:**
+```json
+{
+  "signals": []
+}
+```
+
+### Example 3: Config with clear final-state semantics → medium
+
+**Input:**
+```json
+{
+  "sha": "ghi789",
+  "sections": [
+    {
+      "name": "Security",
+      "theme": "security",
+      "importance": "primary",
+      "items": [
+        {"op": "fix", "summary": "Require API key for all endpoints — removed allowlist bypass"}
+      ]
+    }
+  ]
+}
+```
+
+**Output:**
+```json
+{
+  "signals": [
+    {
+      "kind": "capability",
+      "name": "api-key-auth-required",
+      "description": "All API endpoints now require API key authentication; bypass removed",
+      "source_commit": "ghi789",
+      "evidence_refs": ["sha:ghi789", "summary:ghi789:0:0"],
+      "confidence": "medium",
+      "flags": [],
+      "related_capability_names": []
+    }
+  ]
+}
+```
+
+### Example 4: Doc-only → low
+
+**Input:**
+```json
+{
+  "sha": "doc001",
+  "sections": [
+    {
+      "name": "Docs",
+      "theme": "docs",
+      "importance": "primary",
+      "items": [
+        {"op": "docs", "summary": "Update README with new installation steps"}
+      ]
+    }
+  ]
+}
+```
+
+**Output:**
+```json
+{
+  "signals": [
+    {
+      "kind": "concept",
+      "name": "installation-documentation",
+      "description": "Installation steps documented",
+      "source_commit": "doc001",
+      "evidence_refs": ["summary:doc001:0:0"],
+      "confidence": "low",
+      "flags": ["docs-only"],
+      "related_capability_names": []
+    }
+  ]
+}
+```
+
+### Example 5: Mixed — primary + secondary
+
+**Input:**
+```json
+{
+  "sha": "mix001",
+  "is_mixed": true,
+  "sections": [
+    {
+      "name": "Auth",
+      "theme": "auth",
+      "importance": "primary",
+      "items": [
+        {"op": "feat", "summary": "Add login"}
+      ]
+    },
+    {
+      "name": "Tests",
+      "theme": "test",
+      "importance": "secondary",
+      "items": [
+        {"op": "test", "summary": "Add login tests"}
+      ]
+    }
+  ]
+}
+```
+
+**Output:**
+```json
+{
+  "signals": [
+    {
+      "kind": "capability",
+      "name": "login",
+      "description": "Add login capability",
+      "source_commit": "mix001",
+      "evidence_refs": ["sha:mix001", "summary:mix001:0:0"],
+      "confidence": "high",
+      "flags": ["mixed"],
+      "related_capability_names": ["login-tests"]
+    },
+    {
+      "kind": "concept",
+      "name": "login-tests",
+      "description": "Login test coverage",
+      "source_commit": "mix001",
+      "evidence_refs": ["summary:mix001:1:0"],
+      "confidence": "medium",
+      "flags": ["test-only"],
+      "related_capability_names": []
+    }
+  ]
+}
+```
