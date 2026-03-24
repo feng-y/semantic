@@ -51,6 +51,10 @@ def _repo_context_file() -> Path:
     return SEMANTIC_OUTPUT / "repo-context.json"
 
 
+def _shared_repo_context_file() -> Path:
+    return EXTRACT_OUTPUT / "repo-context.json"
+
+
 def _capability_candidates_file() -> Path:
     return SEMANTIC_OUTPUT / "capabilities-candidates.jsonl"
 
@@ -113,6 +117,58 @@ def _parse_json_array(raw: str) -> list[dict[str, Any]]:
 def _load_prompt(name: str) -> str:
     path = PROMPT_DIR / name
     return path.read_text(encoding="utf-8")
+
+
+def _normalize_aliases(raw_aliases: Any) -> list[dict[str, str]]:
+    normalized: list[dict[str, str]] = []
+    if not isinstance(raw_aliases, list):
+        return normalized
+    for item in raw_aliases:
+        if not isinstance(item, dict):
+            continue
+        canonical = str(item.get("canonical") or item.get("domain") or "").strip()
+        alias = str(item.get("alias") or item.get("name") or "").strip()
+        if not canonical or not alias:
+            continue
+        kind = str(item.get("kind") or "term").strip() or "term"
+        normalized.append({"canonical": canonical, "alias": alias, "kind": kind})
+    return normalized
+
+
+def _normalize_ownership_hints(raw_hints: Any) -> list[dict[str, str]]:
+    normalized: list[dict[str, str]] = []
+    if not isinstance(raw_hints, list):
+        return normalized
+    for item in raw_hints:
+        if not isinstance(item, dict):
+            continue
+        scope = str(item.get("scope") or item.get("path_prefix") or item.get("capability") or "").strip()
+        owner = str(item.get("owner") or item.get("capability") or item.get("path_prefix") or "").strip()
+        note = str(item.get("note") or item.get("description") or item.get("path_prefix") or owner).strip()
+        if not scope or not owner or not note:
+            continue
+        normalized.append({"scope": scope, "owner": owner, "note": note})
+    return normalized
+
+
+def _normalize_seed_concepts(raw_concepts: Any) -> list[dict[str, str]]:
+    normalized: list[dict[str, str]] = []
+    if not isinstance(raw_concepts, list):
+        return normalized
+    for item in raw_concepts:
+        if isinstance(item, str):
+            name = item.strip()
+            if name:
+                normalized.append({"name": name, "description": name})
+            continue
+        if not isinstance(item, dict):
+            continue
+        name = str(item.get("name") or item.get("concept") or item.get("title") or "").strip()
+        description = str(item.get("description") or item.get("summary") or name).strip()
+        if not name or not description:
+            continue
+        normalized.append({"name": name, "description": description})
+    return normalized
 
 
 class CommitSemanticRunner(SkillRunner):
@@ -194,9 +250,20 @@ class CommitSemanticRunner(SkillRunner):
         return load_json(str(_repo_hints_file()))
 
     def _load_repo_context(self) -> dict[str, Any]:
-        if not _repo_context_file().exists():
-            return {}
-        return load_json(str(_repo_context_file()))
+        shared_context_file = _shared_repo_context_file()
+        for path in (shared_context_file, _repo_context_file()):
+            if not path.exists():
+                continue
+            payload = load_json(str(path))
+            if not isinstance(payload, dict):
+                continue
+            semantic_context = payload.get("semantic_context")
+            if isinstance(semantic_context, dict):
+                return semantic_context
+            if path == shared_context_file:
+                continue
+            return payload
+        return {}
 
     def _load_capability_candidates(self) -> list[dict[str, Any]]:
         if not _capability_candidates_file().exists():
@@ -246,12 +313,45 @@ class CommitSemanticRunner(SkillRunner):
         hints.setdefault("seed_concepts", [])
         hints.setdefault("doc_sources", [doc["path"] for doc in docs])
         hints.setdefault("confidence", "medium")
-        repo_context = {
+        normalized_aliases = _normalize_aliases(hints.get("aliases", []))
+        normalized_ownership_hints = _normalize_ownership_hints(hints.get("ownership_hints", []))
+        normalized_seed_concepts = _normalize_seed_concepts(hints.get("seed_concepts", []))
+        semantic_context = {
             "local_capabilities": hints.get("local_capabilities", []),
             "ownership_hints": hints.get("ownership_hints", []),
             "aliases": hints.get("aliases", []),
             "seed_concepts": hints.get("seed_concepts", []),
             "confidence": hints.get("confidence", "medium"),
+        }
+        shared_hints = {
+            "local_capabilities": hints.get("local_capabilities", []),
+            "aliases": normalized_aliases,
+            "ownership_hints": normalized_ownership_hints,
+            "seed_concepts": normalized_seed_concepts,
+            "source_provenance": {},
+            "hint_confidence": {},
+            "conflicts": [],
+            "source_snapshot": {
+                "docs": hints.get("doc_sources", []),
+                "codebase_map": [],
+            },
+        }
+        repo_context = {
+            "shared_hints": shared_hints,
+            "semantic_context": semantic_context,
+            "summary": {
+                "bootstrap_status": "degraded",
+                "hint_count": (
+                    len(shared_hints["local_capabilities"])
+                    + len(shared_hints["ownership_hints"])
+                    + len(shared_hints["aliases"])
+                    + len(shared_hints["seed_concepts"])
+                ),
+                "source_counts": {
+                    "docs": len(shared_hints["source_snapshot"]["docs"]),
+                    "codebase_map": len(shared_hints["source_snapshot"]["codebase_map"]),
+                },
+            },
         }
         save_json(hints, str(_repo_hints_file()))
         save_json(repo_context, str(_repo_context_file()))

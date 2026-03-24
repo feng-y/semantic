@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import json
 import logging
 import os
@@ -18,8 +19,21 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from src.harness_state import HarnessState
 from src.skill_runner import SkillRunner
-from src.io_utils import load_jsonl, append_jsonl, save_json
+from src.io_utils import load_json, load_jsonl, append_jsonl, save_json
 from src.commit_semantic.git_utils import get_commit_list
+
+_bootstrap_spec = importlib.util.spec_from_file_location(
+    "commit_extract_bootstrap",
+    str(Path(__file__).with_name("bootstrap.py")),
+)
+_bootstrap = importlib.util.module_from_spec(_bootstrap_spec)
+assert _bootstrap_spec.loader is not None
+_bootstrap_spec.loader.exec_module(_bootstrap)
+build_bootstrap_context = _bootstrap.build_bootstrap_context
+build_reliability_summary = _bootstrap.build_reliability_summary
+determine_bootstrap_mode = _bootstrap.determine_bootstrap_mode
+extract_shared_hints_for_prompt = _bootstrap.extract_shared_hints_for_prompt
+write_bootstrap_context = _bootstrap.write_bootstrap_context
 
 logger = logging.getLogger(__name__)
 
@@ -174,6 +188,11 @@ class CommitExtractRunner(SkillRunner):
         self._prompt_content: str | None = None
         self._pending_shas: list[str] = []
         self.auto_confirm: bool = False
+        self._shared_hints: dict | None = None
+        self.skip_bootstrap: bool = False
+
+    def _repo_context_file(self) -> Path:
+        return OUTPUT_BASE / "repo-context.json"
 
     def run_stage(self, stage: str, state: HarnessState) -> bool:
         if stage == "collect":
@@ -201,9 +220,15 @@ class CommitExtractRunner(SkillRunner):
         return self._prompt_content
 
     def _build_worker_prompt(self, shas: list[str]) -> str:
-        """Build the full worker prompt: prefix instructions + generate_commit.md."""
+        """Build the full worker prompt: shared hints + instructions + generate_commit.md."""
         prompt = self._get_prompt()
         sha_list = "\n".join(f"- {sha}" for sha in shas)
+        shared_hints_block = ""
+        if self._shared_hints is not None:
+            shared_hints_block = (
+                "## Shared Hints\n\n"
+                f"{json.dumps(self._shared_hints, indent=2, sort_keys=True)}\n\n"
+            )
         prefix = (
             "You are a commit analysis worker. Process the following SHA list one by one.\n"
             "For each SHA:\n"
@@ -213,6 +238,7 @@ class CommitExtractRunner(SkillRunner):
             "4. Output exactly one JSON object\n"
             "5. Append the JSON object as one line to the output file\n\n"
             "Process each SHA independently. Do not accumulate patch content in context.\n\n"
+            f"{shared_hints_block}"
             f"## SHA List\n\n{sha_list}\n\n"
             "## Analysis Prompt\n\n"
         )
@@ -289,6 +315,69 @@ class CommitExtractRunner(SkillRunner):
 
         OUTPUT_BASE.mkdir(parents=True, exist_ok=True)
 
+        repo_context_path = self._repo_context_file()
+        current_fingerprint = _bootstrap.compute_bootstrap_fingerprint(Path(self.repo_path))
+        existing_repo_context = None
+        if repo_context_path.exists():
+            try:
+                existing_repo_context = load_json(str(repo_context_path))
+            except Exception:
+                existing_repo_context = None
+
+        mode = determine_bootstrap_mode(
+            existing_repo_context,
+            current_fingerprint=current_fingerprint,
+            skip_bootstrap=self.skip_bootstrap,
+        )
+
+        if self.skip_bootstrap:
+            repo_context = build_bootstrap_context(Path(self.repo_path))
+            repo_context["summary"] = build_reliability_summary(
+                repo_context["shared_hints"],
+                fingerprint=current_fingerprint,
+                bootstrap_status="bypass",
+                used_cached_context=False,
+                degraded_reasons=[],
+                bypass_reason="skip-bootstrap",
+            )
+            self._shared_hints = None
+        else:
+            if mode["bootstrap_status"] == "full" and isinstance(existing_repo_context, dict):
+                repo_context = existing_repo_context
+            elif mode["bootstrap_status"] == "degraded" and isinstance(existing_repo_context, dict):
+                repo_context = existing_repo_context
+            else:
+                repo_context = build_bootstrap_context(Path(self.repo_path))
+                built_mode = determine_bootstrap_mode(
+                    repo_context,
+                    current_fingerprint=current_fingerprint,
+                    skip_bootstrap=False,
+                )
+                repo_context["summary"] = build_reliability_summary(
+                    repo_context["shared_hints"],
+                    fingerprint=current_fingerprint,
+                    bootstrap_status=built_mode["bootstrap_status"],
+                    used_cached_context=built_mode["used_cached_context"],
+                    degraded_reasons=built_mode["degraded_reasons"],
+                    bypass_reason=built_mode["bypass_reason"],
+                )
+                mode = built_mode
+
+            if mode["bootstrap_status"] == "full":
+                self._shared_hints = extract_shared_hints_for_prompt(repo_context)
+            elif mode["bootstrap_status"] == "degraded":
+                if "empty-shared-hints" in mode.get("degraded_reasons", []):
+                    self._shared_hints = None
+                else:
+                    shared_hints = extract_shared_hints_for_prompt(repo_context)
+                    shared_hints["local_capabilities"] = shared_hints.get("local_capabilities", [])[:1]
+                    self._shared_hints = shared_hints
+            else:
+                self._shared_hints = None
+
+        write_bootstrap_context(repo_context_path, repo_context)
+        self.add_artifact(state, str(repo_context_path))
+
         # 1. Get SHA list (no merges)
         all_shas = get_commit_list(
             repo_path=self.repo_path,
@@ -343,12 +432,11 @@ class CommitExtractRunner(SkillRunner):
 
         # 7. Create batch manifest for workers
         TMP_DIR.mkdir(parents=True, exist_ok=True)
-        prompt_content = self._get_prompt()
         manifest = {
             "repo_path": self.repo_path,
             "total_shas": len(new_shas),
             "total_batches": len(batches),
-            "prompt": prompt_content,
+            "prompt": self._build_worker_prompt(new_shas),
             "batches": [],
         }
 
@@ -463,6 +551,8 @@ class CommitExtractRunner(SkillRunner):
                           help="Interactive mode: select range and confirm")
         parser.add_argument("--yes", "-y", action="store_true",
                           help="Auto-confirm extraction without prompting")
+        parser.add_argument("--skip-bootstrap", action="store_true",
+                          help="Bypass shared bootstrap context for this run")
         args = parser.parse_args(argv)
 
         if args.merge:
@@ -472,6 +562,7 @@ class CommitExtractRunner(SkillRunner):
 
         self.repo_path = args.repo
         self.auto_confirm = args.yes
+        self.skip_bootstrap = args.skip_bootstrap
 
         if args.interactive:
             # Interactive mode

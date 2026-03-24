@@ -214,7 +214,7 @@ class TestCommitSemanticSkill:
 
 
 class TestCommitSemanticContext:
-    def test_context_stage_writes_repo_hints_and_context(self, tmp_path, sample_jsonl_records):
+    def test_context_stage_writes_repo_hints_and_layered_repo_context(self, tmp_path, sample_jsonl_records):
         _, semantic_dir, _, runner = _setup_and_run(
             tmp_path,
             sample_jsonl_records,
@@ -223,9 +223,39 @@ class TestCommitSemanticContext:
         )
         hints = load_json(str(semantic_dir / "repo-hints.json"))
         context = load_json(str(semantic_dir / "repo-context.json"))
+        assert set(context.keys()) == {"shared_hints", "semantic_context", "summary"}
         assert hints["local_capabilities"] == ["commit-extract", "commit-semantic", "demand"]
-        assert context["local_capabilities"] == ["commit-extract", "commit-semantic", "demand"]
-        assert context["confidence"] == "high"
+        assert hints["doc_sources"] == ["README.md"]
+        assert context["shared_hints"]["local_capabilities"] == ["commit-extract", "commit-semantic", "demand"]
+        assert context["shared_hints"]["aliases"] == [
+            {"canonical": "fact", "alias": "repo-structure", "kind": "term"},
+            {"canonical": "fact", "alias": "semantic-fact", "kind": "term"},
+        ]
+        assert context["shared_hints"]["ownership_hints"] == [
+            {
+                "scope": "skills/commit-extract/",
+                "owner": "commit-extract",
+                "note": "skills/commit-extract/",
+            },
+            {
+                "scope": "skills/commit-semantic/",
+                "owner": "commit-semantic",
+                "note": "skills/commit-semantic/",
+            },
+        ]
+        assert context["shared_hints"]["seed_concepts"] == [
+            {"name": "canonical-demand", "description": "canonical-demand"},
+            {"name": "semantic-unit", "description": "semantic-unit"},
+            {"name": "invariant", "description": "invariant"},
+        ]
+        assert context["semantic_context"]["local_capabilities"] == ["commit-extract", "commit-semantic", "demand"]
+        assert context["semantic_context"]["ownership_hints"][0]["capability"] == "commit-extract"
+        assert context["semantic_context"]["confidence"] == "high"
+        assert context["summary"] == {
+            "bootstrap_status": "degraded",
+            "hint_count": 10,
+            "source_counts": {"docs": 1, "codebase_map": 0},
+        }
         assert len(runner.get_artifacts(runner.init_state())) == 0  # smoke: method exists
 
     def test_context_requires_orchestration(self, tmp_path, sample_jsonl_records):
@@ -241,6 +271,64 @@ class TestCommitSemanticContext:
         state = HarnessState(stage="init", metadata={"completed_stages": [], "artifacts_written": [], "status": "ok"})
         assert runner._run_context(state) is False
         assert not (semantic_dir / "repo-hints.json").exists()
+        assert not (semantic_dir / "repo-context.json").exists()
+
+
+    def test_load_repo_context_returns_semantic_context_accessor(self, tmp_path, sample_jsonl_records):
+        mod, semantic_dir, _, _ = _setup_and_run(
+            tmp_path,
+            sample_jsonl_records,
+            ["context"],
+            executor=FakeHostExecutor(),
+        )
+        runner = mod.CommitSemanticRunner(executor=FakeHostExecutor())
+        mod.SEMANTIC_OUTPUT = semantic_dir
+        loaded = runner._load_repo_context()
+        assert loaded["local_capabilities"] == ["commit-extract", "commit-semantic", "demand"]
+        assert loaded["ownership_hints"][0]["capability"] == "commit-extract"
+        assert loaded["confidence"] == "high"
+
+    def test_load_repo_context_prefers_shared_extract_context_when_present(self, tmp_path, sample_jsonl_records):
+        mod, semantic_dir, _, _ = _setup_and_run(
+            tmp_path,
+            sample_jsonl_records,
+            ["context"],
+            executor=FakeHostExecutor(),
+        )
+        extract_dir = tmp_path / "data" / "commit-extract"
+        shared_context = {
+            "shared_hints": {
+                "local_capabilities": ["shared-bootstrap"],
+                "aliases": [],
+                "ownership_hints": [],
+                "seed_concepts": [],
+                "source_provenance": {},
+                "hint_confidence": {},
+                "conflicts": [],
+                "source_snapshot": {"docs": ["README.md"], "codebase_map": []},
+            },
+            "semantic_context": {
+                "local_capabilities": ["shared-bootstrap"],
+                "ownership_hints": [{"capability": "shared-bootstrap"}],
+                "aliases": [],
+                "seed_concepts": [],
+                "confidence": "low",
+            },
+            "summary": {
+                "bootstrap_status": "full",
+                "hint_count": 1,
+                "source_counts": {"docs": 1, "codebase_map": 0},
+            },
+        }
+        save_json(shared_context, str(extract_dir / "repo-context.json"))
+
+        runner = mod.CommitSemanticRunner(executor=FakeHostExecutor())
+        mod.EXTRACT_OUTPUT = extract_dir
+        mod.SEMANTIC_OUTPUT = semantic_dir
+
+        loaded = runner._load_repo_context()
+        assert loaded == shared_context["semantic_context"]
+        assert loaded["local_capabilities"] == ["shared-bootstrap"]
 
 
 class TestCommitSemanticSignals:

@@ -70,12 +70,26 @@ class TestCommitExtractSkill:
             assert result is True
 
             manifest_path = Path(tmpdir) / "output" / "tmp" / "manifest.json"
+            repo_context_path = Path(tmpdir) / "output" / "repo-context.json"
             assert manifest_path.exists()
+            assert repo_context_path.exists()
 
             manifest = json.loads(manifest_path.read_text())
+            repo_context = json.loads(repo_context_path.read_text())
             assert manifest["total_shas"] == 1
             assert len(manifest["batches"]) == 1
             assert len(manifest["batches"][0]["shas"]) == 1
+            assert set(repo_context.keys()) == {"shared_hints", "semantic_context", "summary"}
+            assert set(repo_context["shared_hints"].keys()) == {
+                "local_capabilities",
+                "aliases",
+                "ownership_hints",
+                "seed_concepts",
+                "source_provenance",
+                "hint_confidence",
+                "conflicts",
+                "source_snapshot",
+            }
 
     def test_collect_local_fallback_writes_monthly_jsonl(self):
         """LLM mode creates manifest and batch files, not direct monthly output."""
@@ -113,18 +127,115 @@ class TestCommitExtractSkill:
             # LLM mode: manifest created with batch definitions
             # Batch files are written by workers, not orchestrator
             manifest_path = Path(tmpdir) / "output" / "tmp" / "manifest.json"
+            repo_context_path = Path(tmpdir) / "output" / "repo-context.json"
 
             mod.OUTPUT_BASE = saved_base
             mod.TMP_DIR = saved_tmp
 
             assert result is True
             assert manifest_path.exists(), "Manifest should be created"
+            assert repo_context_path.exists(), "Repo context should be created before manifest use"
 
             # Verify manifest structure
             manifest = json.loads(manifest_path.read_text())
+            repo_context = json.loads(repo_context_path.read_text())
             assert manifest["total_shas"] == 1
             assert len(manifest["batches"]) == 1
             assert manifest["batches"][0]["batch_id"] == "batch_0000"
+            assert "## Shared Hints" not in manifest["prompt"]
+            assert repo_context["summary"]["bootstrap_status"] == "degraded"
+            assert repo_context["summary"]["degraded_reasons"] == ["empty-shared-hints"]
+            assert repo_context["summary"]["source_counts"]["docs"] >= 0
+
+
+    def test_collect_skip_bootstrap_bypasses_shared_hints(self):
+        mod = load_commit_extract_module()
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            repo_path = Path(tmpdir) / "test_repo"
+            repo_path.mkdir()
+            subprocess.run(["git", "init"], cwd=repo_path, capture_output=True, check=True)
+            subprocess.run(["git", "config", "user.email", "t@t.com"], cwd=repo_path, capture_output=True, check=True)
+            subprocess.run(["git", "config", "user.name", "T"], cwd=repo_path, capture_output=True, check=True)
+            (repo_path / "README.md").write_text("# Repo\n")
+            (repo_path / "f.txt").write_text("hello\n")
+            subprocess.run(["git", "add", "."], cwd=repo_path, capture_output=True, check=True)
+            subprocess.run(["git", "commit", "-m", "feat: initial"], cwd=repo_path, capture_output=True, check=True)
+
+            runner = mod.CommitExtractRunner()
+            runner.repo_path = str(repo_path)
+            runner.auto_confirm = True
+            runner.skip_bootstrap = True
+
+            saved_base = mod.OUTPUT_BASE
+            saved_tmp = mod.TMP_DIR
+            mod.OUTPUT_BASE = Path(tmpdir) / "output"
+            mod.TMP_DIR = mod.OUTPUT_BASE / "tmp"
+
+            from src.harness_state import HarnessState
+            state = HarnessState(stage="init", metadata={"completed_stages": [], "artifacts_written": [], "status": "ok"})
+            result = runner._run_collect(state)
+
+            manifest_path = Path(tmpdir) / "output" / "tmp" / "manifest.json"
+            repo_context_path = Path(tmpdir) / "output" / "repo-context.json"
+            manifest = json.loads(manifest_path.read_text())
+            repo_context = json.loads(repo_context_path.read_text())
+
+            mod.OUTPUT_BASE = saved_base
+            mod.TMP_DIR = saved_tmp
+
+            assert result is True
+            assert "## Shared Hints" not in manifest["prompt"]
+            assert repo_context["summary"]["bootstrap_status"] == "bypass"
+            assert repo_context["summary"]["bypass_reason"] == "skip-bootstrap"
+
+    def test_collect_reuses_degraded_context_with_reduced_shared_hints(self):
+        mod = load_commit_extract_module()
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            repo_path = Path(tmpdir) / "test_repo"
+            repo_path.mkdir()
+            subprocess.run(["git", "init"], cwd=repo_path, capture_output=True, check=True)
+            subprocess.run(["git", "config", "user.email", "t@t.com"], cwd=repo_path, capture_output=True, check=True)
+            subprocess.run(["git", "config", "user.name", "T"], cwd=repo_path, capture_output=True, check=True)
+            (repo_path / "README.md").write_text("# Repo\n")
+            (repo_path / "f.txt").write_text("hello\n")
+            subprocess.run(["git", "add", "."], cwd=repo_path, capture_output=True, check=True)
+            subprocess.run(["git", "commit", "-m", "feat: initial"], cwd=repo_path, capture_output=True, check=True)
+
+            runner = mod.CommitExtractRunner()
+            runner.repo_path = str(repo_path)
+            runner.auto_confirm = True
+
+            saved_base = mod.OUTPUT_BASE
+            saved_tmp = mod.TMP_DIR
+            mod.OUTPUT_BASE = Path(tmpdir) / "output"
+            mod.TMP_DIR = mod.OUTPUT_BASE / "tmp"
+            mod.OUTPUT_BASE.mkdir(parents=True, exist_ok=True)
+
+            bootstrap = json.loads((Path(__file__).parent.parent / "fixtures" / "commit_extract_bootstrap" / "degraded_repo_context.json").read_text())
+            bootstrap["summary"]["fingerprint"] = mod._bootstrap.compute_bootstrap_fingerprint(repo_path)
+            (mod.OUTPUT_BASE / "repo-context.json").write_text(json.dumps(bootstrap))
+
+            from src.harness_state import HarnessState
+            state = HarnessState(stage="init", metadata={"completed_stages": [], "artifacts_written": [], "status": "ok"})
+            result = runner._run_collect(state)
+
+            manifest_path = Path(tmpdir) / "output" / "tmp" / "manifest.json"
+            repo_context_path = Path(tmpdir) / "output" / "repo-context.json"
+            manifest = json.loads(manifest_path.read_text())
+            repo_context = json.loads(repo_context_path.read_text())
+
+            mod.OUTPUT_BASE = saved_base
+            mod.TMP_DIR = saved_tmp
+
+            assert result is True
+            assert "## Shared Hints" in manifest["prompt"]
+            shared_hints_block = manifest["prompt"].split("## Shared Hints\n\n", 1)[1].split("\n\n## SHA List", 1)[0]
+            shared_hints = json.loads(shared_hints_block)
+            assert shared_hints["local_capabilities"] == ["commit-extract"]
+            assert repo_context["summary"]["bootstrap_status"] == "degraded"
+            assert repo_context["summary"]["degraded_reasons"] == ["reduced-shared-hints"]
 
 
 class TestCommitExtractParseStat:
@@ -234,6 +345,26 @@ class TestCommitExtractWorkerPrompt:
         prompt = runner._build_worker_prompt(["abc123", "def456"])
         assert "abc123" in prompt
         assert "def456" in prompt
+
+    def test_prompt_includes_shared_hints_only(self):
+        mod = load_commit_extract_module()
+        runner = mod.CommitExtractRunner()
+        runner._shared_hints = {
+            "local_capabilities": ["commit-extract"],
+            "aliases": [],
+            "ownership_hints": [],
+            "seed_concepts": [],
+            "source_provenance": {},
+            "hint_confidence": {},
+            "conflicts": [],
+            "source_snapshot": {"docs": ["README.md"], "codebase_map": []},
+        }
+        prompt = runner._build_worker_prompt(["abc123"])
+        assert "## Shared Hints" in prompt
+        shared_hints_block = prompt.split("## Shared Hints\n\n", 1)[1].split("\n\n## SHA List", 1)[0]
+        assert '"local_capabilities": [' in shared_hints_block
+        assert '"semantic_context"' not in shared_hints_block
+        assert '"summary"' not in shared_hints_block
 
     def test_prompt_includes_generate_commit_content(self):
         mod = load_commit_extract_module()

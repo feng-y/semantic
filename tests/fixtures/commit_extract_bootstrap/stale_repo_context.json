@@ -1,0 +1,79 @@
+{
+  "shared_hints": {
+    "local_capabilities": [
+      "commit-extract",
+      "commit-semantic"
+    ],
+    "aliases": [
+      {
+        "canonical": "commit-extract",
+        "alias": "extract",
+        "kind": "term"
+      }
+    ],
+    "ownership_hints": [
+      {
+        "scope": "commit-extract",
+        "owner": "extract pipeline",
+        "note": "Produces structured commit records"
+      }
+    ],
+    "seed_concepts": [
+      {
+        "name": "repo context",
+        "description": "Shared context prior used by semantic pipelines"
+      }
+    ],
+    "source_provenance": {},
+    "hint_confidence": {},
+    "conflicts": [],
+    "source_snapshot": {
+      "docs": [
+        "README.md",
+        "CLAUDE.md"
+      ],
+      "codebase_map": [
+        ".planning/codebase/ARCHITECTURE.md"
+      ]
+    }
+  },
+  "semantic_context": {
+    "local_capabilities": [
+      "commit-extract",
+      "commit-semantic"
+    ],
+    "ownership_hints": [
+      {
+        "scope": "commit-extract",
+        "owner": "extract pipeline",
+        "note": "Produces structured commit records"
+      }
+    ],
+    "aliases": [
+      {
+        "canonical": "commit-extract",
+        "alias": "extract",
+        "kind": "term"
+      }
+    ],
+    "seed_concepts": [
+      {
+        "name": "repo context",
+        "description": "Shared context prior used by semantic pipelines"
+      }
+    ],
+    "confidence": "medium"
+  },
+  "summary": {
+    "bootstrap_status": "full",
+    "hint_count": 5,
+    "source_counts": {
+      "docs": 2,
+      "codebase_map": 1
+    },
+    "used_cached_context": false,
+    "degraded_reasons": [],
+    "bypass_reason": "stale-context",
+    "fingerprint": "stale-fingerprint"
+  }
+}

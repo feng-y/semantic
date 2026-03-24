@@ -128,6 +128,57 @@ Do NOT treat as mere plumbing by default. If observability, metrics, runtime con
 
 ---
 
+## Input format: how to read commit-extract output
+
+Each commit record contains:
+
+```json
+{
+  "sha": "...",
+  "is_mixed": true,
+  "is_large_aggregate": false,
+  "sections": [
+    {
+      "name": "<section name>",
+      "importance": "primary | secondary",
+      "theme": "<short theme>",
+      "items": [
+        {"op": "<op>", "summary": "<semantic summary>"}
+      ]
+    }
+  ],
+  "rules_invariants": [
+    {"kind": "<kind>", "statement": "<rule>", "enforced_by_commit": true}
+  ]
+}
+```
+
+---
+
+## The op field: use it as signal strength anchor
+
+The `op` field from `commit-extract` encodes the process operation type. **Read it first — it is a prior on signal strength.**
+
+| op | Signal strength | What it means |
+|----|-----------------|---------------|
+| `feat` | **high** | Meaningful process operation — capability added or changed |
+| `fix` / `bugfix` | **high** | Meaningful process operation — incorrect behavior corrected |
+| `optimize` | **high** | Meaningful process operation — performance or resource behavior improved |
+| `compat` | **high or medium** | Meaningful process operation — boundary or contract aligned |
+| `safety` | **high or medium** | Meaningful process operation — crash/hazard prevention added |
+| `refactor` | **medium** (conditional) | Process operation ONLY if it restores a rule, tightens a boundary, or fixes ownership. If it is pure internal cleanup with no behavioral change → down-rank to `low` or skip |
+| `config` | **medium or low** | Pure config/declaration: the operation is "set a value". Only emit if the resulting state has independent semantic meaning |
+| `cleanup` | **medium or low** | Removes dead code, deprecated options. Emit if it eliminates a constraint: "X is no longer available" |
+| `docs` | **low or skip** | Writing docs is the work itself |
+| `test` | **low or skip** | Test coverage added — only emit if it reveals a previously hidden capability or boundary |
+| `other` | **low or skip** | Default fallback — requires specific semantic content to emit |
+
+**Rule of thumb**: if `op` is `feat/fix/optimize/compat/safety`, the signal strength prior is **high** (subject to content quality). If `op` is `config/cleanup/refactor/docs/test/other`, look at the `summary` carefully — require concrete semantic content before emitting a strong signal.
+
+**Do NOT let the op field override your judgment of the summary content** — a `feat` with generic wording (e.g., "update model setting") should not automatically emit a high-confidence signal. Conversely, an `other` with specific semantics (e.g., "eliminate deprecated X endpoint") should emit.
+
+---
+
 ## Few-shot examples
 
 ### Example 1: Strong process operation → emit capability

@@ -28,8 +28,14 @@ class TestFullPipelineE2E:
         assert manifest.exists(), f"manifest.json not found at {manifest}"
 
         data = json.loads(manifest.read_text())
+        repo_context = json.loads((extract_dir / "repo-context.json").read_text())
         assert data["total_shas"] >= 1
         assert len(data["batches"]) >= 1
+        assert set(repo_context.keys()) == {"shared_hints", "semantic_context", "summary"}
+        assert repo_context["summary"]["bootstrap_status"] in {"full", "degraded", "bypass"}
+        assert isinstance(repo_context["summary"]["used_cached_context"], bool)
+        assert isinstance(repo_context["summary"]["degraded_reasons"], list)
+        assert "fingerprint" in repo_context["summary"]
 
     def test_commit_semantic_context_stage_requires_orchestration(self, temp_git_repo: Path, tmp_path: Path):
         extract_dir = tmp_path / "data" / "commit-extract"
@@ -59,7 +65,7 @@ class TestFullPipelineE2E:
     def test_v1_pipeline_produces_expected_artifacts_with_injected_executor(self, temp_git_repo: Path, tmp_path: Path):
         import importlib.util
         from src.harness_state import HarnessState
-        from src.io_utils import save_jsonl, load_json, load_jsonl
+        from src.io_utils import save_jsonl, load_json, load_jsonl, save_json
 
         extract_dir = tmp_path / "data" / "commit-extract"
         semantic_dir = tmp_path / "data" / "commit-semantic"
@@ -74,6 +80,37 @@ class TestFullPipelineE2E:
             for i in range(4)
         ]
         save_jsonl(records, str(extract_dir / "2026-03.jsonl"))
+        save_json(
+            {
+                "shared_hints": {
+                    "local_capabilities": ["shared-bootstrap"],
+                    "aliases": [],
+                    "ownership_hints": [],
+                    "seed_concepts": [],
+                    "source_provenance": {},
+                    "hint_confidence": {},
+                    "conflicts": [],
+                    "source_snapshot": {"docs": ["README.md"], "codebase_map": []},
+                },
+                "semantic_context": {
+                    "local_capabilities": ["shared-bootstrap"],
+                    "ownership_hints": [{"capability": "shared-bootstrap"}],
+                    "aliases": [],
+                    "seed_concepts": [],
+                    "confidence": "low",
+                },
+                "summary": {
+                    "bootstrap_status": "full",
+                    "hint_count": 1,
+                    "source_counts": {"docs": 1, "codebase_map": 0},
+                    "used_cached_context": True,
+                    "degraded_reasons": [],
+                    "bypass_reason": None,
+                    "fingerprint": "shared-bootstrap-fingerprint",
+                },
+            },
+            str(extract_dir / "repo-context.json"),
+        )
 
         module_path = repo_root / "skills" / "commit-semantic" / "run.py"
         spec = importlib.util.spec_from_file_location("commit_semantic_e2e_run", module_path)
@@ -83,6 +120,8 @@ class TestFullPipelineE2E:
 
         mod.EXTRACT_OUTPUT = extract_dir
         mod.SEMANTIC_OUTPUT = semantic_dir
+
+        capability_prompts: list[str] = []
 
         def executor(prompt_text: str, context: dict[str, str], *, artifact_name: str, sampling_mode: str = "auto") -> str:
             if artifact_name == "repo-hints":
@@ -111,6 +150,7 @@ class TestFullPipelineE2E:
                     ]
                 })
             if artifact_name == "capability-candidates":
+                capability_prompts.append(prompt_text)
                 return json.dumps({
                     "capabilities": [
                         {
@@ -142,8 +182,20 @@ class TestFullPipelineE2E:
         assert not (semantic_dir / "domains-aggregated.jsonl").exists()
         assert not (semantic_dir / "canonical-demands.jsonl").exists()
 
+        repo_context = load_json(str(semantic_dir / "repo-context.json"))
         caps = load_jsonl(str(semantic_dir / "capabilities.jsonl"))
         summary = load_json(str(semantic_dir / "summary.json"))
+        assert repo_context["shared_hints"]["local_capabilities"] == ["commit-extract", "commit-semantic"]
+        assert repo_context["semantic_context"]["local_capabilities"] == ["commit-extract", "commit-semantic"]
+        assert capability_prompts
+        assert '"local_capabilities": [\n    "shared-bootstrap"\n  ]' in capability_prompts[0]
+        assert '"local_capabilities": [\n    "commit-extract",\n    "commit-semantic"\n  ]' not in capability_prompts[0]
+        assert repo_context["summary"] == {
+            "bootstrap_status": "degraded",
+            "hint_count": 4,
+            "source_counts": {"docs": 1, "codebase_map": 0},
+        }
+        assert repo_context["summary"]["bootstrap_status"] == "degraded"
         assert len(caps) == 1
         assert caps[0]["capability_id"] == "cap-semantic-grouping"
         assert summary["stable_capability_count"] == 1

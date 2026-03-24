@@ -198,7 +198,89 @@ repo-local understanding docs，例如：
 
 ---
 
-## 9. Repo Hints Contract
+## 9. Docs as Domain Knowledge Expression
+
+Docs are not operation manuals — they are **expressions of domain abstraction and knowledge**.
+
+This distinction is fundamental:
+
+- A doc does not describe "what files changed"
+- A doc expresses "how this repo abstracts its problem space"
+- A doc names the core entities, boundaries, constraints, and invariants
+- A doc encodes the vocabulary the team uses to reason about the system
+
+Therefore, reading docs is not merely extracting capability hints — it is **understanding the domain's abstraction layer before parsing commit semantics**.
+
+### 9.1 Domain Abstraction Components
+
+When reading docs, the system should extract:
+
+**Vocabulary table** — how the repo names things:
+- Core domain terms and their meanings
+- Distinction between core entities and implementation details
+- Aliases and naming conventions
+
+**Architecture layers** — the structure of the system:
+- Major subsystems and their boundaries
+- Ownership and responsibility zones
+- Key interfaces between components
+
+**Key concepts** — the domain's mental model:
+- What are the core abstractions?
+- What invariants hold across the system?
+- What are the operational constraints?
+
+**Boundary rules** — where the system ends:
+- What is internal vs external?
+- What changes require coordination?
+- What are the failure isolation boundaries?
+
+### 9.2 Why This Matters for Extract
+
+Without domain understanding, a commit like "update model setting" has ambiguous semantics — it could be config-only noise or an inference path capability change.
+
+With domain understanding, the extractor can ground the question: **"In this repo's domain, what does changing this setting mean at the capability level?"** — and get a grounded answer rather than guessing from keywords or file paths.
+
+### 9.3 The Corrected Claim
+
+Evidence from A/B testing (DaVinci commits) suggests:
+
+> **Minimal domain hints, distilled from docs, improve extraction quality on ambiguity-sensitive commits by helping the LLM recover the dominant semantic center and latent boundary/invariant semantics — when commit/code evidence overrides the hints.**
+
+This is **not** the same as "docs improve extraction in general." The distinction matters:
+
+- Docs help when **commit meaning is underdetermined** by the record alone
+- Docs can **hurt** when the prior steers instead of grounds (see 9.4)
+- The measure of success is **output quality**, not "better questions asked"
+- Output quality is measurable: semantic center accuracy, invariant recovery rate, fragmentation reduction, evidence grounding ratio
+
+### 9.4 Failure Modes (Hard Constraints)
+
+Domain prior can actively degrade extraction. These are not theoretical — they are observed failure patterns:
+
+**Outdated docs** — docs describe old architecture; prior imports obsolete vocabulary and misreads current commits. Counter: commit/code evidence must override prior when they conflict.
+
+**Idealized docs** — docs describe intended design, not actual behavior; extraction becomes normative ("what should have happened") rather than empirical ("what was done"). Counter: extraction is always from commit/code evidence, never from doc inference.
+
+**Anchoring bias** — prior suggests "this repo is about X," model forces commits into that frame and misses novel or cross-cutting changes. Counter: secondary signals and mixed flags must be preserved even when dominant frame is clear.
+
+**Overcompression** — prior makes the model collapse a mixed commit into one narrative and drops important secondary semantics. Evidence: A/B test showed 14→7 items on a mixed metrics migration; the cleaner storyline could mean better abstraction OR lost secondary signal. Counter: low-confidence secondary signals must be preserved, not suppressed for narrative elegance.
+
+**Hallucinated invariants** — model emits doc-shaped rules that sound correct but lack commit-level evidence. Counter: all rules must have explicit evidence_refs; doc-shaped without commit evidence = rejected.
+
+**Context dilution** — raw docs consume token budget and reduce sensitivity to commit-specific details. Counter: only synthesized minimal hints enter the analysis context; raw docs are only consulted on remaining ambiguity, not the default input.
+
+### 9.5 The Inference Chain
+
+```
+Read docs → Build domain abstraction → Use abstraction as prior for extract
+```
+
+This is why Section 8 says `commit-extract` is an upstream prompt layer — but more precisely, it should be: **extract uses domain abstraction as semantic prior, not just file/keyword matching**.
+
+---
+
+## 10. Repo Hints Contract
 
 repo-local docs 应被合成为最小 hint layer。
 

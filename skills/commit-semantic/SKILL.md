@@ -12,6 +12,8 @@ triggers:
 
 Commit-first, capability-first semantic extraction over `commit-extract` JSONL output.
 
+For this subproject, `commit-semantic` remains the temporary producer of the repo-local semantic context fallback artifacts. The stable layered contract centers on `repo-context.json`; `repo-hints.json` remains a compatibility/input-layer artifact used to derive that grounding view, not a peer semantic asset. When `data/commit-extract/repo-context.json` is present, downstream semantic stages prefer that shared extract context and consume only its `semantic_context` layer. The local `data/commit-semantic/repo-context.json` remains a compatibility fallback when the shared extract artifact is absent.
+
 ## Prerequisites
 
 Requires `data/commit-extract/*.jsonl` files produced by `/commit-extract run`.
@@ -20,12 +22,15 @@ Requires `data/commit-extract/*.jsonl` files produced by `/commit-extract run`.
 
 ### 1. context
 
-Build repo-local semantic priors from lightweight understanding docs.
+Build the layered repo-local semantic context from lightweight understanding docs.
 
 - Reads repo-local understanding docs such as README / architecture / specs when present
 - Synthesizes minimal repo hints: `local_capabilities`, `aliases`, `ownership_hints`, `seed_concepts`
-- Writes `data/commit-semantic/repo-hints.json`
-- Writes `data/commit-semantic/repo-context.json`
+- Writes `data/commit-semantic/repo-hints.json` as the compatibility/input-layer prior artifact
+- Writes `data/commit-semantic/repo-context.json` as the local layered grounding fallback artifact
+- `repo-context.json` is layered as `shared_hints` (reusable context), `semantic_context` (semantic-local interpreted context), and `summary` (provisional schema anchor that will gain stronger semantics later)
+- Downstream V1 stages consume only `semantic_context`; when `data/commit-extract/repo-context.json` exists it wins, otherwise the local semantic artifact is used as a compatibility fallback
+- Keeps producer ownership in `commit-semantic` for now, even though the long-term model may separate shared context production from capability extraction
 
 ### 2. extract-signals
 
@@ -64,12 +69,16 @@ Generate V1 summary artifacts.
 
 ```
 data/commit-semantic/
-  repo-hints.json                 # Repo-local semantic priors
-  repo-context.json               # Repo-local grounding view
+  repo-hints.json                 # Compatibility/input-layer priors used to derive grounding
+  repo-context.json               # Primary repo-local grounding contract for V1
   capabilities-candidates.jsonl   # Capability candidates from commit synthesis
   capabilities.jsonl              # Stable capability layer
   summary.json                    # V1 health / overview output
 ```
+
+`repo-hints.json` and `repo-context.json` are intentionally not the same artifact. The former is a synthesized prior layer and compatibility-only in this subproject; the latter is the canonical layered grounding contract that downstream stages should treat as the stable semantic context surface in V1.
+
+Later subprojects may move producer ownership upstream to `commit-extract`, but that migration has not happened yet here.
 
 ## Usage
 

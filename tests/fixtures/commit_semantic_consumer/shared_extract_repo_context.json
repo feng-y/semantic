@@ -1,0 +1,74 @@
+{
+  "shared_hints": {
+    "local_capabilities": [
+      "shared-extract",
+      "commit-extract"
+    ],
+    "aliases": [
+      {
+        "canonical": "commit-extract",
+        "alias": "extract",
+        "kind": "term"
+      }
+    ],
+    "ownership_hints": [
+      {
+        "scope": "commit-extract",
+        "owner": "extract pipeline",
+        "note": "Shared repo context producer"
+      }
+    ],
+    "seed_concepts": [
+      {
+        "name": "shared repo context",
+        "description": "Layered context emitted by commit-extract"
+      }
+    ],
+    "source_provenance": {},
+    "hint_confidence": {},
+    "conflicts": [],
+    "source_snapshot": {
+      "docs": [
+        "README.md"
+      ],
+      "codebase_map": [
+        ".planning/codebase/ARCHITECTURE.md"
+      ]
+    }
+  },
+  "semantic_context": {
+    "local_capabilities": [
+      "shared-extract",
+      "commit-extract"
+    ],
+    "ownership_hints": [
+      {
+        "scope": "commit-extract",
+        "owner": "extract pipeline",
+        "note": "Shared repo context producer"
+      }
+    ],
+    "aliases": [
+      {
+        "canonical": "commit-extract",
+        "alias": "extract",
+        "kind": "term"
+      }
+    ],
+    "seed_concepts": [
+      {
+        "name": "shared repo context",
+        "description": "Layered context emitted by commit-extract"
+      }
+    ],
+    "confidence": "high"
+  },
+  "summary": {
+    "bootstrap_status": "full",
+    "hint_count": 5,
+    "source_counts": {
+      "docs": 1,
+      "codebase_map": 1
+    }
+  }
+}

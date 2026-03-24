@@ -1,0 +1,41 @@
+{
+  "shared_hints": {
+    "local_capabilities": [
+      "commit-extract",
+      "commit-semantic"
+    ],
+    "aliases": [],
+    "ownership_hints": [],
+    "seed_concepts": [],
+    "source_provenance": {},
+    "hint_confidence": {},
+    "conflicts": [],
+    "source_snapshot": {
+      "docs": [
+        "README.md"
+      ],
+      "codebase_map": []
+    }
+  },
+  "semantic_context": {
+    "local_capabilities": [
+      "commit-extract"
+    ],
+    "ownership_hints": [],
+    "aliases": [],
+    "seed_concepts": [],
+    "confidence": "low"
+  },
+  "summary": {
+    "bootstrap_status": "cached",
+    "hint_count": 2,
+    "source_counts": {
+      "docs": 1,
+      "codebase_map": 0
+    },
+    "used_cached_context": true,
+    "degraded_reasons": [],
+    "bypass_reason": null,
+    "fingerprint": "invalid-runtime-summary-fingerprint"
+  }
+}

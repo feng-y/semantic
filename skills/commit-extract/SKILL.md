@@ -65,11 +65,35 @@ Main Agent (orchestrator = run.py, inherits SkillRunner)
 ```
 /commit-extract run              # Full pipeline: collect → manifest → (workers) → merge
 /commit-extract run --range HEAD~10..HEAD  # Limit range
+/commit-extract run --skip-bootstrap       # Bypass shared bootstrap context for this run
 /commit-extract run --merge      # Merge tmp files only (after workers complete)
 /commit-extract status           # Check current state
 /commit-extract resume           # Continue from breakpoint
 /commit-extract reset            # Clear state, keep artifacts
 ```
+
+## Reliability layer
+
+`commit-extract` now treats shared bootstrap context as an operational layer with explicit runtime modes:
+
+- `full` — fresh valid shared context, inject full `shared_hints`
+- `degraded` — fresh but reduced context; inject reduced `shared_hints` only when non-empty degraded hints remain
+- `bypass` — missing / invalid / stale / explicitly skipped context, inject no shared hints
+
+Operational nuance:
+- `degraded` with `reduced-shared-hints` → inject a reduced `shared_hints` block
+- `degraded` with `empty-shared-hints` → inject no shared hints (runtime behaves like no prior, but remains `degraded` rather than `bypass`)
+
+Operational summary fields live in `data/commit-extract/repo-context.json` under `summary`:
+- `bootstrap_status`
+- `hint_count`
+- `source_counts`
+- `used_cached_context`
+- `degraded_reasons`
+- `bypass_reason`
+- `fingerprint`
+
+`--skip-bootstrap` is a narrow debug bypass: it forces `bootstrap_status=bypass`, skips hint injection, but still lets collect proceed and write the manifest.
 
 ## Resume / Incremental
 
