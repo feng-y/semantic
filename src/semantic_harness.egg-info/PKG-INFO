@@ -1,6 +1,6 @@
 Metadata-Version: 2.4
 Name: semantic-harness
-Version: 0.0.1
+Version: 0.0.2
 Summary: Evidence-driven semantic construction pipeline for Claude Code
 License: MIT
 Project-URL: Homepage, https://github.com/feng-y/semantic
