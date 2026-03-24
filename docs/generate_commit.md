@@ -95,6 +95,7 @@ Op classification rules:
 - Prefer `safety` when the change primarily prevents crashes, use-after-free, invalid lifetime, invalid ownership, unsafe reuse, or unsafe partial-failure behavior
 - Prefer `compat` when the main meaning is aligning with an existing contract, output format, protocol, or downstream expectation
 - Prefer `config` only when the change meaningfully changes operator-facing behavior or runtime control, not for mere declaration of a flag, constant, or config file (`.yaml`, `.json`, `.toml`, `.ini`, `.conf`, env vars)
+- **Removing deprecated settings, flags, or config values** is not `config` — it is `cleanup` or `other`: the operation is "eliminate a constraint or option", not "set a value". Use `cleanup` when removing dead code or unused options; use `other` when the intent is to remove a deprecated capability.
 - Prefer `optimize` only when the change meaningfully improves performance or resource usage and that is part of the historical meaning
 - If a change mainly enforces a required rule or invariant, classify it as `bugfix` or `safety` rather than `refactor`
 
