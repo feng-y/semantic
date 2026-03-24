@@ -327,8 +327,8 @@ class CommitExtractRunner(SkillRunner):
 
         # 4. Confirm before LLM extraction
         if not self._confirm_extraction(len(new_shas)):
-            print("  Cancelled by user")
-            return True
+            print("  Cancelled — non-interactive mode requires --yes flag")
+            return False
 
         # 5. Weight estimation via git show --stat
         print(f"  Estimating weights for {len(new_shas)} commits...")
@@ -399,18 +399,36 @@ class CommitExtractRunner(SkillRunner):
             total_batches = manifest.get("total_batches", 0)
             total_shas = manifest.get("total_shas", 0)
 
-            # Count completed batches
-            completed = 0
-            for batch in manifest.get("batches", []):
-                output_file = Path(batch.get("output_path", ""))
-                if output_file.exists() and output_file.stat().st_size > 0:
-                    completed += 1
+            # Count completed batches by actual SHA count, not file existence.
+            # - Before merge: batch_*.jsonl files exist; count JSONL lines
+            # - After merge: batch files are deleted by merge_tmp_files();
+            #   count SHAs from merged YYYY-MM.jsonl files instead
+            pending_batch_files = list(TMP_DIR.glob("batch_*.jsonl"))
+            if pending_batch_files:
+                # Batch files still exist — count lines per batch
+                completed = 0
+                for batch in manifest.get("batches", []):
+                    output_file = Path(batch.get("output_path", ""))
+                    if output_file.exists():
+                        sha_count = sum(1 for _ in load_jsonl(str(output_file), skip_errors=True))
+                        # A batch is complete when it has all its SHAs
+                        if sha_count >= batch.get("sha_count", 1):
+                            completed += 1
+            else:
+                # Batch files deleted — merge already ran; use merged output
+                completed = total_batches
+                total_shas = sum(
+                    1 for _ in load_jsonl(str(f), skip_errors=True)
+                    for f in OUTPUT_BASE.glob("*.jsonl")
+                )
 
             print(f"\n  Workers:")
             print(f"    Total batches: {total_batches}")
             print(f"    Completed: {completed}/{total_batches}")
             print(f"    Pending: {total_batches - completed}")
             print(f"    Total SHAs to extract: {total_shas}")
+            if not pending_batch_files:
+                print(f"    SHAs merged into output: {total_shas}")
 
             if completed < total_batches:
                 print(f"\n  Run workers to process pending batches:")
