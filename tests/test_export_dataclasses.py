@@ -1,4 +1,4 @@
-"""Tests for CaseRecord/ExportSummary dataclasses + new _run_export integration."""
+"""Tests for CaseRecord/ExportSummary dataclasses + commit-semantic V1 summary export."""
 
 from __future__ import annotations
 
@@ -14,12 +14,10 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from src.types import CaseRecord, ExportSummary
 from src.harness_state import HarnessState
+from src.io_utils import save_jsonl
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
 
 def _make_case(
     case_id="c1",
@@ -45,9 +43,6 @@ def _make_case(
         "pattern_id": "",
     }
 
-# ---------------------------------------------------------------------------
-# CaseRecord tests
-# ---------------------------------------------------------------------------
 
 class TestCaseRecord:
     def test_from_dict_roundtrip(self):
@@ -91,10 +86,6 @@ class TestCaseRecord:
         actual_keys = {f.name for f in dataclasses.fields(CaseRecord)}
         assert actual_keys == expected_keys
 
-
-# ---------------------------------------------------------------------------
-# ExportSummary tests (dataclass still exists for backward compat)
-# ---------------------------------------------------------------------------
 
 class TestExportSummary:
     def _make_summary(self, **overrides):
@@ -145,10 +136,6 @@ class TestExportSummary:
         assert s.invalid_reason_top_n == {}
 
 
-# ---------------------------------------------------------------------------
-# _run_export integration tests (new 4-stage pipeline)
-# ---------------------------------------------------------------------------
-
 _RUN_SPEC = importlib.util.spec_from_file_location(
     "commit_semantic_run", str(REPO_ROOT / "skills" / "commit-semantic" / "run.py")
 )
@@ -158,106 +145,86 @@ CommitSemanticRunner = _RUN_MOD.CommitSemanticRunner
 
 
 class TestRunExport:
-    """Test _run_export() generates correct summary.json output."""
-
     @pytest.fixture(autouse=True)
     def setup(self, tmp_path):
         self.semantic_dir = tmp_path / "data" / "commit-semantic"
         self.semantic_dir.mkdir(parents=True)
-        (self.semantic_dir / "units").mkdir(parents=True)
         self._orig = _RUN_MOD.SEMANTIC_OUTPUT
         _RUN_MOD.SEMANTIC_OUTPUT = self.semantic_dir
         yield
         _RUN_MOD.SEMANTIC_OUTPUT = self._orig
 
-    def _write_fixtures(self, units, patterns=None, demands=None, invariants=None):
-        from src.io_utils import save_jsonl
-        save_jsonl(units, str(self.semantic_dir / "units" / "all.jsonl"))
-        save_jsonl(patterns or [], str(self.semantic_dir / "domains-aggregated.jsonl"))
-        save_jsonl(demands or [], str(self.semantic_dir / "canonical-demands.jsonl"))
-        save_jsonl(invariants or [], str(self.semantic_dir / "invariants.jsonl"))
+    def _write_fixtures(self, candidates=None, stable=None):
+        save_jsonl(candidates or [], str(self.semantic_dir / "capabilities-candidates.jsonl"))
+        save_jsonl(stable or [], str(self.semantic_dir / "capabilities.jsonl"))
 
     def test_returns_true_and_writes_summary_json(self):
-        self._write_fixtures([
-            {"sha": "a", "date": "2026-03-01", "op": "feat", "summary": "add login"},
-            {"sha": "b", "date": "2026-03-02", "op": "bugfix", "summary": "fix bug"},
-        ])
-        runner = CommitSemanticRunner()
-        result = runner._run_export(HarnessState())
-        assert result is True
-        assert (self.semantic_dir / "summary.json").exists()
-
-    def test_counts_ops_correctly(self):
-        self._write_fixtures([
-            {"sha": "a", "date": "2026-03-01", "op": "feat", "summary": "s1"},
-            {"sha": "b", "date": "2026-03-02", "op": "bugfix", "summary": "s2"},
-            {"sha": "c", "date": "2026-03-03", "op": "refactor", "summary": "s3"},
-            {"sha": "d", "date": "2026-03-04", "op": "other", "summary": "s4"},
-        ])
-        runner = CommitSemanticRunner()
-        runner._run_export(HarnessState())
-        from src.io_utils import load_json
-        summary = load_json(str(self.semantic_dir / "summary.json"))
-        assert summary["op_distribution"]["feat"] == 1
-        assert summary["op_distribution"]["bugfix"] == 1
-        assert summary["op_distribution"]["refactor"] == 1
-
-    def test_bugfix_ratio_calculation(self):
-        self._write_fixtures([
-            {"sha": "a", "date": "2026-03-01", "op": "bugfix", "summary": "s1"},
-            {"sha": "b", "date": "2026-03-02", "op": "bugfix", "summary": "s2"},
-            {"sha": "c", "date": "2026-03-03", "op": "feat", "summary": "s3"},
-            {"sha": "d", "date": "2026-03-04", "op": "feat", "summary": "s4"},
-        ])
-        runner = CommitSemanticRunner()
-        runner._run_export(HarnessState())
-        from src.io_utils import load_json
-        summary = load_json(str(self.semantic_dir / "summary.json"))
-        assert abs(summary["bugfix_ratio"] - 0.5) < 1e-9
-
-    def test_empty_units_produces_valid_summary(self):
-        self._write_fixtures([])
-        runner = CommitSemanticRunner()
-        result = runner._run_export(HarnessState())
-        assert result is True
-        assert (self.semantic_dir / "summary.json").exists()
-        from src.io_utils import load_json
-        summary = load_json(str(self.semantic_dir / "summary.json"))
-        assert summary["total_units"] == 0
-
-    def test_summary_json_is_json_serializable(self):
-        self._write_fixtures([
-            {"sha": "a", "date": "2026-03-01", "op": "feat", "summary": "s1"},
-        ])
-        runner = CommitSemanticRunner()
-        runner._run_export(HarnessState())
-        from src.io_utils import load_json
-        summary = load_json(str(self.semantic_dir / "summary.json"))
-        json.dumps(summary)  # must not raise
-        assert "total_units" in summary
-        assert "bugfix_ratio" in summary
-
-    def test_top_domains_in_summary(self):
         self._write_fixtures(
-            units=[{"sha": "a", "date": "2026-03-01", "op": "feat", "summary": "s1", "domain": "auth"}],
-            demands=[
-                {"domain": "auth", "final_score": 10.0, "distinct_commits": 5, "rank": 1},
-                {"domain": "api", "final_score": 8.0, "distinct_commits": 4, "rank": 2},
+            candidates=[
+                {"capability_id": "cap-a", "canonical_name": "a", "evidence_refs": ["sha:a"], "confidence": "high"},
+            ],
+            stable=[
+                {"capability_id": "cap-a", "canonical_name": "a", "evidence_refs": ["sha:a"], "confidence": "high"},
             ],
         )
         runner = CommitSemanticRunner()
-        runner._run_export(HarnessState())
+        result = runner._run_export(HarnessState(metadata={"signal_count": 1}))
+        assert result is True
+        assert (self.semantic_dir / "summary.json").exists()
+
+    def test_summary_contains_v1_health_fields(self):
+        self._write_fixtures(
+            candidates=[
+                {"capability_id": "cap-a", "canonical_name": "a", "observed_names": ["a"], "evidence_refs": ["sha:a", "summary:a"], "confidence": "high", "flags": []},
+                {"capability_id": "cap-b", "canonical_name": "b", "observed_names": ["legacy-b"], "evidence_refs": ["sha:b"], "confidence": "low", "flags": ["mixed", "low_signal"]},
+            ],
+            stable=[
+                {"capability_id": "cap-a", "canonical_name": "a", "observed_names": ["a"], "evidence_refs": ["sha:a", "summary:a"], "confidence": "high"},
+                {"capability_id": "cap-b", "canonical_name": "b", "observed_names": ["legacy-b"], "evidence_refs": ["sha:b"], "confidence": "low"},
+            ],
+        )
+        runner = CommitSemanticRunner()
+        runner._run_export(HarnessState(metadata={"signal_count": 3}))
         from src.io_utils import load_json
         summary = load_json(str(self.semantic_dir / "summary.json"))
-        top = summary["top_domains"]
-        assert len(top) == 2
-        assert top[0]["domain"] == "auth"
-        assert top[0]["final_score"] == 10.0
+        assert summary["signal_count"] == 3
+        assert summary["capability_candidate_count"] == 2
+        assert summary["stable_capability_count"] == 2
+        assert 0 <= summary["mixed_ratio"] <= 1
+        assert 0 <= summary["low_signal_ratio"] <= 1
+        assert 0 <= summary["evidence_coverage"] <= 1
+        assert "naming_drift_count" in summary
 
-    def test_export_removes_legacy_artifacts_and_keeps_new_outputs(self):
-        self._write_fixtures([
-            {"sha": "a", "date": "2026-03-01", "op": "feat", "summary": "s1", "domain": "auth"},
-        ])
+    def test_empty_candidates_produce_valid_summary(self):
+        self._write_fixtures([], [])
+        runner = CommitSemanticRunner()
+        result = runner._run_export(HarnessState())
+        assert result is True
+        from src.io_utils import load_json
+        summary = load_json(str(self.semantic_dir / "summary.json"))
+        assert summary["signal_count"] == 0
+        assert summary["capability_candidate_count"] == 0
+        assert summary["stable_capability_count"] == 0
+        assert summary["evidence_coverage"] == 0.0
+
+    def test_summary_json_is_json_serializable(self):
+        self._write_fixtures(
+            candidates=[{"capability_id": "cap-a", "canonical_name": "a", "evidence_refs": ["sha:a"], "confidence": "high"}],
+            stable=[{"capability_id": "cap-a", "canonical_name": "a", "evidence_refs": ["sha:a"], "confidence": "high"}],
+        )
+        runner = CommitSemanticRunner()
+        runner._run_export(HarnessState(metadata={"signal_count": 1}))
+        from src.io_utils import load_json
+        summary = load_json(str(self.semantic_dir / "summary.json"))
+        json.dumps(summary)
+        assert "capability_candidate_count" in summary
+        assert "stable_capability_count" in summary
+
+    def test_export_removes_legacy_artifacts(self):
+        self._write_fixtures(
+            candidates=[{"capability_id": "cap-a", "canonical_name": "a", "evidence_refs": ["sha:a"], "confidence": "high"}],
+            stable=[{"capability_id": "cap-a", "canonical_name": "a", "evidence_refs": ["sha:a"], "confidence": "high"}],
+        )
         (self.semantic_dir / "patterns").mkdir()
         (self.semantic_dir / "patterns" / "legacy.json").write_text("{}", encoding="utf-8")
         (self.semantic_dir / "canonical-demands.yaml").write_text("legacy: true\n", encoding="utf-8")
@@ -267,32 +234,21 @@ class TestRunExport:
         (self.semantic_dir / "non-functional" / "legacy.md").write_text("legacy", encoding="utf-8")
 
         runner = CommitSemanticRunner()
-        runner._run_export(HarnessState())
+        runner._run_export(HarnessState(metadata={"signal_count": 1}))
 
         assert (self.semantic_dir / "summary.json").exists()
-        assert (self.semantic_dir / "canonical-demands.jsonl").exists()
         assert not (self.semantic_dir / "patterns").exists()
         assert not (self.semantic_dir / "canonical-demands.yaml").exists()
         assert not (self.semantic_dir / "functional").exists()
         assert not (self.semantic_dir / "non-functional").exists()
 
-        from src.io_utils import load_json
-        summary = load_json(str(self.semantic_dir / "summary.json"))
-        assert summary["removed_legacy_paths"] == [
-            "patterns",
-            "canonical-demands.yaml",
-            "functional",
-            "non-functional",
-        ]
-
     def test_export_is_idempotent_when_no_legacy_artifacts_exist(self):
-        self._write_fixtures([
-            {"sha": "a", "date": "2026-03-01", "op": "feat", "summary": "s1", "domain": "auth"},
-        ])
-
+        self._write_fixtures(
+            candidates=[{"capability_id": "cap-a", "canonical_name": "a", "evidence_refs": ["sha:a"], "confidence": "high"}],
+            stable=[{"capability_id": "cap-a", "canonical_name": "a", "evidence_refs": ["sha:a"], "confidence": "high"}],
+        )
         runner = CommitSemanticRunner()
-        runner._run_export(HarnessState())
-
+        runner._run_export(HarnessState(metadata={"signal_count": 1}))
         from src.io_utils import load_json
         summary = load_json(str(self.semantic_dir / "summary.json"))
-        assert "removed_legacy_paths" not in summary
+        assert "capability_candidate_count" in summary
