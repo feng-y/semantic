@@ -51,6 +51,15 @@ Section rules:
 - Fold observability, tests, config declarations, cleanup, and supporting refactors into the main section they support unless they are independently meaningful changes
 - Prefer fewer, stronger sections over many small supporting sections
 
+**ANTI-PATTERNS — NEVER use these section names:**
+- "Code changes" — this is the most common failure mode; it says nothing about semantics
+- "Configuration behavior" — used as a catch-all for anything config-related; too generic
+- "Runtime behavior" — vague bucket that means different things to different people
+- "Observability" — too broad; if it's about metrics, name it "Serving metrics"; if it's about tracing, name it "Request tracing"
+- "Operations" — meaningless unless qualified (e.g., "Model operations", "Feature operations")
+
+**Section naming test:** If your section name could describe 50%+ of all commits in this repo, it is too generic. Pick a name that describes this commit's specific subsystem or change type.
+
 Semantic item rules:
 - Each item should describe one meaningful change at the functional or subsystem level
 - Use `op` to describe the semantic nature of the change
