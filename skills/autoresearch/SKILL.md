@@ -81,6 +81,8 @@ Minimum required files:
 - `changelog.md`
 
 If they do not exist, initialize them from templates before starting.
+Templates live in `assets/templates/`.
+Detailed file-role guidance lives in `references/workflow.md`.
 
 ## Modes
 
